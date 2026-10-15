@@ -279,6 +279,8 @@ export interface GuestContextDTO {
   outlet: {
     id: string;
     name: string;
+    /** Cacheable public menu, e.g. /public/menu/{tenant}/{outlet}; append ?v=<menu_version>. */
+    menu_path: string;
     prices_include_tax: boolean;
     service_charge_bp: number;
     service_charge_tax_rate_bp: number;

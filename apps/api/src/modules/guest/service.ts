@@ -21,6 +21,7 @@ export async function guestContext(tx: Tx, outletId: string, tableId: string): P
     .select([
       'tables.id as table_id',
       'tables.label',
+      'tables.tenant_id',
       'outlets.id as outlet_id',
       'outlets.name as outlet_name',
       'outlets.prices_include_tax',
@@ -41,6 +42,7 @@ export async function guestContext(tx: Tx, outletId: string, tableId: string): P
     outlet: {
       id: row.outlet_id,
       name: row.outlet_name,
+      menu_path: `/public/menu/${row.tenant_id}/${row.outlet_id}`,
       prices_include_tax: row.prices_include_tax,
       service_charge_bp: row.service_charge_bp,
       service_charge_tax_rate_bp: row.service_charge_tax_rate_bp,

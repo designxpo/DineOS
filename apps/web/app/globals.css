@@ -1,0 +1,105 @@
+@import 'tailwindcss';
+
+/* DineOS design tokens. Warm neutrals, one brand colour (tenants can override --brand on the
+   guest menu), and fixed status colours so a table means the same thing on every screen. */
+@theme {
+  --font-sans: var(--font-inter), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+
+  --color-brand-50: #fdf4ef;
+  --color-brand-100: #fae5d8;
+  --color-brand-200: #f4c7ad;
+  --color-brand-500: #c2531f;
+  --color-brand-600: #a8441a;
+  --color-brand-700: #8a3717;
+  --color-brand-900: #4a1d0c;
+
+  --color-ink: #1c1917;
+  --color-ink-soft: #57534e;
+  --color-ink-faint: #78716c;
+  --color-line: #e7e2dc;
+  --color-paper: #fbf9f6;
+  --color-surface: #ffffff;
+
+  --color-veg: #1f8a3b;
+  --color-nonveg: #8b3a1b;
+
+  /* table and order states */
+  --color-state-vacant: #a8a29e;
+  --color-state-occupied: #0284c7;
+  --color-state-ordered: #d97706;
+  --color-state-served: #059669;
+  --color-state-bill: #7c3aed;
+  --color-state-clean: #e11d48;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.06), 0 1px 1px rgb(28 25 23 / 0.04);
+  --shadow-pop: 0 10px 30px -10px rgb(28 25 23 / 0.35);
+
+  --animate-sheet-in: sheet-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
+
+  @keyframes sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgb(217 119 6 / 0.55); }
+    100% { box-shadow: 0 0 0 12px rgb(217 119 6 / 0); }
+  }
+}
+
+:root {
+  --brand: var(--color-brand-600);
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* Money and counts line up in columns. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Thermal-printer sized pages for the browser print fallback. */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 4mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
