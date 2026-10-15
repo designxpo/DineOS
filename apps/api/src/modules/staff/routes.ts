@@ -121,7 +121,10 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         const [target] = await staffList(tx, [id]);
         if (!target) throw notFound('Staff member');
         // Managers cannot touch owners or other managers, nor staff at outlets they do not manage.
-        assertCanGrant(auth, target.roles);
+        // Re-sending the same roles is not a change (the editor always sends them).
+        const key = (rs: { outlet_id: string | null; role: string }[]) => rs.map((r) => `${r.outlet_id}:${r.role}`).sort().join('|');
+        if (body.roles && key(body.roles) === key(target.roles)) delete body.roles;
+        if (id !== auth.userId) assertCanGrant(auth, target.roles);
         if (body.roles) assertCanGrant(auth, body.roles);
         if (id === auth.userId && (body.status === 'disabled' || body.roles)) {
           throw badRequest('self_change', 'You cannot disable yourself or change your own roles');

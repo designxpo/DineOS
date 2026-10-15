@@ -1,13 +1,14 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Ban, Clock, HandPlatter, Printer, QrCode, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
+import { Ban, Clock, HandPlatter, Pencil, Printer, QrCode, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import type { OrderDTO } from '@dineos/shared/dto';
 import type { OrderStatus } from '@dineos/shared/enums';
 import { ApiError, errorMessage } from '@/lib/api';
 import { ago, formatPaise, minutesSince } from '@/lib/format';
 import { send } from '@/lib/outbox';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -15,6 +16,7 @@ import { ConfirmDialog } from '@/components/ui/overlay';
 import { Badge, Textarea, VegMark } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { useWithApproval } from './approval';
+import { EditOrderSheet } from './edit-order';
 
 export const STATUS_TONE: Record<OrderStatus, 'amber' | 'blue' | 'violet' | 'green' | 'neutral' | 'rose'> = {
   placed: 'amber',
@@ -92,9 +94,11 @@ export function useOrderActions() {
 
 export function OrderCard({ order, highlight, compact }: { order: OrderDTO; highlight?: boolean; compact?: boolean }) {
   const { can } = useStaff();
+  const { t } = useI18n();
   const { setStatus, reprint, busy } = useOrderActions();
   const [rejecting, setRejecting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [reason, setReason] = useState('');
   const mins = minutesSince(order.accepted_at ?? order.placed_at);
   const late = order.status !== 'placed' && order.status !== 'served' && mins >= 20;
@@ -103,15 +107,15 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
 
   const primary: { status: OrderStatus; label: string; variant?: 'primary' | 'success' } | null =
     order.status === 'placed' && can('order.accept')
-      ? { status: 'accepted', label: 'Accept' }
+      ? { status: 'accepted', label: t('act.accept') }
       : order.status === 'accepted' && can('order.kitchen')
-        ? { status: 'preparing', label: 'Start preparing' }
+        ? { status: 'preparing', label: t('act.start') }
         : order.status === 'preparing' && can('order.kitchen')
-          ? { status: 'ready', label: 'Mark ready', variant: 'success' }
+          ? { status: 'ready', label: t('act.ready'), variant: 'success' }
           : order.status === 'ready' && can('order.serve')
-            ? { status: 'served', label: 'Mark served', variant: 'success' }
+            ? { status: 'served', label: t('act.served'), variant: 'success' }
             : (order.status === 'accepted' || order.status === 'preparing') && can('order.serve')
-              ? { status: 'served', label: 'Mark served' }
+              ? { status: 'served', label: t('act.served') }
               : null;
 
   return (
@@ -124,11 +128,11 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
     >
       <header className="p-4 pb-2">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-lg font-semibold text-ink">{order.table_label ? `Table ${order.table_label}` : order.type === 'takeaway' ? 'Takeaway' : 'Counter'}</h3>
+          <h3 className="truncate text-lg font-semibold text-ink">{order.table_label ? t('order.table', { label: order.table_label }) : order.type === 'takeaway' ? t('order.takeaway') : t('order.counter')}</h3>
           <p className="shrink-0 pt-0.5 text-sm font-semibold tabular">{formatPaise(order.subtotal_paise)}</p>
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-faint">
-          <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
+          <Badge tone={STATUS_TONE[order.status]}>{t(`order.${order.status}` as I18nKey)}</Badge>
           <span className="font-medium text-ink-soft">#{order.order_no}</span>
           <span className="inline-flex items-center gap-1">
             <Source.icon className="size-3.5" /> {Source.label}
@@ -143,7 +147,7 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
 
       {order.flagged && order.status === 'placed' && (
         <p className="mx-4 mb-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900">
-          <ShieldAlert className="size-3.5" /> First order from a new phone at this table
+          <ShieldAlert className="size-3.5" /> {t('order.new_device')}
         </p>
       )}
 
@@ -160,7 +164,7 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
             </span>
             {order.status !== 'placed' && i.status !== order.status && i.status !== 'cancelled' && (
               <Badge tone={STATUS_TONE[i.status as OrderStatus] ?? 'neutral'} className="text-[10px]">
-                {STATUS_LABEL[i.status as OrderStatus] ?? i.status}
+                {t(`item.${i.status}` as I18nKey)}
               </Badge>
             )}
           </li>
@@ -183,21 +187,31 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
           )}
           {order.status === 'placed' && can('order.accept') && (
             <Button variant="outline" onClick={() => setRejecting(true)}>
-              Reject
+              {t('act.reject')}
             </Button>
+          )}
+          {order.status === 'placed' && can('order.edit_items') && (
+            <IconButton label={t('act.edit')} onClick={() => setEditing(true)}>
+              <Pencil className="size-[18px]" />
+            </IconButton>
           )}
           {order.status !== 'placed' && (
             <div className="ml-auto flex items-center">
+              {can('order.edit_items') && (
+                <IconButton label={t('act.edit')} onClick={() => setEditing(true)}>
+                  <Pencil className="size-[18px]" />
+                </IconButton>
+              )}
               {(order.status === 'accepted' || order.status === 'preparing') && can('order.serve') && primary?.status !== 'served' && (
-                <IconButton label="Mark served (skip kitchen steps)" onClick={() => void setStatus(order, 'served')}>
+                <IconButton label={t('act.skip_served')} onClick={() => void setStatus(order, 'served')}>
                   <HandPlatter className="size-[18px]" />
                 </IconButton>
               )}
-              <IconButton label="Reprint kitchen ticket" onClick={() => void reprint(order)}>
+              <IconButton label={t('act.reprint')} onClick={() => void reprint(order)}>
                 <Printer className="size-[18px]" />
               </IconButton>
               {can('order.edit_items') && (
-                <IconButton label="Cancel order" onClick={() => setCancelling(true)}>
+                <IconButton label={t('act.cancel')} onClick={() => setCancelling(true)}>
                   <Ban className="size-[18px]" />
                 </IconButton>
               )}
@@ -206,6 +220,7 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
         </footer>
       )}
 
+      {editing && <EditOrderSheet order={order} open={editing} onClose={() => setEditing(false)} />}
       <ConfirmDialog
         open={rejecting}
         onClose={() => setRejecting(false)}

@@ -7,11 +7,12 @@ import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
-import type { BillDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
+import type { BillDTO, BillLineDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
 import { send } from '@/lib/outbox';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -23,21 +24,23 @@ import { ReasonPicker } from '@/components/staff/orders';
 
 type Invoice = InvoiceDTO & { upi_uri: string | null };
 
-const METHODS: { value: PaymentMethod; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'cash', label: 'Cash', icon: Banknote },
-  { value: 'upi', label: 'UPI', icon: Smartphone },
-  { value: 'card_slip', label: 'Card', icon: CreditCard },
-  { value: 'other', label: 'Other', icon: Wallet },
+const METHODS: { value: PaymentMethod; label: I18nKey; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'cash', label: 'pay.cash', icon: Banknote },
+  { value: 'upi', label: 'pay.upi', icon: Smartphone },
+  { value: 'card_slip', label: 'pay.card', icon: CreditCard },
+  { value: 'other', label: 'pay.other', icon: Wallet },
 ];
 
 export default function BillPage() {
   const { id } = useParams<{ id: string }>();
   const { api, can } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const router = useRouter();
   const withApproval = useWithApproval();
   const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void'>(null);
+  const [lineDiscount, setLineDiscount] = useState<BillLineDTO | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const q = useQuery({ queryKey: ['bill', id], queryFn: () => api<Invoice>(`/bills/${id}/invoice`) });
@@ -112,7 +115,13 @@ export default function BillPage() {
               {bill.lines.map((l) => (
                 <tr key={l.id}>
                   <td className="px-4 py-2.5">
-                    {l.name}
+                    {draft && can('bill.manage') && l.order_item_id ? (
+                      <button className="cursor-pointer text-left underline-offset-2 hover:underline" onClick={() => setLineDiscount(l)} title="Discount this dish">
+                        {l.name}
+                      </button>
+                    ) : (
+                      l.name
+                    )}
                     {l.seat_no && <span className="ml-1 text-xs text-ink-faint">seat {l.seat_no}</span>}
                     {l.item_discount_paise > 0 && <span className="block text-xs text-emerald-700">− {formatPaise(l.item_discount_paise)} off</span>}
                   </td>
@@ -135,7 +144,7 @@ export default function BillPage() {
             ))}
             {bill.round_off_paise !== 0 && <Row label="Round off" value={formatPaise(bill.round_off_paise)} />}
             <div className="flex items-baseline justify-between border-t border-line pt-2">
-              <dt className="font-semibold">Total</dt>
+              <dt className="font-semibold">{t('bill.total')}</dt>
               <dd className="font-display text-3xl font-semibold tabular">{formatPaise(bill.total_paise)}</dd>
             </div>
           </dl>
@@ -146,10 +155,10 @@ export default function BillPage() {
             <Card className="space-y-3 p-4">
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => setSheet('discount')}>
-                  <Percent className="size-4" /> Discount
+                  <Percent className="size-4" /> {t('bill.discount')}
                 </Button>
                 <Button variant="outline" onClick={() => setSheet('split')}>
-                  <Scissors className="size-4" /> Split
+                  <Scissors className="size-4" /> {t('bill.split')}
                 </Button>
                 <Button variant="outline" onClick={() => setSheet('customer')}>
                   <FileText className="size-4" /> Business GSTIN
@@ -179,7 +188,7 @@ export default function BillPage() {
                 loading={busy === 'finalise'}
                 onClick={() => void act('finalise', () => api<BillDTO>(`/bills/${id}/finalise`, { method: 'POST' }), 'Bill printed: invoice number assigned')}
               >
-                <Printer className="size-5" /> Print bill · {formatPaise(bill.total_paise)}
+                <Printer className="size-5" /> {t('bill.print')} · {formatPaise(bill.total_paise)}
               </Button>
               <p className="text-center text-xs text-ink-faint">Printing assigns the GST invoice number. After that, changes need a void.</p>
             </Card>
@@ -209,6 +218,14 @@ export default function BillPage() {
       </div>
 
       <DiscountSheet bill={bill} open={sheet === 'discount'} onClose={() => setSheet(null)} onSave={(body) => act('discount', (approval) => api(`/bills/${id}`, { method: 'PATCH', body, approvalToken: approval }), 'Discount applied').then((ok) => ok && setSheet(null))} />
+      {lineDiscount && (
+        <LineDiscountSheet
+          bill={bill}
+          line={lineDiscount}
+          onClose={() => setLineDiscount(null)}
+          onSave={(body) => act('discount', (approval) => api(`/bills/${id}`, { method: 'PATCH', body, approvalToken: approval }), 'Dish discount applied').then((ok) => ok && setLineDiscount(null))}
+        />
+      )}
       <SplitSheet bill={bill} open={sheet === 'split'} onClose={() => setSheet(null)} onSplit={async (body) => {
         setBusy('split');
         try {
@@ -241,6 +258,7 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
 
 function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string | null; onPaid: () => Promise<void> }) {
   const { token } = useStaff();
+  const { t } = useI18n();
   const toast = useToast();
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const shares = bill.amount_shares;
@@ -291,9 +309,9 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-semibold">Take payment</h2>
+        <h2 className="font-semibold">{t('bill.take_payment')}</h2>
         <p className="text-sm text-ink-soft">
-          Due <span className="font-semibold text-ink tabular">{formatPaise(bill.balance_paise)}</span>
+          {t('bill.due')} <span className="font-semibold text-ink tabular">{formatPaise(bill.balance_paise)}</span>
         </p>
       </div>
       {shares && (
@@ -313,13 +331,13 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
             aria-pressed={method === m.value}
             className={cn('flex h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold', method === m.value ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line text-ink-soft hover:bg-stone-50')}
           >
-            <m.icon className="size-5" /> {m.label}
+            <m.icon className="size-5" /> {t(m.label)}
           </button>
         ))}
       </div>
-      <Field label="Amount (₹)">{(fid) => <Input id={fid} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="text-lg font-semibold tabular" />}</Field>
+      <Field label={t('bill.amount')}>{(fid) => <Input id={fid} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="text-lg font-semibold tabular" />}</Field>
       {method === 'cash' && (
-        <Field label="Cash received (₹)" hint={change !== null && change >= 0 ? `Return ${formatPaise(change)}` : 'Optional, to work out the change'}>
+        <Field label={t('bill.cash_received')} hint={change !== null && change >= 0 ? t('bill.return', { amount: formatPaise(change) }) : 'Optional, to work out the change'}>
           {(fid) => <Input id={fid} value={tendered} onChange={(e) => setTendered(e.target.value)} inputMode="decimal" />}
         </Field>
       )}
@@ -340,7 +358,7 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
         <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={method === 'card_slip' ? 'Card slip number' : 'Reference, e.g. room 412'} aria-label="Reference" />
       )}
       <Button size="lg" block variant="success" loading={busy} onClick={() => void pay()}>
-        Confirm {formatPaise(Math.max(0, amountPaise))} received
+        {t('bill.confirm', { amount: formatPaise(Math.max(0, amountPaise)) })}
       </Button>
     </Card>
   );
@@ -369,7 +387,7 @@ function PaymentList({ payments, canRefund, onRefund }: { payments: PaymentDTO[]
         {payments.map((p) => (
           <li key={p.id} className="flex items-center gap-3 py-2">
             <span className={cn('flex-1', p.kind === 'refund' && 'text-rose-700')}>
-              {p.kind === 'refund' ? 'Refund' : METHODS.find((m) => m.value === p.method)?.label} · {time(p.created_at)}
+              {p.kind === 'refund' ? 'Refund' : <MethodLabel method={p.method} />} · {time(p.created_at)}
               {p.reference && p.kind === 'payment' && <span className="block text-xs text-ink-faint">{p.reference}</span>}
               {p.change_paise ? <span className="block text-xs text-ink-faint">change {formatPaise(p.change_paise)}</span> : null}
             </span>
@@ -515,4 +533,49 @@ function VoidDialog({ open, onClose, onConfirm, busy }: { open: boolean; onClose
       <ReasonPicker reasons={['Wrong table', 'Items billed twice', 'Guest disputed bill']} value={reason} onChange={setReason} />
     </ConfirmDialog>
   );
+}
+
+/** Discount one dish (spec §8 per-item discount). Larger than 10% of the bill in total needs a manager. */
+function LineDiscountSheet({ bill, line, onClose, onSave }: { bill: BillDTO; line: BillLineDTO; onClose: () => void; onSave: (body: object) => void }) {
+  const [kind, setKind] = useState<'percent' | 'amount'>('percent');
+  const [value, setValue] = useState(line.item_discount_paise ? rupeesInput(line.item_discount_paise) : '');
+  const [reason, setReason] = useState(bill.discount_reason ?? '');
+  useEffect(() => {
+    if (line.item_discount_paise) setKind('amount');
+  }, [line.item_discount_paise]);
+  const existing = Object.fromEntries(bill.lines.filter((l) => l.item_discount_paise > 0 && l.order_item_id).map((l) => [l.order_item_id!, l.item_discount_paise]));
+  let paise = 0;
+  try {
+    paise = !value ? 0 : kind === 'percent' ? Math.round((line.gross_paise * Math.min(100, Number(value))) / 100) : Math.min(line.gross_paise, rupeesToPaise(value));
+  } catch {
+    paise = 0;
+  }
+  const save = () => {
+    const item_discounts = { ...existing, [line.order_item_id!]: paise };
+    if (!paise) delete item_discounts[line.order_item_id!];
+    onSave({ item_discounts, discount_reason: reason.trim() || null });
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Discount: ${line.name}`} footer={<Button block onClick={save}>{paise ? `Take ${formatPaise(paise)} off` : 'Remove discount'}</Button>}>
+      <p className="mb-3 text-sm text-ink-soft">
+        {line.qty} × {formatPaise(line.unit_price_paise)} = {formatPaise(line.gross_paise)}
+      </p>
+      <Segmented value={kind} onChange={setKind} options={[{ value: 'percent', label: 'Percent' }, { value: 'amount', label: 'Amount (₹)' }]} />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {(kind === 'percent' ? ['10', '25', '50', '100'] : ['20', '50', '100']).map((v) => (
+          <button key={v} onClick={() => setValue(v)} className={cn('h-10 cursor-pointer rounded-xl border px-4 text-sm font-medium', value === v ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line')}>
+            {kind === 'percent' ? (v === '100' ? 'On the house' : `${v}%`) : `₹${v}`}
+          </button>
+        ))}
+      </div>
+      <Input className="mt-3" value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" aria-label="Discount value" />
+      <ReasonPicker reasons={['Dish was late', 'Not to taste', 'Complimentary', 'Staff meal']} value={reason} onChange={setReason} />
+    </Sheet>
+  );
+}
+
+function MethodLabel({ method }: { method: PaymentMethod }) {
+  const { t } = useI18n();
+  const m = METHODS.find((x) => x.value === method);
+  return <>{m ? t(m.label) : method}</>;
 }

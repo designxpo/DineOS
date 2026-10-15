@@ -116,6 +116,7 @@ export async function loadServiceRequests(tx: Tx, outletId: string, tableIds?: s
       'service_requests.status',
       'service_requests.created_at',
       'users.name as acknowledged_by',
+      'tables.assigned_waiter_id',
     ])
     .where('service_requests.outlet_id', '=', outletId)
     .where('service_requests.status', '<>', 'closed');
@@ -132,6 +133,7 @@ export async function loadServiceRequests(tx: Tx, outletId: string, tableIds?: s
     status: r.status as ServiceRequestDTO['status'],
     created_at: r.created_at.toISOString(),
     acknowledged_by: r.acknowledged_by,
+    assigned_waiter_id: r.assigned_waiter_id,
   }));
 }
 
@@ -334,7 +336,7 @@ export async function createServiceRequest(
       outletId: g.outletId,
       type: kind === 'bill' ? 'bill.requested' : 'waiter.called',
       channels: ['outlet'],
-      payload: { table_id: g.tableId, session_id: g.sessionId, request: dto },
+      payload: { table_id: g.tableId, session_id: g.sessionId, assigned_waiter_id: dto!.assigned_waiter_id, request: dto },
     });
   }
   return dto!;

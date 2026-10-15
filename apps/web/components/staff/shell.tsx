@@ -23,6 +23,7 @@ import { useEffect, useState } from 'react';
 import type { Action } from '@dineos/shared/permissions';
 import { onOutboxChange } from '@/lib/outbox';
 import { useConnection } from '@/lib/realtime';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -30,23 +31,23 @@ import { Select } from '@/components/ui/primitives';
 
 interface NavItem {
   href: string;
-  label: string;
+  label: I18nKey;
   icon: React.ComponentType<{ className?: string }>;
   action: Action;
 }
 
 export const NAV: NavItem[] = [
-  { href: '/app', label: 'Dashboard', icon: LayoutDashboard, action: 'report.view' },
-  { href: '/app/inbox', label: 'Orders', icon: ClipboardList, action: 'order.view' },
-  { href: '/app/kds', label: 'Kitchen', icon: ChefHat, action: 'order.view' },
-  { href: '/app/floor', label: 'Floor', icon: LayoutGrid, action: 'table.operate' },
-  { href: '/app/pos', label: 'POS', icon: ShoppingCart, action: 'order.create' },
-  { href: '/app/bills', label: 'Bills', icon: ReceiptIndianRupee, action: 'bill.manage' },
-  { href: '/app/menu', label: 'Menu', icon: UtensilsCrossed, action: 'menu.stock' },
-  { href: '/app/tables', label: 'Tables & QR', icon: QrCode, action: 'table.manage' },
-  { href: '/app/reports', label: 'Reports', icon: BarChart3, action: 'report.view' },
-  { href: '/app/staff', label: 'Staff', icon: Users, action: 'staff.manage' },
-  { href: '/app/settings', label: 'Settings', icon: Settings, action: 'outlet.settings' },
+  { href: '/app', label: 'nav.dashboard', icon: LayoutDashboard, action: 'report.view' },
+  { href: '/app/inbox', label: 'nav.orders', icon: ClipboardList, action: 'order.view' },
+  { href: '/app/kds', label: 'nav.kitchen', icon: ChefHat, action: 'order.view' },
+  { href: '/app/floor', label: 'nav.floor', icon: LayoutGrid, action: 'table.operate' },
+  { href: '/app/pos', label: 'nav.pos', icon: ShoppingCart, action: 'order.create' },
+  { href: '/app/bills', label: 'nav.bills', icon: ReceiptIndianRupee, action: 'bill.manage' },
+  { href: '/app/menu', label: 'nav.menu', icon: UtensilsCrossed, action: 'menu.stock' },
+  { href: '/app/tables', label: 'nav.tables', icon: QrCode, action: 'table.manage' },
+  { href: '/app/reports', label: 'nav.reports', icon: BarChart3, action: 'report.view' },
+  { href: '/app/staff', label: 'nav.staff', icon: Users, action: 'staff.manage' },
+  { href: '/app/settings', label: 'nav.settings', icon: Settings, action: 'outlet.settings' },
 ];
 
 /** Where each role starts its day. */
@@ -59,6 +60,7 @@ export function homeFor(can: (a: Action) => boolean): string {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { me, outletId, outlet, setOutletId, can, logout } = useStaff();
+  const { t, lang, setLang } = useI18n();
   const pathname = usePathname();
   const connection = useConnection();
   const [pending, setPending] = useState(0);
@@ -86,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-current={active ? 'page' : undefined}
           >
             <Icon className="size-[18px]" />
-            {item.label}
+            {t(item.label)}
           </Link>
         );
       })}
@@ -124,12 +126,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-y-auto">{nav}</div>
         <div className="border-t border-line p-3">
           <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
-            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-stone-200 text-sm font-semibold text-ink-soft">{me.user.name.slice(0, 1)}</div>
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-sm font-medium">{me.user.name}</p>
-              <p className="truncate text-xs text-ink-faint capitalize">{(me.outlets.find((o) => o.id === outletId)?.roles ?? []).join(', ')}</p>
-            </div>
-            <IconButton label="Sign out" onClick={() => void logout()}>
+            <Link href="/app/account" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg hover:bg-stone-50" title="My account">
+              <div className="grid size-9 shrink-0 place-items-center rounded-full bg-stone-200 text-sm font-semibold text-ink-soft">{me.user.name.slice(0, 1)}</div>
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-medium">{me.user.name}</p>
+                <p className="truncate text-xs text-ink-faint capitalize">{(me.outlets.find((o) => o.id === outletId)?.roles ?? []).join(', ')}</p>
+              </div>
+            </Link>
+            <IconButton label={t('nav.signout')} onClick={() => void logout()}>
               <LogOut className="size-4" />
             </IconButton>
           </div>
@@ -153,7 +157,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <p className="font-medium lg:hidden">{outlet?.name}</p>
           )}
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
-          <div className="ml-auto">{status}</div>
+          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="ml-auto h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
+            {t('common.language')}
+          </button>
+          <div>{status}</div>
         </header>
         <main className="flex-1">{children}</main>
       </div>
@@ -169,8 +176,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </IconButton>
             </div>
             <div className="flex-1 overflow-y-auto">{nav}</div>
+            <Link href="/app/account" className="flex h-12 items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
+              {me.user.name} · {t('nav.account')}
+            </Link>
             <button onClick={() => void logout()} className="flex h-14 cursor-pointer items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
-              <LogOut className="size-4" /> Sign out
+              <LogOut className="size-4" /> {t('nav.signout')}
             </button>
           </div>
         </div>

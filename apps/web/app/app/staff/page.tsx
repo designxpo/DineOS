@@ -119,6 +119,12 @@ function StaffEditor({ member, onClose, onSave }: { member: StaffMember | null; 
   const [active, setActive] = useState(member?.status !== 'disabled');
   const [role, setRole] = useState<Role>(member?.roles.find((r) => r.outlet_id === outletId || r.outlet_id === null)?.role ?? 'waiter');
   const [everyOutlet, setEveryOutlet] = useState(member?.roles.some((r) => r.outlet_id === null) ?? false);
+  // Outlets this person works at (when the business has several).
+  const manageable = me.outlets.filter((o) => isOwner || o.roles.includes('manager'));
+  const [outlets, setOutlets] = useState<string[]>(() => {
+    const current = (member?.roles ?? []).map((r) => r.outlet_id).filter((x): x is string => !!x);
+    return current.length ? [...new Set(current)] : [outletId];
+  });
   const grantable = ROLES.filter((r) => isOwner || !['owner', 'manager'].includes(r));
 
   const submit = () => {
@@ -126,7 +132,7 @@ function StaffEditor({ member, onClose, onSave }: { member: StaffMember | null; 
       name,
       email: email || null,
       phone: phone || null,
-      roles: [{ outlet_id: everyOutlet || role === 'owner' ? null : outletId, role }],
+      roles: everyOutlet || role === 'owner' ? [{ outlet_id: null, role }] : outlets.map((o) => ({ outlet_id: o, role })),
     };
     if (password) body.password = password;
     if (member) body.status = active ? 'active' : 'disabled';
@@ -159,6 +165,26 @@ function StaffEditor({ member, onClose, onSave }: { member: StaffMember | null; 
           <div className="flex items-center justify-between">
             <span className="text-sm">Works at every outlet</span>
             <Switch label="Works at every outlet" checked={everyOutlet} onChange={setEveryOutlet} />
+          </div>
+        )}
+        {!everyOutlet && role !== 'owner' && manageable.length > 1 && (
+          <div>
+            <p className="mb-2 text-sm font-medium">Works at</p>
+            <div className="flex flex-wrap gap-2">
+              {manageable.map((o) => {
+                const on = outlets.includes(o.id);
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => setOutlets(on ? outlets.filter((x) => x !== o.id) : [...outlets, o.id])}
+                    className={cn('h-9 cursor-pointer rounded-full border px-3 text-sm', on ? 'border-[var(--brand)] bg-brand-50 font-medium text-brand-700' : 'border-line')}
+                  >
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
         {member && (

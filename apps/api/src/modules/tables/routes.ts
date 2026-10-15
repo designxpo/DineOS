@@ -353,6 +353,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
               'service_requests.status',
               'service_requests.created_at',
               'users.name as acknowledged_by',
+              'tables.assigned_waiter_id',
             ])
             .where('service_requests.id', '=', id)
             .executeTakeFirstOrThrow();

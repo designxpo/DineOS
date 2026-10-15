@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
 import { useStaffMenu } from '@/lib/menu-cache';
 import { send } from '@/lib/outbox';
+import { useI18n } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -38,6 +39,7 @@ export default function PosPage() {
 
 function Pos() {
   const { api, token, outletId, can, roles } = useStaff();
+  const { t } = useI18n();
   const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
@@ -144,15 +146,15 @@ function Pos() {
           onChange={setType}
           className="w-full"
           options={[
-            { value: 'dine_in', label: 'Dine-in' },
-            { value: 'takeaway', label: 'Takeaway' },
-            { value: 'counter', label: 'Counter' },
+            { value: 'dine_in', label: t('pos.dine_in') },
+            { value: 'takeaway', label: t('pos.takeaway') },
+            { value: 'counter', label: t('pos.counter') },
           ]}
         />
         {type === 'dine_in' ? (
           <div className="flex gap-2">
             <Select value={tableId} onChange={(e) => setTableId(e.target.value)} aria-label="Table" className="flex-1">
-              <option value="">Select table…</option>
+              <option value="">{t('pos.select_table')}</option>
               {(tables.data ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.label}
@@ -160,19 +162,19 @@ function Pos() {
                 </option>
               ))}
             </Select>
-            <Input value={guests} onChange={(e) => setGuests(e.target.value.replace(/\D/g, ''))} placeholder="Guests" inputMode="numeric" className="w-24" aria-label="Guests" />
+            <Input value={guests} onChange={(e) => setGuests(e.target.value.replace(/\D/g, ''))} placeholder={t('pos.guests')} inputMode="numeric" className="w-24" aria-label={t('pos.guests')} />
           </div>
         ) : (
           <div className="flex gap-2">
-            <Input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Customer name" aria-label="Customer name" />
-            <Input value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="Phone" inputMode="tel" aria-label="Phone" className="w-40" />
+            <Input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder={t('pos.customer')} aria-label={t('pos.customer')} />
+            <Input value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder={t('pos.phone')} inputMode="tel" aria-label={t('pos.phone')} className="w-40" />
           </div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {lines.length === 0 ? (
-          <EmptyState icon={<ShoppingCart className="size-5" />} title="No items yet" hint="Tap dishes to add them." />
+          <EmptyState icon={<ShoppingCart className="size-5" />} title={t('pos.no_items')} hint={t('pos.tap')} />
         ) : (
           <ul className="divide-y divide-line">
             {lines.map((l) => {
@@ -192,15 +194,15 @@ function Pos() {
                           className="h-8 w-24 rounded-lg px-2 text-xs"
                           aria-label="Seat"
                         >
-                          <option value="">No seat</option>
+                          <option value="">{t('pos.no_seat')}</option>
                           {Array.from({ length: 12 }, (_, i) => (
                             <option key={i + 1} value={i + 1}>
-                              Seat {i + 1}
+                              {t('pos.seat', { n: i + 1 })}
                             </option>
                           ))}
                         </Select>
                         <button onClick={() => setNoteFor(l.key)} className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs text-ink-soft hover:bg-stone-100">
-                          <StickyNote className="size-3.5" /> Note
+                          <StickyNote className="size-3.5" /> {t('pos.note_btn')}
                         </button>
                       </div>
                     </div>
@@ -225,9 +227,9 @@ function Pos() {
       </div>
 
       <div className="space-y-3 border-t border-line p-4">
-        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Order note for the kitchen" aria-label="Order note" />
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('pos.note')} aria-label={t('pos.note')} />
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-ink-soft">{count} items · before tax</span>
+          <span className="text-sm text-ink-soft">{t('pos.items', { n: count })}</span>
           <span className="font-display text-2xl font-semibold tabular">{formatPaise(subtotal)}</span>
         </div>
         <div className="flex gap-2">
@@ -237,11 +239,11 @@ function Pos() {
             </IconButton>
           )}
           <Button size="lg" block disabled={lines.length === 0} loading={busy} onClick={() => void submit(false)} variant={type === 'dine_in' ? 'primary' : 'outline'}>
-            Send to kitchen
+            {t('pos.send')}
           </Button>
           {can('bill.manage') && (
             <Button size="lg" block disabled={lines.length === 0} loading={busy} onClick={() => void submit(true)} variant={type === 'dine_in' ? 'outline' : 'primary'}>
-              Send & bill
+              {t('pos.send_bill')}
             </Button>
           )}
         </div>
@@ -255,10 +257,10 @@ function Pos() {
         <div className="space-y-3 border-b border-line bg-surface p-4">
           <label className="relative block">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search dishes" className="pl-9" aria-label="Search dishes" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('pos.search')} className="pl-9" aria-label={t('pos.search')} />
           </label>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
-            {[{ id: 'all', name: 'All' }, ...categories].map((c) => (
+            {[{ id: 'all', name: t('pos.all') }, ...categories].map((c) => (
               <button
                 key={c.id}
                 onClick={() => setCategory(c.id)}
@@ -296,7 +298,7 @@ function Pos() {
                     </span>
                     <span className="mt-auto flex items-center justify-between pt-2 text-sm">
                       <span className="font-semibold tabular">{formatPrice(item.price_paise)}</span>
-                      {!item.in_stock ? <span className="text-xs text-rose-700">Sold out</span> : item.modifier_group_ids.length > 0 && <span className="text-xs text-ink-faint">options</span>}
+                      {!item.in_stock ? <span className="text-xs text-rose-700">{t('pos.sold_out')}</span> : item.modifier_group_ids.length > 0 && <span className="text-xs text-ink-faint">{t('pos.options')}</span>}
                     </span>
                     {inTicket > 0 && <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--brand)] text-xs font-bold text-white">{inTicket}</span>}
                   </button>
@@ -315,7 +317,7 @@ function Pos() {
           className="fixed inset-x-4 bottom-4 z-30 flex h-14 cursor-pointer items-center justify-between rounded-2xl bg-[var(--brand)] px-5 text-white shadow-[var(--shadow-pop)] lg:hidden"
         >
           <span className="font-semibold">{count} items</span>
-          <span className="font-semibold tabular">{formatPaise(subtotal)} · Review →</span>
+          <span className="font-semibold tabular">{formatPaise(subtotal)} · {t('pos.review')} →</span>
         </button>
       )}
       <Sheet open={ticketOpen} onClose={() => setTicketOpen(false)} title="Order" className="h-[92dvh]">

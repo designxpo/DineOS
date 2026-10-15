@@ -1,30 +1,33 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { usePersistedQuery } from '@/lib/persisted-query';
 import { Bell, BellOff, ClipboardList } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { OrderDTO } from '@dineos/shared/dto';
 import type { OrderStatus } from '@dineos/shared/enums';
 import { useOutletEvents } from '@/lib/realtime';
 import { chime, soundReady, unlockSound } from '@/lib/sound';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Segmented, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { OrderCard } from '@/components/staff/orders';
-import { ServiceRequestStrip } from '@/components/staff/service-requests';
+import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
+import { StaleBanner } from '@/components/staff/stale-banner';
 
 type Column = 'new' | 'kitchen' | 'ready' | 'served';
-const COLUMNS: { key: Column; label: string; statuses: OrderStatus[] }[] = [
-  { key: 'new', label: 'New', statuses: ['placed'] },
-  { key: 'kitchen', label: 'In kitchen', statuses: ['accepted', 'preparing'] },
-  { key: 'ready', label: 'Ready to serve', statuses: ['ready'] },
-  { key: 'served', label: 'Served', statuses: ['served'] },
+const COLUMNS: { key: Column; label: I18nKey; statuses: OrderStatus[] }[] = [
+  { key: 'new', label: 'inbox.new', statuses: ['placed'] },
+  { key: 'kitchen', label: 'inbox.kitchen', statuses: ['accepted', 'preparing'] },
+  { key: 'ready', label: 'inbox.ready', statuses: ['ready'] },
+  { key: 'served', label: 'inbox.served', statuses: ['served'] },
 ];
 
 export default function InboxPage() {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
   const toast = useToast();
   const [tab, setTab] = useState<Column>('new');
   const [fresh, setFresh] = useState<Set<string>>(new Set());
@@ -33,12 +36,13 @@ export default function InboxPage() {
   useEffect(() => setSound(soundReady()), []);
 
   const since = new Date(Date.now() - 4 * 3600_000).toISOString();
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', outletId, 'inbox'],
-    queryFn: () => api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=placed,accepted,preparing,ready,served&since=${encodeURIComponent(since)}&limit=300`),
-    refetchInterval: 60_000,
-  });
+  const { data: orders, isLoading, stale } = usePersistedQuery(
+    ['orders', outletId, 'inbox'],
+    () => api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=placed,accepted,preparing,ready,served&since=${encodeURIComponent(since)}&limit=300`),
+    { refetchInterval: 60_000 },
+  );
 
+  useServiceRequestAlerts();
   // New orders: chime, toast and a pulsing card for a few seconds (spec §7).
   useOutletEvents((e) => {
     if (e.type === 'order.placed') {
@@ -52,7 +56,6 @@ export default function InboxPage() {
         return next;
       }), 15_000);
     }
-    if (e.type === 'waiter.called' || e.type === 'bill.requested') chime('call');
   });
 
   const byColumn = (c: (typeof COLUMNS)[number]) =>
@@ -63,15 +66,16 @@ export default function InboxPage() {
   return (
     <div>
       <PageHeader
-        title="Orders"
-        subtitle="New QR orders wait here for you to accept"
+        title={t('nav.orders')}
+        subtitle={t('inbox.subtitle')}
         actions={
           <Button variant={sound ? 'secondary' : 'outline'} onClick={() => setSound(unlockSound())}>
             {sound ? <Bell className="size-4" /> : <BellOff className="size-4" />}
-            {sound ? 'Sound on' : 'Turn on sound'}
+            {sound ? t('sound.on') : t('sound.off')}
           </Button>
         }
       />
+      <StaleBanner show={stale} />
       <ServiceRequestStrip />
 
       {isLoading ? (
@@ -81,21 +85,21 @@ export default function InboxPage() {
       ) : (
         <>
           <div className="px-4 pb-3 lg:hidden">
-            <Segmented value={tab} onChange={setTab} options={COLUMNS.map((c) => ({ value: c.key, label: c.label, count: byColumn(c).length }))} className="w-full overflow-x-auto" />
+            <Segmented value={tab} onChange={setTab} options={COLUMNS.map((c) => ({ value: c.key, label: t(c.label), count: byColumn(c).length }))} className="w-full overflow-x-auto" />
           </div>
           <div className="grid gap-4 px-4 pb-10 lg:grid-cols-3 lg:px-8 xl:grid-cols-4">
             {COLUMNS.map((c) => {
               const list = byColumn(c);
               return (
-                <section key={c.key} className={tab === c.key ? 'block' : 'hidden lg:block'} aria-label={c.label}>
+                <section key={c.key} className={tab === c.key ? 'block' : 'hidden lg:block'} aria-label={t(c.label)}>
                   <h2 className="mb-3 hidden items-center gap-2 text-sm font-semibold text-ink-soft lg:flex">
-                    {c.label}
+                    {t(c.label)}
                     <span className="rounded-full bg-stone-200 px-2 text-xs tabular">{list.length}</span>
                   </h2>
                   <div className="space-y-3">
                     {list.length === 0 ? (
                       <div className="rounded-[var(--radius-card)] border border-dashed border-line">
-                        <EmptyState icon={<ClipboardList className="size-5" />} title={c.key === 'new' ? 'No new orders' : 'Nothing here'} />
+                        <EmptyState icon={<ClipboardList className="size-5" />} title={c.key === 'new' ? t('inbox.empty_new') : t('inbox.empty')} />
                       </div>
                     ) : (
                       list.map((o) => <OrderCard key={o.id} order={o} highlight={fresh.has(o.id)} compact={c.key === 'served'} />)

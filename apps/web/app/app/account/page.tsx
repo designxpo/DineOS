@@ -1,0 +1,90 @@
+'use client';
+
+import { useState } from 'react';
+import { rolesCan } from '@dineos/shared/permissions';
+import { errorMessage } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
+import { useStaff } from '@/lib/staff';
+import { Button } from '@/components/ui/button';
+import { Card, Field, Input, Segmented } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/toast';
+import { PageHeader } from '@/components/staff/shell';
+
+export default function AccountPage() {
+  const { me, roles, api } = useStaff();
+  const { lang, setLang } = useI18n();
+  const toast = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const approver = rolesCan(roles, 'bill.void');
+
+  const changePassword = async () => {
+    if (next !== confirm) return toast('The new passwords do not match', 'error');
+    setBusy('password');
+    try {
+      await api('/auth/password', { method: 'POST', body: { current_password: current, new_password: next } });
+      toast('Password changed. Other devices have been signed out.');
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const savePin = async () => {
+    setBusy('pin');
+    try {
+      await api('/auth/pin', { method: 'POST', body: { password, pin } });
+      toast('PIN saved');
+      setPassword('');
+      setPin('');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="pb-12">
+      <PageHeader title="My account" subtitle={`${me.user.name} · ${me.user.email ?? me.user.phone ?? ''}`} />
+      <div className="grid max-w-4xl gap-4 px-4 lg:grid-cols-2 lg:px-8">
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">Change password</h2>
+          <Field label="Current password">{(id) => <Input id={id} type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />}</Field>
+          <Field label="New password" hint="At least 8 characters">{(id) => <Input id={id} type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />}</Field>
+          <Field label="New password again">{(id) => <Input id={id} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />}</Field>
+          <Button onClick={() => void changePassword()} disabled={!current || next.length < 8} loading={busy === 'password'}>
+            Change password
+          </Button>
+        </Card>
+        <div className="space-y-4">
+          <Card className="space-y-3 p-5">
+            <h2 className="font-semibold">Language</h2>
+            <Segmented value={lang} onChange={setLang} options={[{ value: 'en', label: 'English' }, { value: 'hi', label: 'हिंदी' }]} />
+          </Card>
+          {approver && (
+            <Card className="space-y-4 p-5">
+              <div>
+                <h2 className="font-semibold">Approval PIN</h2>
+                <p className="mt-1 text-sm text-ink-soft">You type this on a cashier&apos;s screen to approve voids, refunds, large discounts and cancellations.</p>
+              </div>
+              <Field label="Your password">{(id) => <Input id={id} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
+              <Field label="New PIN (4 to 6 digits)">{(id) => <Input id={id} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={6} type="password" />}</Field>
+              <Button onClick={() => void savePin()} disabled={pin.length < 4 || !password} loading={busy === 'pin'}>
+                Save PIN
+              </Button>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

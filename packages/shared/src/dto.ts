@@ -148,6 +148,8 @@ export interface ServiceRequestDTO {
   status: 'open' | 'acknowledged' | 'closed';
   created_at: string;
   acknowledged_by: string | null;
+  /** The table's assigned waiter; their screen alerts, others just list it. */
+  assigned_waiter_id: string | null;
 }
 
 export interface TableSessionDTO {

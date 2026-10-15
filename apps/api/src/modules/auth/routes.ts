@@ -3,7 +3,8 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import type { LoginResponseDTO } from '@dineos/shared/dto';
 import type { AppContext } from '../../context';
-import { authenticate, bearerToken, evictCachedAuth, requireStaff, type StaffAuth } from '../../lib/auth';
+import { audit } from '../../lib/audit';
+import { authenticate, bearerToken, clearAuthCache, evictCachedAuth, requireStaff, type StaffAuth } from '../../lib/auth';
 import { hashSecret, verifySecret } from '../../lib/crypto';
 import { AppError, unauthorized } from '../../lib/errors';
 import { parse } from '../../lib/validate';
@@ -63,6 +64,25 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (!(await verifySecret(body.password, user.password_hash))) throw unauthorized('Password is incorrect');
         await tx.db.updateTable('users').set({ pin_hash: await hashSecret(body.pin) }).where('id', '=', auth.userId).execute();
       });
+      return reply.status(204).send();
+    });
+
+    /** Self-service password change. Signs out every other device; this one stays signed in. */
+    app.post('/auth/password', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
+      const auth = requireStaff(req);
+      if (auth.impersonatedBy) throw new AppError(403, 'forbidden', 'Support sessions cannot change passwords');
+      const body = parse(
+        z.object({ current_password: z.string().min(1), new_password: z.string().min(8, 'Use at least 8 characters').max(200) }),
+        req.body,
+      );
+      await ctx.tx(auth.tenantId, async (tx) => {
+        const user = await tx.db.selectFrom('users').select('password_hash').where('id', '=', auth.userId).executeTakeFirstOrThrow();
+        if (!(await verifySecret(body.current_password, user.password_hash))) throw unauthorized('Current password is incorrect');
+        await tx.db.updateTable('users').set({ password_hash: await hashSecret(body.new_password) }).where('id', '=', auth.userId).execute();
+        await tx.db.deleteFrom('user_sessions').where('user_id', '=', auth.userId).where('id', '<>', auth.sessionId).execute();
+        await audit(tx, auth, { action: 'user.password_change', entity: 'user', entityId: auth.userId });
+      });
+      clearAuthCache();
       return reply.status(204).send();
     });
   };

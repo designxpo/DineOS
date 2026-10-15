@@ -1,28 +1,28 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { usePersistedQuery } from '@/lib/persisted-query';
 import { BellRing, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
 import { ago, formatPaise } from '@/lib/format';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
 import { Segmented, Spinner } from '@/components/ui/primitives';
-import { ServiceRequestStrip } from '@/components/staff/service-requests';
+import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
+import { StaleBanner } from '@/components/staff/stale-banner';
 import { TablePanel } from '@/components/staff/table-panel';
 import { TABLE_STATE } from '@/components/staff/table-state';
 
 export default function FloorPage() {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
+  useServiceRequestAlerts();
   const [zone, setZone] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
-  const { data: tables, isLoading } = useQuery({
-    queryKey: ['tables', outletId],
-    queryFn: () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`),
-    refetchInterval: 60_000,
-  });
+  const { data: tables, isLoading, stale } = usePersistedQuery(['tables', outletId], () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`), { refetchInterval: 60_000 });
 
   const zones = useMemo(() => [...new Set((tables ?? []).map((t) => t.zone ?? 'Tables'))], [tables]);
   const counts = useMemo(() => {
@@ -37,18 +37,19 @@ export default function FloorPage() {
   return (
     <div className="pb-10">
       <PageHeader
-        title="Floor"
+        title={t('nav.floor')}
         subtitle={
           <span className="flex flex-wrap gap-x-4 gap-y-1">
             {TABLE_STATES.map((s) => (
               <span key={s} className="inline-flex items-center gap-1.5">
-                <span className={cn('size-2.5 rounded-full', TABLE_STATE[s].dot)} /> {TABLE_STATE[s].label} <span className="font-semibold text-ink-soft tabular">{counts[s]}</span>
+                <span className={cn('size-2.5 rounded-full', TABLE_STATE[s].dot)} /> {t(`table.${s}` as I18nKey)} <span className="font-semibold text-ink-soft tabular">{counts[s]}</span>
               </span>
             ))}
           </span>
         }
-        actions={zones.length > 1 ? <Segmented value={zone} onChange={setZone} options={[{ value: 'all', label: 'All' }, ...zones.map((z) => ({ value: z, label: z }))]} /> : undefined}
+        actions={zones.length > 1 ? <Segmented value={zone} onChange={setZone} options={[{ value: 'all', label: t('floor.all') }, ...zones.map((z) => ({ value: z, label: z }))]} /> : undefined}
       />
+      <StaleBanner show={stale} />
       <ServiceRequestStrip />
       {isLoading ? (
         <div className="grid place-items-center py-24">
@@ -72,6 +73,7 @@ export default function FloorPage() {
 }
 
 function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
+  const { t } = useI18n();
   const style = TABLE_STATE[table.state];
   const calling = table.open_requests.some((r) => r.kind === 'call_waiter' && r.status === 'open');
   const billAsked = table.open_requests.some((r) => r.kind === 'bill');
@@ -94,7 +96,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
         </span>
       </div>
       <span className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-ink-soft">
-        <span className={cn('size-2 rounded-full', style.dot)} /> {style.label}
+        <span className={cn('size-2 rounded-full', style.dot)} /> {t(`table.${table.state}` as I18nKey)}
       </span>
       <div className="mt-auto pt-3 text-xs text-ink-faint">
         {table.session?.status === 'open' ? (
@@ -111,7 +113,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           </>
         ) : (
           <p className="inline-flex items-center gap-1">
-            <Users className="size-3" /> {table.seats} seats
+            <Users className="size-3" /> {t('floor.seats', { n: table.seats })}
           </p>
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}

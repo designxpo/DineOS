@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { BillDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago, formatPaise } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/overlay';
@@ -19,6 +20,7 @@ type Mode = null | 'transfer' | 'merge' | 'seat';
 
 export function TablePanel({ table, tables, onClose }: { table: TableDTO | null; tables: TableDTO[]; onClose: () => void }) {
   const { api, outletId, can } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const router = useRouter();
@@ -109,47 +111,47 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {!live && can('table.operate') && (
           <Button variant="outline" onClick={() => setMode(mode === 'seat' ? null : 'seat')}>
-            <Users className="size-4" /> Seat guests
+            <Users className="size-4" /> {t('floor.seat')}
           </Button>
         )}
         {can('order.create') && (
           <Button variant="outline" onClick={() => router.push(`/app/pos?table=${table.id}`)}>
-            <ShoppingCart className="size-4" /> New order
+            <ShoppingCart className="size-4" /> {t('floor.new_order')}
           </Button>
         )}
         {live && can('bill.manage') && (
           <Button onClick={() => void openBill()} loading={busy === 'bill'}>
-            <ReceiptIndianRupee className="size-4" /> Bill
+            <ReceiptIndianRupee className="size-4" /> {t('floor.bill')}
           </Button>
         )}
         {live && can('table.operate') && (
           <Button variant="outline" onClick={() => setMode(mode === 'transfer' ? null : 'transfer')}>
-            <ArrowRightLeft className="size-4" /> Move table
+            <ArrowRightLeft className="size-4" /> {t('floor.move')}
           </Button>
         )}
         {can('table.operate') && (
           <Button variant="outline" onClick={() => setMode(mode === 'merge' ? null : 'merge')}>
-            <Link2 className="size-4" /> Join tables
+            <Link2 className="size-4" /> {t('floor.join')}
           </Button>
         )}
         {table.needs_cleaning && can('table.operate') && (
           <Button variant="success" loading={busy === 'clean'} onClick={() => void run('clean', () => api(`/tables/${table.id}/clean`, { method: 'POST' }), `${table.label} is ready for guests`)}>
-            <Brush className="size-4" /> Mark clean
+            <Brush className="size-4" /> {t('floor.clean')}
           </Button>
         )}
         {table.session && can('table.operate') && (
           <Button variant="ghost" loading={busy === 'release'} onClick={() => void run('release', () => api(`/tables/${table.id}/release`, { method: 'POST' }), `${table.label} released`)}>
-            <LogOut className="size-4" /> Release
+            <LogOut className="size-4" /> {t('floor.release')}
           </Button>
         )}
         <Button variant="ghost" onClick={() => void openGuestView()}>
-          <ExternalLink className="size-4" /> Guest menu
+          <ExternalLink className="size-4" /> {t('floor.guest_menu')}
         </Button>
       </div>
 
       {mode === 'seat' && (
         <div className="mt-4 flex items-center gap-3 rounded-2xl bg-stone-50 p-3">
-          <span className="text-sm font-medium">Guests</span>
+          <span className="text-sm font-medium">{t('floor.guests')}</span>
           <div className="flex h-11 items-center rounded-xl border border-line bg-surface">
             <button className="grid h-full w-11 cursor-pointer place-items-center" aria-label="Fewer" onClick={() => setGuests((g) => Math.max(1, g - 1))}>
               <Minus className="size-4" />
@@ -193,13 +195,13 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
       {can('table.operate') && (
         <label className="mt-4 flex items-center gap-3 text-sm">
           <UserRound className="size-4 text-ink-faint" />
-          <span className="text-ink-soft">Waiter</span>
+          <span className="text-ink-soft">{t('floor.waiter')}</span>
           <Select
             value={table.assigned_waiter_id ?? ''}
             onChange={(e) => void run('waiter', () => api(`/tables/${table.id}/waiter`, { method: 'PATCH', body: { waiter_id: e.target.value || null } }))}
             className="h-10 max-w-56"
           >
-            <option value="">Unassigned</option>
+            <option value="">{t('floor.unassigned')}</option>
             {waiters.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.name}
@@ -211,8 +213,8 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
 
       {live && (
         <div className="mt-5 space-y-3">
-          <h3 className="text-sm font-semibold text-ink-soft">Orders</h3>
-          {(orders.data ?? []).length === 0 && <p className="text-sm text-ink-faint">No orders yet.</p>}
+          <h3 className="text-sm font-semibold text-ink-soft">{t('floor.orders')}</h3>
+          {(orders.data ?? []).length === 0 && <p className="text-sm text-ink-faint">{t('floor.no_orders')}</p>}
           {[...(orders.data ?? [])].reverse().map((o) => (
             <OrderCard key={o.id} order={o} />
           ))}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePersistedQuery } from '@/lib/persisted-query';
 import { ArrowLeft, Bell, BellOff, ChefHat, Maximize, StickyNote } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -16,6 +17,7 @@ import { useStaff } from '@/lib/staff';
 import { readLocal, writeLocal } from '@/lib/storage';
 import { cn } from '@/components/ui/cn';
 import { VegMark } from '@/components/ui/primitives';
+import { StaleBanner } from '@/components/staff/stale-banner';
 import { useToast } from '@/components/ui/toast';
 
 const NEXT: Partial<Record<ItemStatus, ItemStatus>> = { accepted: 'preparing', preparing: 'ready' };
@@ -37,11 +39,10 @@ export default function KdsPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const { data: orders = [] } = useQuery({
-    queryKey: ['kds', outletId, station],
-    queryFn: () => api<OrderDTO[]>(`/kds?outlet_id=${outletId}${station ? `&station=${station}` : ''}`),
+  const kds = usePersistedQuery(['kds', outletId, station], () => api<OrderDTO[]>(`/kds?outlet_id=${outletId}${station ? `&station=${station}` : ''}`), {
     refetchInterval: 30_000,
   });
+  const orders = kds.data ?? [];
 
   useOutletEvents((e) => {
     if (e.type === 'order.status_changed' && (e.payload as { status: string }).status === 'accepted') chime('order');
@@ -122,6 +123,9 @@ export default function KdsPage() {
         </div>
       </header>
 
+      <div className="pt-3">
+        <StaleBanner show={kds.stale} dark />
+      </div>
       {sorted.length === 0 ? (
         <div className="grid min-h-[70dvh] place-items-center text-center">
           <div>

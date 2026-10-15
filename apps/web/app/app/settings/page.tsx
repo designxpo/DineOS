@@ -13,7 +13,7 @@ import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@
 import { useToast } from '@/components/ui/toast';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'outlet' | 'orders' | 'billing' | 'printers' | 'brand' | 'account' | 'audit';
+type Tab = 'outlet' | 'orders' | 'billing' | 'printers' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -25,7 +25,7 @@ export default function SettingsPage() {
     { value: 'orders', label: 'Ordering' },
     { value: 'billing', label: 'Billing & UPI' },
     { value: 'printers', label: 'Printers' },
-    ...(owner ? [{ value: 'brand' as Tab, label: 'Brand & plan' }] : []),
+    ...(owner ? [{ value: 'brand' as Tab, label: 'Brand & plan' }, { value: 'outlets' as Tab, label: 'Outlets' }] : []),
     { value: 'account', label: 'My PIN' },
     { value: 'audit', label: 'Audit log' },
   ];
@@ -41,6 +41,7 @@ export default function SettingsPage() {
         {tab === 'billing' && <BillingForm />}
         {tab === 'printers' && <Printers />}
         {tab === 'brand' && <Brand />}
+        {tab === 'outlets' && <Outlets />}
         {tab === 'account' && <MyPin />}
         {tab === 'audit' && <Audit />}
       </div>
@@ -468,5 +469,62 @@ function Audit() {
         {data.length === 0 && <li className="px-4 py-8 text-center text-ink-faint">Nothing recorded yet.</li>}
       </ul>
     </Card>
+  );
+}
+
+function Outlets() {
+  const { api, me, setOutletId } = useStaff();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data } = useQuery({ queryKey: ['outlets'], queryFn: () => api<OutletDTO[]>('/outlets') });
+  const [name, setName] = useState('');
+  const [prefix, setPrefix] = useState('');
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    setBusy(true);
+    try {
+      const outlet = await api<OutletDTO>('/outlets', { method: 'POST', body: { name: name.trim(), ...(prefix ? { invoice_prefix: prefix } : {}) } });
+      await qc.invalidateQueries({ queryKey: ['outlets'] });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+      toast(`${outlet.name} added. Switch to it to set up its menu and tables.`);
+      setName('');
+      setPrefix('');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-4">
+      <Card className="overflow-hidden">
+        <ul className="divide-y divide-line text-sm">
+          {(data ?? []).map((o) => (
+            <li key={o.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="flex-1">
+                <p className="font-medium">{o.name}</p>
+                <p className="text-xs text-ink-faint">{[o.city, o.gstin, `invoices ${o.invoice_prefix}/…`].filter(Boolean).join(' · ')}</p>
+              </div>
+              {me.outlets.some((m) => m.id === o.id) && (
+                <Button size="sm" variant="ghost" onClick={() => setOutletId(o.id)}>
+                  Switch to
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Card>
+      <Card className="space-y-3 p-5">
+        <h2 className="font-semibold">Add an outlet</h2>
+        <p className="text-sm text-ink-soft">Each outlet has its own menu, tables, kitchen stations, GST details and invoice series. Your plan sets how many you can have.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Outlet name">{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+          <Field label="Invoice prefix" hint="Up to 4 letters, different from your other outlets">{(id) => <Input id={id} value={prefix} onChange={(e) => setPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} maxLength={4} />}</Field>
+        </div>
+        <Button onClick={() => void add()} disabled={!name.trim()} loading={busy}>
+          Add outlet
+        </Button>
+      </Card>
+    </div>
   );
 }
