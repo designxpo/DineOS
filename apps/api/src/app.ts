@@ -18,7 +18,14 @@ export interface BuildOptions {
   rateLimitMax?: number;
 }
 
-export async function buildApp(opts: BuildOptions = {}): Promise<{ app: FastifyInstance; ctx: AppContext }> {
+export interface RouteEntry {
+  method: string;
+  url: string;
+}
+
+export async function buildApp(
+  opts: BuildOptions = {},
+): Promise<{ app: FastifyInstance; ctx: AppContext; routes: RouteEntry[] }> {
   const config = opts.config ?? loadConfig();
   const app = Fastify({
     logger: opts.logger === false ? false : { level: config.LOG_LEVEL },
@@ -26,6 +33,11 @@ export async function buildApp(opts: BuildOptions = {}): Promise<{ app: FastifyI
     bodyLimit: 1024 * 1024,
   });
   const ctx = createContext(config, app.log);
+  // Recorded so the cross-tenant test suite can probe every endpoint, including future ones.
+  const routes: RouteEntry[] = [];
+  app.addHook('onRoute', (r) => {
+    for (const method of [r.method].flat()) if (method !== 'HEAD') routes.push({ method, url: r.url });
+  });
 
   registerErrorHandler(app);
   await app.register(cors, {
@@ -50,8 +62,8 @@ export async function buildApp(opts: BuildOptions = {}): Promise<{ app: FastifyI
     return { ok: true };
   });
 
-  for (const [name, routes] of Object.entries(modules)) {
-    await app.register(routes(ctx), { prefix: '/v1' });
+  for (const [name, plugin] of Object.entries(modules)) {
+    await app.register(plugin(ctx), { prefix: '/v1' });
     app.log.debug(`module ${name} registered`);
   }
 
@@ -59,5 +71,5 @@ export async function buildApp(opts: BuildOptions = {}): Promise<{ app: FastifyI
     await ctx.close();
   });
 
-  return { app, ctx };
+  return { app, ctx, routes };
 }

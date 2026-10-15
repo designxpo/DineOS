@@ -15,6 +15,7 @@ import { testConfig } from './env';
 
 export interface TestApp {
   app: FastifyInstance;
+  routes: { method: string; url: string }[];
   ctx: AppContext;
   url: string;
   /** Every event published on the bus, newest last. */
@@ -23,7 +24,7 @@ export interface TestApp {
 }
 
 export async function startApp(overrides: Record<string, string> = {}): Promise<TestApp> {
-  const { app, ctx } = await buildApp({ config: testConfig(overrides), logger: false, rateLimitMax: 100_000 });
+  const { app, ctx, routes } = await buildApp({ config: testConfig(overrides), logger: false, rateLimitMax: 100_000 });
   await attachRealtime(app, ctx);
   await app.listen({ port: 0, host: '127.0.0.1' });
   const address = app.server.address();
@@ -32,7 +33,7 @@ export async function startApp(overrides: Record<string, string> = {}): Promise<
   ctx.bus.subscribe((tenantId, list) => {
     for (const event of list) events.push({ tenantId, event });
   });
-  return { app, ctx, url: `http://127.0.0.1:${port}`, events, close: () => app.close() };
+  return { app, ctx, routes, url: `http://127.0.0.1:${port}`, events, close: () => app.close() };
 }
 
 export interface TestTenant {

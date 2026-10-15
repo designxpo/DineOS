@@ -382,6 +382,24 @@ export interface PlatformAdmins {
   updated_at: Generated<Timestamp>;
 }
 
+export interface PlatformAuditLog {
+  action: string;
+  admin_id: string | null;
+  after: Json | null;
+  before: Json | null;
+  created_at: Generated<Timestamp>;
+  entity: string;
+  entity_id: string | null;
+  id: Generated<string>;
+  reason: string | null;
+}
+
+export interface PlatformCounters {
+  name: string;
+  period: string;
+  value: Generated<number>;
+}
+
 export interface PlatformInvoices {
   amount_paise: number;
   created_at: Generated<Timestamp>;
@@ -559,6 +577,8 @@ export interface DB {
   payments: Payments;
   plans: Plans;
   platform_admins: PlatformAdmins;
+  platform_audit_log: PlatformAuditLog;
+  platform_counters: PlatformCounters;
   platform_invoices: PlatformInvoices;
   print_jobs: PrintJobs;
   service_requests: ServiceRequests;

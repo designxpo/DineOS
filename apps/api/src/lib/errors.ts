@@ -1,4 +1,5 @@
 import type { FastifyError, FastifyInstance } from 'fastify';
+import { NoResultError } from 'kysely';
 import { ZodError } from 'zod';
 
 /** An error safe to show the caller. Anything else becomes a generic 500. */
@@ -34,6 +35,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((err: FastifyError | AppError | ZodError | Error, req, reply) => {
     if (err instanceof AppError) {
       return reply.status(err.status).send({ error: { code: err.code, message: err.message, details: err.details } });
+    }
+    if (err instanceof NoResultError) {
+      // A required row was not there: missing, or hidden by row-level security (another tenant's).
+      return reply.status(404).send({ error: { code: 'not_found', message: 'Not found' } });
     }
     if (err instanceof ZodError) {
       return reply.status(400).send({

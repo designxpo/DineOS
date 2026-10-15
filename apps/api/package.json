@@ -12,7 +12,9 @@
     "db:setup": "tsx src/scripts/db-setup.ts",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:codegen": "tsx src/scripts/codegen.ts",
-    "db:seed": "tsx src/scripts/seed.ts"
+    "db:seed": "tsx src/scripts/seed.ts",
+    "admin:create": "tsx src/scripts/create-admin.ts",
+    "tenant:purge": "tsx src/scripts/purge-tenant.ts"
   },
   "dependencies": {
     "@dineos/shared": "*",
