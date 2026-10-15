@@ -18,6 +18,7 @@ import { badRequest, conflict, notFound } from '../../lib/errors';
 import { markOrdersBilled } from '../orders/service';
 import { hasPrintAgent, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
+import { paymentAdapterFor } from './payment-adapter';
 import { loadBill, loadBills, loadInvoice, shares, upiUri, type AmountSplit } from './serialize';
 
 type BillRow = Awaited<ReturnType<typeof lockBill>>;
@@ -551,6 +552,16 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
   if (input.amount_paise > balance) {
     throw badRequest('overpayment', 'Payment is more than the balance due', { balance_paise: balance });
   }
+  const confirmation = await paymentAdapterFor(input.method).confirm({
+    billId,
+    invoiceNo: bill.invoice_no,
+    method: input.method,
+    amountPaise: input.amount_paise,
+    reference: input.reference ?? null,
+  });
+  if (confirmation.status !== 'confirmed') {
+    throw conflict('payment_not_confirmed', confirmation.status === 'failed' ? confirmation.reason : 'Payment is still pending');
+  }
   let change: number | null = null;
   if (input.method === 'cash' && input.tendered_paise != null) {
     if (input.tendered_paise < input.amount_paise) throw badRequest('tendered_short', 'Cash tendered is less than the amount');
@@ -566,7 +577,7 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
       amount_paise: input.amount_paise,
       tendered_paise: input.method === 'cash' ? (input.tendered_paise ?? null) : null,
       change_paise: change,
-      reference: input.reference?.trim() || null,
+      reference: confirmation.reference,
       confirmed_by: auth.userId,
     })
     .execute();
