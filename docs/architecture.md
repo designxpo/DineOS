@@ -10,6 +10,8 @@ Cashier POS ───────┤        └── api (Fastify 5) ──┼�
 Owner / admin ─────┘              │               └── object storage (menu photos: local disk or S3/MinIO)
                                   └── Socket.IO /staff, /guest, /device
 Print agent (outlet PC) ── outbound socket + REST ── ESC/POS printers on port 9100
+   └─ outlet hub mode: LAN copy of the outlet on :4100 for internet outages (staff app proxied beside it)
+Camera box (Python) ── RTSP from IP cameras ── HTTPS table states only ── api /v1/vision/*
 ```
 
 | Package | Contents |
@@ -17,7 +19,8 @@ Print agent (outlet PC) ── outbound socket + REST ── ESC/POS printers on
 | `packages/shared` | Rules both sides must agree on: order state machine, GST bill arithmetic (integer paise), invoice numbering and Indian financial year, menu schedules and modifier rules, table state derivation, role permissions, API DTO types, event names |
 | `apps/api` | Fastify modules under `src/modules/*`, each exposing `routes(ctx)`; SQL migrations in `migrations/`; tests in `test/` against a real database |
 | `apps/web` | Next.js app: `app/t/[token]` guest, `app/app/*` staff portal, `app/admin` platform admin, `app/print/*` 80 mm browser print views |
-| `apps/print-agent` | Node agent with a small ESC/POS encoder and KOT/invoice layouts |
+| `apps/print-agent` | Node agent with a small ESC/POS encoder and KOT/invoice layouts; `src/hub/*` is the outlet hub (engine, LAN server, JSON store, cloud link) |
+| `edge/vision-worker` | Python camera worker: zones, tracking, hold-before-send, YOLOX on ONNX Runtime, cloud client |
 
 ## Tenancy
 
@@ -50,7 +53,8 @@ return ctx.tx(auth.tenantId, async (tx) => {
 - Order: `placed → accepted → preparing → ready → served → billed`, plus `rejected` (from placed, reason required) and `cancelled` (manager approval after acceptance). Items move independently on the KDS, and the order follows its least-advanced item.
 - Guest orders wait in the inbox unless the outlet auto-accepts. The first order from each new phone is flagged, and can still require approval with auto-accept on. Staff orders go straight to the kitchen.
 - Accepting an order creates one kitchen ticket (KOT) per station and, if a print agent is registered, a print job.
-- Table state (vacant, occupied, ordered, served, bill requested, needs cleaning) is derived from session, orders and bill requests and stored with a history in `table_state_events`. Camera input (Phase 3) will write to the same table with `source = 'camera'`.
+- Table state (vacant, occupied, ordered, served, bill requested, needs cleaning) is derived from session, orders and bill requests (`deriveTableState` in shared) and stored with a history in `table_state_events`. Camera readings are logged there with `source = 'camera'` and feed the same function (see Camera table vision).
+- Accepted orders use stock: `syncStock` consumes each accepted item's recipe once and gives it back if the item is cancelled later (`order_items.stock_applied` makes it idempotent). It runs after every order change and after hub sync.
 
 ## Billing
 
@@ -58,13 +62,45 @@ return ctx.tx(auth.tenantId, async (tx) => {
 - Splitting by item or seat creates separate bills, each with its own invoice. Splitting by amount keeps one invoice and shows equal or custom shares to pay separately.
 - Finalising takes the next number from a per-outlet, per-financial-year counter row (`PREFIX/2627/000123`, at most 16 characters). The row lock serialises concurrent cashiers and a rollback returns the number, so the series has no gaps or duplicates. Voided invoices keep their number.
 - Voids, refunds, cancelling food the kitchen has, and discounts above 10% need a manager. If the cashier lacks the permission, a manager enters their login and PIN on the same screen; that issues a single-use, two-minute approval token, and everything is written to `audit_log`.
-- Payments go through `PaymentAdapter`. In Phase 1 it is manual: staff confirm cash, a UPI credit to the outlet's own VPA, or a card slip. A gateway can implement the interface later.
+- Payments go through `PaymentAdapter`. It is manual: staff confirm cash, a UPI credit to the outlet's own VPA, or a card slip. A gateway can implement the interface later. Until then, owners check UPI against the bank statement (UPI check).
+- Loyalty: a customer on a draft bill can redeem points (capped at what is left after discounts); points leave the balance at finalisation, come back on void, and are earned when the bill is fully paid. Every change is in `loyalty_ledger`.
+- Bills printed by the outlet hub carry `invoice_series = 'hub'` and their own gap-free numbers per financial year.
 
 ## Offline behaviour
 
-- Staff screens: a service worker caches the app shell; the POS keeps the menu in IndexedDB. Order creation, status changes, KDS taps and payments are queued in IndexedDB with their idempotency keys when the network is down, and replayed on reconnect.
+- Staff screens: a service worker caches the app shell; the POS keeps the menu in IndexedDB. Order creation, status changes, KDS taps and payments are queued in IndexedDB with their idempotency keys when the network is down, and replayed on reconnect with the session that made them. A change the server refuses on replay is kept and shown (the header badge) until someone dismisses it.
 - Guests: the menu is served from a versioned, cacheable URL. The cart lives on the server so phones at one table stay in sync.
-- Full offline operation (the hybrid tier) is out of scope for Phase 1.
+
+### The outlet hub (hybrid tier)
+
+```
+online:   cloud ──snapshot every minute──> hub (menu, tables, open visits with orders and unpaid
+                                            bills, staff session token hashes; no passwords)
+outage:   staff app ──"Switch to outlet hub"──> http://<hub>/offline#token=...  (fragment only)
+          hub serves the same staff app on the LAN and answers the /v1 subset the POS, KDS,
+          floor and bill screens use, with the same shared rules and DTOs; prints locally
+back:     hub ──POST /v1/device/hub/sync──> cloud upserts by id, one transaction per table visit
+```
+
+- One print-agent device per outlet is the hub (`outlets.hub_device_id`); only it gets the snapshot.
+- The hub refuses changes while the cloud is reachable and nothing is waiting to sync, so nobody works in two places. It accepts them while offline and until its changes have synced.
+- State lives in one JSON file, written atomically (temp file, fsync, rename) before every response, so a printed invoice number survives a crash. Each write runs against a copy and rolls back on error; `Idempotency-Key` replays get the first answer.
+- Offline: orders, item and order status, seat, clean, release, bills, service-charge removal, finalising (hub series), payments, reprints. Not offline: discounts, voids, refunds, splits, loyalty, menu edits. Cancelling what the kitchen has needs a manager signed in (PINs are not checked offline).
+- Sync rules (`modules/hub/ingest.ts`): sessions, orders, items, bills and payments are inserted with the hub's ids or updated forward only; synced orders get a regular order number and keep the hub's (`offline_ref`); bills must match their orders line by line and add up with the shared bill maths, or they are refused and reported; a table the cloud used meanwhile is folded into the hub's visit; closed visits are applied before open ones.
+- QR ordering pauses (503 `outlet_offline`) only when the outlet has a hub that has not checked in for three minutes and no staff screen is connected, i.e. the outlet is really cut off.
+
+## Camera table vision
+
+- The edge worker reads RTSP frames (2 per second), detects people and table items with YOLOX-s, tracks them, classifies each table zone, and sends a state only after it has held for 25 seconds with 80% agreement; it resends every 5 minutes.
+- `POST /v1/vision/table-state` logs every reading in `table_state_events`; late or out-of-order readings are not applied. `tables.camera_state/at` hold the latest.
+- Fusion (spec §5) is in `deriveTableState`: with no open visit, a fresh camera reading (under 15 minutes) may make a table occupied or needs-cleaning; an open session always wins; the camera cannot clear a cleaning flag set by staff or billing. Staff "clean" clears a camera mess flag. A camera-only state lapses to vacant when the camera goes quiet.
+- `camera_occupied_since` marks guests seated at a table nobody opened; the floor shows "Guests waiting N min". Seating the table clears it.
+- `GET /v1/reports/vision` scores readings against open visits (target 95%), and derives dwell time, tables used without an order and time to attend.
+- Stills for drawing zones are uploaded only on request, blurred on the box, stored in the database (not public storage), served to managers only, excluded from exports and deleted after a day.
+
+## UPI check
+
+`modules/reconciliation`: a statement (CSV or .xlsx) is parsed (`statement.ts`, layout-tolerant), its credits stored once each by fingerprint, and matched over the statement's dates: by UTR (or its last digits typed by the cashier, with the same amount), then UPI credits by amount on the same or previous day. The statement view lists UPI payments with no credit (payments on the last day may still post), UPI credits with no payment, and other credits. Manual matches and set-asides are audited.
 
 ## Adding a feature
 

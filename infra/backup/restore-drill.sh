@@ -40,8 +40,9 @@ check "all migrations present" "select count(*) from schema_migrations" "$expect
 check "row-level security on every tenant table" \
   "select count(*) from information_schema.columns c join pg_class p on p.relname = c.table_name and p.relkind = 'r'
    where c.table_schema = 'public' and c.column_name = 'tenant_id' and not (p.relrowsecurity and p.relforcerowsecurity)" "0"
-check "invoice numbers gap-free per outlet and year" \
-  "select count(*) from (select outlet_id, fy_code from bills where invoice_seq is not null group by 1, 2 having max(invoice_seq) <> count(*)) g" "0"
+# Each series (main, and the outlet hub's offline series) is gap-free on its own.
+check "invoice numbers gap-free per outlet, year and series" \
+  "select count(*) from (select outlet_id, fy_code, invoice_series from bills where invoice_seq is not null group by 1, 2, 3 having max(invoice_seq) <> count(*)) g" "0"
 check "app role cannot bypass RLS" "select rolbypassrls from pg_roles where rolname = 'dineos_app'" "f"
 
 if [[ -f "$MANIFEST" ]]; then

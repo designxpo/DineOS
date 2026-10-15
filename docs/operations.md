@@ -32,6 +32,7 @@ docker compose --env-file .env.production run --rm api \
 5. **Staff**: add managers, cashiers, waiters and kitchen staff. Managers set an approval PIN in **Settings → My PIN**.
 6. Optional printers: **Settings → Printers → Add print agent**, then install the agent (below).
 7. Subscription: create a monthly invoice in the admin console; mark it paid when the UPI or bank transfer arrives.
+8. Optional, any time: **Settings → Loyalty & stock** (points, booking length, automatic sold-out), **Inventory** (ingredients and recipes), **Settings → Printers → Offline mode** (outlet hub), **Settings → Cameras**.
 
 ## Print agent
 
@@ -46,6 +47,41 @@ DINEOS_API_URL=https://API_DOMAIN DINEOS_DEVICE_TOKEN=dv_... node main.js
 - Keep it running as a service: NSSM on Windows, a systemd unit on Linux.
 - Printer addresses (`192.168.1.50:9100`, 80 mm = 48 columns, 58 mm = 32) are set per device in the portal; restart the agent after changing them. **Settings → Printers → Test** prints a test page.
 - Jobs are acknowledged once printed. Failures retry up to five times, and jobs left unprinted while the PC was off print when it reconnects. If the agent is down, kitchen staff still see orders on the KDS, and bills can be printed from the browser.
+
+## Outlet hub (offline mode)
+
+The same print agent, started with `DINEOS_HUB=1`, keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to DineOS when the line returns.
+
+1. Pick an always-on PC on the outlet's network (the print-agent PC is fine) and give it a fixed IP in the router.
+2. **Settings → Printers → Offline mode**: choose that device and enter its address, e.g. `http://192.168.1.20:4100`.
+3. On the PC run the hub and, beside it, the staff web app (the same `web` image as the cloud), so the app is served on the LAN:
+
+```bash
+docker run -d --restart=always --name dineos-web -p 127.0.0.1:3000:3000 \
+  -e NEXT_PUBLIC_API_URL=https://API_DOMAIN dineos-web:<version>
+DINEOS_HUB=1 DINEOS_HUB_PORT=4100 DINEOS_HUB_DATA=/var/lib/dineos/hub.json \
+DINEOS_HUB_WEB=http://127.0.0.1:3000 DINEOS_API_URL=https://API_DOMAIN \
+DINEOS_DEVICE_TOKEN=dv_... node main.js
+```
+
+4. Staff must have signed in on each device while online; the hub recognises their sessions by hash.
+5. Rehearse: unplug the router, switch a tablet to the hub, take an order and a payment, plug back in, and check the bill under **Bills** and in the GST report (series `PREFIXH`).
+
+- `GET http://<hub>:4100/hub/status` shows whether the cloud is reachable, whether changes are waiting, and anything the cloud refused (also logged, and shown in the hub's banner).
+- Back up `hub.json` with the PC. If the PC dies while offline, bills made on it reach DineOS only from that file.
+- While the hub and every staff screen are cut off, the cloud pauses QR ordering for that outlet so guests are told to order with a waiter.
+
+## Camera box (optional)
+
+See `edge/vision-worker/README.md` for hardware, installing the model and running the service. In the portal: **Settings → Cameras → Add camera box**, add each camera with a stream name, then **Draw table zones** on its picture. **Reports → Camera** shows how often the camera agreed with the till; run it for two weeks before relying on camera states at a new outlet.
+
+## UPI check
+
+Managers download the account statement from net banking (CSV or Excel) and import it in **UPI check**, weekly or at month end. Act on two lists: UPI payments the bank never received (ask the cashier for the guest's UTR or payment screen), and UPI credits with no bill (match them, or set aside money that is not a sale). Re-importing an overlapping statement is safe.
+
+## Maintenance job
+
+Runs hourly on one API server (advisory lock) and can be run by hand with `node apps/api/dist/maintenance.js`: prunes old events, idempotency keys, sessions and print jobs; releases tables where guests browsed but never ordered; marks reservations as no-shows after the grace period; closes stale waitlist entries; deletes camera stills older than a day.
 
 ## Backups
 

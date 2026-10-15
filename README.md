@@ -1,13 +1,14 @@
 # DineOS
 
-Multi-tenant restaurant and cafe platform for India: guests order from a table QR code on their own phone, orders reach the kitchen display and the manager's inbox in well under two seconds, and cashiers settle GST invoices with cash, the outlet's own UPI QR, card slips or split payments. Built to the Phase 1 scope of the *Restaurant & Cafe SaaS dev spec*.
+Multi-tenant restaurant and cafe platform for India: guests order from a table QR code on their own phone, orders reach the kitchen display and the manager's inbox in well under two seconds, and cashiers settle GST invoices with cash, the outlet's own UPI QR, card slips or split payments. Built to the *Restaurant & Cafe SaaS dev spec*: all of Phase 1, Phase 2 (operations and the offline tier), Phase 3 (camera table vision) and Phase 4 without a payment gateway (UPI checked against the bank statement).
 
 | Surface | Path | Who uses it |
 | --- | --- | --- |
 | Guest QR menu (PWA, no app, no login, English/Hindi) | `/t/{table token}` | Guests |
 | Staff and owner portal: orders inbox, kitchen display, floor map, POS, bills, menu, tables and QR, reports, staff, settings | `/app` | Owners, managers, cashiers, waiters, kitchen |
 | Platform admin: restaurants, plans, subscription invoices, usage, support access | `/admin` | You |
-| Print agent for ESC/POS kitchen and bill printers | `apps/print-agent` | Runs on one PC per outlet |
+| Print agent for ESC/POS kitchen and bill printers; with `DINEOS_HUB=1` also the **outlet hub** that keeps the outlet trading through internet outages | `apps/print-agent` | Runs on one PC per outlet |
+| Camera table vision worker (optional) | `edge/vision-worker` (Python) | Runs on a small box next to the outlet's IP cameras |
 
 ## Run it locally
 
@@ -17,7 +18,8 @@ Needs Node 22+ and PostgreSQL 16.
 npm install
 cp .env.example .env                      # then set TOKEN_SECRET to 32+ random characters
 npm run db:setup && npm run db:migrate    # creates roles and the dineos_dev database
-npm run db:seed                           # a hotel restaurant pilot with menu, 22 tables and staff
+npm run db:seed                           # a hotel restaurant: menu, 22 tables, staff, two weeks of trade,
+                                          # stock and recipes, loyalty customers, tonight's bookings
 npm run dev                               # API on :4000, web on :3000
 ```
 
@@ -38,14 +40,18 @@ To act as a guest, open **Floor**, tap a table and choose **Guest menu**, or pri
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | All tests: shared billing/state rules, the API against a real Postgres (including the cross-tenant suite), print agent layouts |
+| `npm test` | All tests: shared billing/state rules, the API against a real Postgres (including the cross-tenant suite and an end-to-end internet outage through the outlet hub), print agent layouts, the web offline queue |
+| `cd edge/vision-worker && python3 -m unittest discover -s tests` | Camera worker tests (standard library; the detector test also runs with numpy) |
 | `npm run lint` / `npm run typecheck` | ESLint and TypeScript across the monorepo |
 | `npm run db:migrate` then `npm run db:codegen -w @dineos/api` | Apply a new migration and regenerate the typed schema |
 | `node infra/load/load-test.mjs` | Load test at the spec's scale target (see docs/operations.md) |
 | `infra/backup/backup.sh`, `infra/backup/restore-drill.sh` | Encrypted backup; restore the newest backup into a scratch database and verify it |
 | `DINEOS_DRY_RUN=1 DINEOS_DEVICE_TOKEN=dv_... npm start -w @dineos/print-agent` | Run the print agent without a printer and see the tickets as text |
+| `DINEOS_HUB=1 DINEOS_DRY_RUN=1 DINEOS_DEVICE_TOKEN=dv_... npm start -w @dineos/print-agent` | Run the outlet hub locally on :4100 (see docs/operations.md) |
 
-## What is in Phase 1
+## What is built
+
+### Phase 1: order-to-bill core
 
 All nine Phase 1 epics: foundations (auth, tenants, outlets, roles, row-level security, audit log), menu management with spreadsheet import, tables and signed QR codes with a printable PDF sheet, guest ordering with a shared live cart, order inbox and kitchen display, POS and GST billing with splits and a gap-free invoice series, floor operations, platform admin with manual subscription invoices, and hardening.
 
@@ -61,6 +67,25 @@ The acceptance criteria in spec §14 are automated:
 | Split three ways, mixed cash and UPI, GST invoice with a gap-free number | `billing.test.ts`, including concurrent finalising and rollback |
 | Restoring last night's backup into a clean environment succeeds | `infra/backup/restore-drill.sh` |
 
+### Phase 2: operations
+
+| Feature | What it does | Tests |
+| --- | --- | --- |
+| Customer book and loyalty | Customers saved only with recorded consent; points earned on paid bills, spent at finalisation, returned on void; guests can join from the table (they see only the last four digits of the number); erasure and export | `customers.test.ts` |
+| Reservations and waitlist | Bookings with clash checks and free-table suggestions, seating that opens the table, no-shows after a grace period; walk-in waitlist; next booking shown on the floor map | `reservations.test.ts` |
+| Inventory and recipes | Ingredients, recipes for dishes and add-ons, purchases at a moving-average cost, wastage, counts; accepted orders use stock, cancelled ones give it back; low-stock alerts, optional automatic sold-out, food-cost report | `inventory.test.ts` |
+| Richer reports | Comparison with the previous period, sales by category, weekday-by-hour heatmap, team, discounts by reason, table turns and dwell, customers, pilot health (QR share, rejections, time to accept) | `reports.test.ts` |
+| Short-offline hardening | Changes queued on the device replay as the person who made them; refused replays stay visible until dismissed; signing out with unsent changes asks first | `apps/web/lib/outbox.test.ts` |
+| Hybrid offline tier | The outlet hub serves the staff app on the LAN when the internet is down: orders, kitchen display, live updates, bills with their own GST invoice series, payments, local printing; everything syncs back exactly once | `hub.test.ts` (real API, real hub, network cut and restored) |
+
+### Phase 3: camera table vision
+
+An edge worker turns camera frames into a table state (vacant, occupied, needs cleaning) and a confidence; nothing else leaves the outlet. The cloud applies a reading only when the table has no open visit, shows guests who sat down unattended, and scores the camera against the till (target 95%). Managers draw table zones on a blurred still that is deleted after a day. Tests: `vision.test.ts`, `packages/shared/src/table-state.test.ts`, and the worker's own suite. **The detector is the pretrained YOLOX-s; tuning it needs footage from real outlets** (see `edge/vision-worker/README.md`).
+
+### Phase 4, without a gateway: UPI check
+
+Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from any major Indian bank) and see the UPI payments the bank never received, UPI money with no bill, and other money in. Matching is by UTR, then by amount and date. Tests: `reconciliation.test.ts` and the statement parser tests. A payment gateway still needs your decision on one external dependency; the `PaymentAdapter` seam is ready for it.
+
 ## Decisions that differ from the spec
 
 - **No Web Push.** PWA push goes through Google, Apple or Mozilla servers, which would break the no-third-party rule. Staff get in-app sound and alerts while the portal is open.
@@ -70,6 +95,10 @@ The acceptance criteria in spec §14 are automated:
 - **Staff sessions are database tokens**, not JWTs, so disabling someone signs them out at once.
 - **StayOS bill-to-room** is deferred; record it as payment method "Other" with the room number as the reference.
 - **Every foreign key between tenant tables also matches `tenant_id`.** Postgres checks foreign keys without row-level security, so this stops one tenant's rows from pointing at another's.
+- **Offline bills use their own invoice series** (`PREFIXH/2627/00001`), so the hub never needs the cloud's counter; GST reports list both series.
+- **Guests joining loyalty see only the last four digits** of the number they typed, and never anyone's name or balance: there is no OTP without an SMS provider.
+
+Phases 2 to 4 decisions are recorded in [docs/specs/2026-10-15-phase2-4-decisions.md](docs/specs/2026-10-15-phase2-4-decisions.md).
 
 ## Before the pilot
 
@@ -78,9 +107,12 @@ The acceptance criteria in spec §14 are automated:
 - Build the Docker images: CI does this on every push. They could not be built on the development machine because Docker was not running.
 - Point a domain at the server. Tenant subdomains (`slug.yourdomain`) are optional and need a wildcard certificate.
 - Configure a second backup location; `backup.sh` warns while there is none.
+- Offline mode: give the hub PC a fixed LAN address, run the hub with the staff app beside it, and rehearse an outage (unplug the router) before relying on it.
+- Cameras: run the two-week camera audit at an outlet before trusting camera states there.
 
 ## Docs
 
 - [docs/architecture.md](docs/architecture.md): how the system fits together, tenancy, realtime, billing, and conventions for adding features
-- [docs/operations.md](docs/operations.md): deploying, onboarding a restaurant, the print agent, backups, scaling and security
+- [docs/operations.md](docs/operations.md): deploying, onboarding a restaurant, the print agent and outlet hub, cameras, the UPI check, backups, scaling and security
+- [edge/vision-worker/README.md](edge/vision-worker/README.md): installing the camera box, exporting the model, fine-tuning
 - Spec and decisions: [docs/specs/](docs/specs/)
