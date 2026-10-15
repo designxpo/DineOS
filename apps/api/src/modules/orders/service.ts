@@ -176,10 +176,17 @@ export async function insertOrderItems(
   lines: readonly PreparedLine[],
   status: ItemStatus,
 ): Promise<string[]> {
+  const last = await tx.db
+    .selectFrom('order_items')
+    .select((eb) => eb.fn.max('position').as('max'))
+    .where('order_id', '=', orderId)
+    .executeTakeFirst();
+  const start = (last?.max ?? -1) + 1;
   const rows = await tx.db
     .insertInto('order_items')
     .values(
-      lines.map((l) => ({
+      lines.map((l, i) => ({
+        position: start + i,
         tenant_id: tx.tenantId,
         order_id: orderId,
         item_id: l.item_id,

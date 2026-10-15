@@ -194,6 +194,16 @@ export function can(auth: StaffAuth, outletId: string, action: Action): boolean 
   return rolesCan(rolesAt(auth, outletId), action);
 }
 
+/** Throws 403 unless the staff member may perform `action` at `outletId`. */
+export function assertCan(auth: StaffAuth, outletId: string, action: Action): void {
+  if (!can(auth, outletId, action)) throw forbidden();
+}
+
+/** Throws 403 unless the staff member holds any role at `outletId`. */
+export function assertOutletAccess(auth: StaffAuth, outletId: string): void {
+  if (rolesAt(auth, outletId).length === 0) throw forbidden();
+}
+
 /** Staff principal allowed to perform `action` at `outletId`, or 403. */
 export function requireAction(req: FastifyRequest, outletId: string, action: Action): StaffAuth {
   const auth = requireStaff(req);

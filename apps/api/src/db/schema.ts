@@ -258,6 +258,7 @@ export interface OrderItems {
   name_snapshot: string;
   note: string | null;
   order_id: string;
+  position: Generated<number>;
   price_snapshot_paise: number;
   qty: number;
   seat_no: number | null;

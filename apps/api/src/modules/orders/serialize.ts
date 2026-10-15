@@ -19,8 +19,8 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
     .selectFrom('order_items')
     .selectAll()
     .where('order_id', 'in', [...ids])
+    .orderBy('position')
     .orderBy('created_at')
-    .orderBy('id')
     .execute();
 
   const byOrder = new Map<string, OrderItemDTO[]>();

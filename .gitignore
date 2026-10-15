@@ -11,3 +11,4 @@ apps/api/storage/
 backups/
 .DS_Store
 graphify-out/
+apps/api/storage-test/
