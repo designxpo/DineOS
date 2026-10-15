@@ -17,6 +17,16 @@ docker compose --env-file .env.production run --rm api \
 - Health: `GET https://API_DOMAIN/healthz`. Logs: `docker compose logs -f api`.
 - `TOKEN_SECRET` signs every table QR code. Keep it stable; changing it invalidates all printed QR codes.
 
+### Database on Supabase (optional)
+
+The database can be a Supabase project's Postgres; DineOS uses it as plain PostgreSQL (its own roles, migrations and API; not the Supabase Data API, Auth or client libraries).
+
+1. Put the connection details in a gitignored file such as `.env.supabase.local` (see the one in the repo root of the setup machine): `DATABASE_OWNER_URL` is Supabase's `postgres` user through the **session** pooler (port 5432); `DATABASE_URL` and `DATABASE_ADMIN_URL` are `dineos_app.<project-ref>` and `dineos_admin.<project-ref>` through the **transaction** pooler (port 6543), with passwords you choose in `DINEOS_APP_PASSWORD` / `DINEOS_ADMIN_PASSWORD`.
+2. `DINEOS_ENV_FILE=.env.supabase.local npm run db:setup` creates the two roles; `DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate` applies every migration.
+3. Run the API with the same `DINEOS_ENV_FILE`. Tests keep using the local database.
+
+Migration 0013 removes every privilege Supabase gives its Data API roles (`anon`, `authenticated`) in schema public, so the publishable key cannot read or call anything; 0014 matches Supabase's automatic RLS on platform tables. In the Supabase dashboard you can also turn the Data API off entirely. Pick the **Mumbai (ap-south-1)** region for real customer data: the spec asks for India-region hosting.
+
 ### Scaling
 
 - More API capacity: run several `api` containers (`docker compose up -d --scale api=3`). Redis carries live events between them, and the hourly maintenance job runs on only one, using an advisory lock.
