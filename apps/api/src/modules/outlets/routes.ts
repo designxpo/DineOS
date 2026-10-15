@@ -36,19 +36,21 @@ const outletFields = {
   loyalty_min_redeem_points: z.number().int().min(0).max(1_000_000),
   reservation_minutes: z.number().int().min(15).max(600),
   inventory_auto_stockout: z.boolean(),
+  hub_device_id: z.uuid().nullable(),
+  hub_url: z.string().trim().regex(/^https?:\/\/[^\s/]+(:\d+)?\/?$/, 'Address looks like http://192.168.1.20:4100').nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
 const createOutlet = z.object(outletFields).partial().required({ name: true });
 
-const OUTLET_COLUMNS = [
+export const OUTLET_COLUMNS = [
   'id', 'name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix', 'timezone',
   'auto_accept', 'approve_flagged_orders', 'service_charge_bp', 'service_charge_tax_rate_bp', 'default_tax_rate_bp',
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
-  'reservation_minutes', 'inventory_auto_stockout',
+  'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url',
 ] as const;
 
-async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
+export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
   const o = await tx.db.selectFrom('outlets').select(OUTLET_COLUMNS).where('id', '=', id).executeTakeFirst();
   if (!o) throw notFound('Outlet');
   return o;
@@ -110,6 +112,18 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           }
           body.kitchen_stations = stations;
         }
+        if (body.hub_device_id) {
+          const device = await tx.db
+            .selectFrom('devices')
+            .select('id')
+            .where('id', '=', body.hub_device_id)
+            .where('outlet_id', '=', id)
+            .where('kind', '=', 'print_agent')
+            .where('status', '=', 'active')
+            .executeTakeFirst();
+          if (!device) throw badRequest('invalid_device', 'Pick an active print agent at this outlet');
+        }
+        if (body.hub_url) body.hub_url = body.hub_url.replace(/\/$/, '');
         if (body.timezone && !Intl.supportedValuesOf('timeZone').includes(body.timezone)) {
           throw badRequest('invalid_timezone', 'Unknown timezone');
         }

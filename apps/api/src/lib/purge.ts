@@ -45,6 +45,7 @@ export async function purgeTenant(db: Database, tenantId: string): Promise<Recor
   return db.transaction().execute(async (trx) => {
     const counts: Record<string, number> = {};
     await trx.updateTable('tables').set({ current_session_id: null }).where('tenant_id', '=', tenantId).execute();
+    await trx.updateTable('outlets').set({ hub_device_id: null }).where('tenant_id', '=', tenantId).execute();
     for (const table of PURGE_ORDER) {
       const res = await sql`delete from ${sql.table(table)} where tenant_id = ${tenantId}`.execute(trx);
       counts[table] = Number(res.numAffectedRows ?? 0);

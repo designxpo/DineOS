@@ -107,6 +107,7 @@ export interface Bills {
   invoice_date: string | null;
   invoice_no: string | null;
   invoice_seq: number | null;
+  invoice_series: Generated<string>;
   item_discount_paise: Generated<number>;
   item_discounts: Generated<Json>;
   item_scope: Json | null;
@@ -352,6 +353,7 @@ export interface Orders {
   flagged: Generated<boolean>;
   id: Generated<string>;
   note: string | null;
+  offline_ref: string | null;
   order_no: number;
   outlet_id: string;
   placed_at: Generated<Timestamp>;
@@ -387,6 +389,8 @@ export interface Outlets {
   event_seq: Generated<number>;
   fssai_no: string | null;
   gstin: string | null;
+  hub_device_id: string | null;
+  hub_url: string | null;
   id: Generated<string>;
   inventory_auto_stockout: Generated<boolean>;
   invoice_prefix: Generated<string>;

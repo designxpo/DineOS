@@ -171,7 +171,7 @@ export async function getBill(tx: Tx, billId: string): Promise<BillDTO> {
   return bill;
 }
 
-async function announceBill(tx: Tx, bill: BillDTO): Promise<void> {
+export async function announceBill(tx: Tx, bill: BillDTO): Promise<void> {
   await tx.emit({ outletId: bill.outlet_id, type: 'bill.updated', channels: ['outlet'], payload: { bill_id: bill.id, status: bill.status, table_session_id: bill.table_session_id } });
   if (bill.table_session_id) {
     await tx.emit({
@@ -492,7 +492,7 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
   return dto;
 }
 
-async function markFullyBilledOrders(tx: Tx, billId: string): Promise<void> {
+export async function markFullyBilledOrders(tx: Tx, billId: string): Promise<void> {
   const orderIds = await tx.db
     .selectFrom('bill_lines')
     .innerJoin('order_items', 'order_items.id', 'bill_lines.order_item_id')

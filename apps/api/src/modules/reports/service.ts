@@ -198,7 +198,7 @@ export async function gstReport(tx: Tx, r: Range) {
 
   const invoices = await tx.db
     .selectFrom('bills')
-    .select(['invoice_no', 'invoice_seq', 'fy_code', 'status', 'invoice_date', 'total_paise', 'taxable_paise', 'tax_total_paise', 'customer_name', 'customer_gstin'])
+    .select(['invoice_no', 'invoice_seq', 'invoice_series', 'fy_code', 'status', 'invoice_date', 'total_paise', 'taxable_paise', 'tax_total_paise', 'customer_name', 'customer_gstin'])
     .where('outlet_id', '=', r.outletId)
     .where('invoice_no', 'is not', null)
     .where('invoice_date', '>=', r.from)
@@ -206,6 +206,14 @@ export async function gstReport(tx: Tx, r: Range) {
     .orderBy('fy_code')
     .orderBy('invoice_seq')
     .execute();
+  // Bills printed by the outlet hub during an outage have their own series (GST allows several).
+  const series = (['main', 'hub'] as const)
+    .map((name) => {
+      const list = invoices.filter((i) => i.invoice_series === name);
+      return { series: name, count: list.length, first: list[0]?.invoice_no ?? null, last: list.at(-1)?.invoice_no ?? null, cancelled: list.filter((i) => i.status === 'void').map((i) => i.invoice_no) };
+    })
+    .filter((x) => x.count > 0);
+  const main = invoices.filter((i) => i.invoice_series === 'main');
 
   return {
     from: r.from,
@@ -216,10 +224,11 @@ export async function gstReport(tx: Tx, r: Range) {
     ],
     hsn_summary: hsn.map((h) => ({ hsn_sac: h.hsn_sac || null, tax_rate_bp: h.tax_rate_bp, qty: n(h.qty), taxable_paise: n(h.taxable_paise), tax_paise: n(h.tax_paise) })),
     invoices: {
-      count: invoices.length,
-      first: invoices[0]?.invoice_no ?? null,
-      last: invoices.at(-1)?.invoice_no ?? null,
-      cancelled: invoices.filter((i) => i.status === 'void').map((i) => i.invoice_no),
+      count: main.length,
+      first: main[0]?.invoice_no ?? null,
+      last: main.at(-1)?.invoice_no ?? null,
+      cancelled: main.filter((i) => i.status === 'void').map((i) => i.invoice_no),
+      series,
     },
     b2b: invoices
       .filter((i) => i.customer_gstin && i.status !== 'void')

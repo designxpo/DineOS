@@ -8,6 +8,7 @@ import { requireGuest } from '../../lib/auth';
 import { AppError, conflict, notFound } from '../../lib/errors';
 import { signGuestToken, verifyQrToken, type QrClaims } from '../../lib/tokens';
 import { parse } from '../../lib/validate';
+import { assertOutletReachable } from '../hub/presence';
 import { loadMenu } from '../menu/service';
 import { createServiceRequest } from '../tables/floor';
 import { getOrCreateSession } from '../tables/sessions';
@@ -138,6 +139,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     app.post('/guest/orders', async (req, reply) => {
       const auth = requireGuest(req);
       const body = parse(z.object({ line_ids: z.array(z.uuid()).max(50).optional(), note: z.string().max(300).nullable().optional() }), req.body);
+      await assertOutletReachable(ctx, auth.tenantId, auth.outletId);
       const result = await ctx.tx(auth.tenantId, (tx) => placeGuestOrder(tx, auth, body));
       return reply.status(201).send(result);
     });

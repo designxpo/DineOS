@@ -35,6 +35,8 @@ export async function attachRealtime(app: FastifyInstance, ctx: AppContext): Pro
   const staff = io.of(SOCKET_NAMESPACES.staff);
   const guest = io.of(SOCKET_NAMESPACES.guest);
   const device = io.of(SOCKET_NAMESPACES.device);
+  // Works across API nodes when the Redis adapter is on.
+  ctx.presence = async (tenantId, outletId) => (await staff.in(roomName(tenantId, outletId, 'outlet')).fetchSockets()).length;
 
   function guard(ns: Namespace, kind: Auth['kind']) {
     ns.use(async (socket, next) => {

@@ -1,7 +1,7 @@
 import { createConnection } from 'node:net';
 import { io, type Socket } from 'socket.io-client';
 import type { OutletEvent } from '@dineos/shared/events';
-import type { PrintJobDTO } from '@dineos/shared/print';
+import type { PrintDoc, PrintJobDTO } from '@dineos/shared/print';
 import { render } from './render';
 
 export interface PrinterConfig {
@@ -103,6 +103,31 @@ export class PrintAgent {
     const key = this.printers[job.target]?.address ?? `none:${job.target}`;
     const prev = this.queues.get(key) ?? Promise.resolve();
     const next = prev.then(() => this.handle(job));
+    this.queues.set(key, next);
+  }
+
+  /** Printer map from the portal (and local overrides), once start() has reached the cloud. */
+  get printerConfig(): Record<string, PrinterConfig> {
+    return this.printers;
+  }
+
+  /**
+   * Prints a document the outlet hub made while offline. Same per-printer queue as cloud jobs,
+   * nothing to acknowledge.
+   */
+  printLocal(target: string, doc: PrintDoc, printers: Record<string, PrinterConfig> = this.printers): void {
+    const printer = printers[target] ?? printers.default;
+    const key = printer?.address ?? `none:${target}`;
+    const prev = this.queues.get(key) ?? Promise.resolve();
+    const next = prev.then(async () => {
+      try {
+        if (!printer) throw new Error(`no printer configured for "${target}"`);
+        await this.transport(printer.address, render(doc, printer.width ?? 48).build());
+        this.log(`printed offline ${doc.kind} on ${target}`);
+      } catch (err) {
+        this.log(`offline ${doc.kind} for ${target} failed: ${(err as Error).message}`);
+      }
+    });
     this.queues.set(key, next);
   }
 

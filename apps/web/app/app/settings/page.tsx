@@ -368,7 +368,58 @@ function Printers() {
         </Button>
       </Sheet>
       {editing && <PrinterMap device={editing} targets={targets} onClose={() => setEditing(null)} />}
+      {(devices ?? []).some((d) => d.status === 'active') && <HubSettings devices={(devices ?? []).filter((d) => d.status === 'active')} />}
     </div>
+  );
+}
+
+/** One print agent can also run as the outlet hub that keeps the outlet trading offline. */
+function HubSettings({ devices }: { devices: Device[] }) {
+  const { outlet } = useStaff();
+  const save = useSaveOutlet();
+  const [deviceId, setDeviceId] = useState(outlet?.hub_device_id ?? '');
+  const [url, setUrl] = useState(outlet?.hub_url ?? '');
+  useEffect(() => {
+    setDeviceId(outlet?.hub_device_id ?? '');
+    setUrl(outlet?.hub_url ?? '');
+  }, [outlet?.hub_device_id, outlet?.hub_url]);
+  const hub = devices.find((d) => d.id === outlet?.hub_device_id);
+  return (
+    <Card className="space-y-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Offline mode (outlet hub)</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            When the internet goes down, staff screens can switch to this computer on your Wi-Fi and keep taking orders, sending kitchen tickets and printing GST bills. Everything is sent to
+            DineOS when the connection returns.
+          </p>
+        </div>
+        {hub && <Badge tone={hub.online ? 'green' : 'amber'}>{hub.online ? 'Hub ready' : 'Hub not connected'}</Badge>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Computer that runs the hub">
+          {(id) => (
+            <Select id={id} value={deviceId} onChange={(e) => setDeviceId(e.target.value)}>
+              <option value="">Off</option>
+              {devices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Its address on your Wi-Fi" hint="Give the computer a fixed IP in your router">
+          {(id) => <Input id={id} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://192.168.1.20:4100" />}
+        </Field>
+      </div>
+      {deviceId && (
+        <pre className="overflow-x-auto rounded-xl bg-stone-900 p-3 text-xs text-stone-100">{`DINEOS_HUB=1 DINEOS_HUB_PORT=4100 DINEOS_HUB_DATA=./dineos-hub.json \\\nDINEOS_API_URL=${API_URL} DINEOS_DEVICE_TOKEN=dv_... \\\nnpx dineos-print-agent`}</pre>
+      )}
+      <Button onClick={() => void save({ hub_device_id: deviceId || null, hub_url: deviceId ? url.trim() || null : null })} disabled={!!deviceId && !/^https?:\/\/\S+$/.test(url.trim())}>
+        Save offline mode
+      </Button>
+    </Card>
   );
 }
 

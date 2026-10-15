@@ -4,7 +4,7 @@ import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { EventType, OutletEvent } from '@dineos/shared/events';
-import { API_URL, apiFetch } from './api';
+import { apiBase, apiFetch } from './api';
 import { flush } from './outbox';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
@@ -50,7 +50,7 @@ export function RealtimeProvider({ token, outletId, children }: { token: string;
 
   useEffect(() => {
     lastSeq.current = null;
-    const socket: Socket = io(`${API_URL}/staff`, { auth: { token }, transports: ['websocket', 'polling'], reconnectionDelayMax: 5000 });
+    const socket: Socket = io(`${apiBase()}/staff`, { auth: { token }, transports: ['websocket', 'polling'], reconnectionDelayMax: 5000 });
 
     const deliver = (e: OutletEvent) => {
       if (lastSeq.current !== null && e.seq <= lastSeq.current) return; // duplicate

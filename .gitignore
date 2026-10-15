@@ -14,3 +14,6 @@ graphify-out/
 apps/api/storage-test/
 apps/web/next-env.d.ts
 apps/web/.next/
+
+# Outlet hub state when run from the repo
+dineos-hub.json*

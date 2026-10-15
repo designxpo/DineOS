@@ -1,6 +1,30 @@
 import type { ApiErrorBody } from '@dineos/shared/dto';
 
+/** The cloud API. Guest pages and uploads always use it. */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const BASE_KEY = 'dineos.api_base';
+
+/**
+ * Where staff requests go: the cloud, or the outlet hub while the internet is down. The hub
+ * serves this app from its own LAN address and sets the base to it during the handoff; a value
+ * left over from another address is ignored.
+ */
+export function apiBase(): string {
+  if (typeof window === 'undefined') return API_URL;
+  try {
+    const raw = window.localStorage.getItem(BASE_KEY);
+    const base = raw ? (JSON.parse(raw) as unknown) : null;
+    if (typeof base === 'string' && base === window.location.origin) return base;
+  } catch {
+    // storage blocked: use the cloud
+  }
+  return API_URL;
+}
+
+/** True when this app is running from the outlet hub (offline mode). */
+export function onHub(): boolean {
+  return apiBase() !== API_URL;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -38,7 +62,7 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
   }
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/v1${path}`, { method: opts.method ?? 'GET', headers, body, signal: opts.signal });
+    res = await fetch(`${apiBase()}/v1${path}`, { method: opts.method ?? 'GET', headers, body, signal: opts.signal });
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err;
     throw new NetworkError('No connection to the server');
@@ -55,7 +79,7 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
 
 /** Downloads a binary/text resource (PDF, CSV) with auth and returns an object URL. */
 export async function apiBlobUrl(path: string, token: string): Promise<string> {
-  const res = await fetch(`${API_URL}/v1${path}`, { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(`${apiBase()}/v1${path}`, { headers: { authorization: `Bearer ${token}` } });
   if (!res.ok) throw new ApiError(res.status, 'download_failed', 'Download failed');
   return URL.createObjectURL(await res.blob());
 }

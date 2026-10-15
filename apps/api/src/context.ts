@@ -38,6 +38,8 @@ export interface AppContext {
   log: FastifyBaseLogger;
   tx<T>(tenantId: string, fn: (tx: Tx) => Promise<T>): Promise<T>;
   close(): Promise<void>;
+  /** Staff screens connected to an outlet right now (set once realtime is attached). */
+  presence?: (tenantId: string, outletId: string) => Promise<number>;
 }
 
 export function createContext(config: Config, log: FastifyBaseLogger): AppContext {

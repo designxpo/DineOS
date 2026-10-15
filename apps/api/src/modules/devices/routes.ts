@@ -98,6 +98,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .returning(COLUMNS)
           .executeTakeFirstOrThrow();
         if (body.status && body.status !== d.status) {
+          // A revoked device stops being the outlet hub.
+          if (body.status === 'revoked') await tx.db.updateTable('outlets').set({ hub_device_id: null }).where('hub_device_id', '=', id).execute();
           await audit(tx, auth, { outletId: d.outlet_id, action: `device.${body.status === 'revoked' ? 'revoke' : 'activate'}`, entity: 'device', entityId: id });
         }
         return deviceDto(row);

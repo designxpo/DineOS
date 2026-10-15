@@ -32,6 +32,7 @@ import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmDialog } from '@/components/ui/overlay';
+import { HubModeBanner, HubSwitchBanner } from './offline-hub';
 import { OutboxBadge, useOutboxState } from './outbox-panel';
 
 interface NavItem {
@@ -147,7 +148,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (bare) return <>{children}</>;
+  if (bare) {
+    return (
+      <>
+        <HubModeBanner />
+        <HubSwitchBanner />
+        {children}
+      </>
+    );
+  }
 
 
   return (
@@ -201,6 +210,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <div>{status}</div>
         </header>
+        <HubModeBanner />
+        <HubSwitchBanner />
         <main className="flex-1">{children}</main>
       </div>
       {unsyncedDialog}

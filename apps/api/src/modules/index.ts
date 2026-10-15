@@ -8,6 +8,7 @@ import customers from './customers/routes';
 import devices from './devices/routes';
 import events from './events/routes';
 import guest from './guest/routes';
+import hub from './hub/routes';
 import inventory from './inventory/routes';
 import menu from './menu/routes';
 import orders from './orders/routes';
@@ -36,5 +37,6 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   admin,
   print,
   devices,
+  hub,
   events,
 };

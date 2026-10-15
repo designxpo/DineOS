@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
 import type { BillDTO, BillLineDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, onHub } from '@/lib/api';
 import { formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
 import { send } from '@/lib/outbox';
 import { useI18n, type I18nKey } from '@/lib/i18n';
@@ -43,6 +43,9 @@ export default function BillPage() {
   const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void'>(null);
   const [lineDiscount, setLineDiscount] = useState<BillLineDTO | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // On the outlet hub (offline) only what needs no manager PIN or cloud lookup is offered.
+  const [hub, setHub] = useState(false);
+  useEffect(() => setHub(onHub()), []);
 
   const q = useQuery({ queryKey: ['bill', id], queryFn: () => api<Invoice>(`/bills/${id}/invoice`) });
   const inv = q.data;
@@ -156,12 +159,16 @@ export default function BillPage() {
           {draft && can('bill.manage') && (
             <Card className="space-y-3 p-4">
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setSheet('discount')}>
-                  <Percent className="size-4" /> {t('bill.discount')}
-                </Button>
-                <Button variant="outline" onClick={() => setSheet('split')}>
-                  <Scissors className="size-4" /> {t('bill.split')}
-                </Button>
+                {!hub && (
+                  <>
+                    <Button variant="outline" onClick={() => setSheet('discount')}>
+                      <Percent className="size-4" /> {t('bill.discount')}
+                    </Button>
+                    <Button variant="outline" onClick={() => setSheet('split')}>
+                      <Scissors className="size-4" /> {t('bill.split')}
+                    </Button>
+                  </>
+                )}
                 <Button variant="outline" onClick={() => setSheet('customer')}>
                   <FileText className="size-4" /> Business GSTIN
                 </Button>
@@ -196,7 +203,7 @@ export default function BillPage() {
             </Card>
           )}
 
-          {can('customer.view') && (draft || bill.customer) && bill.status !== 'void' && (
+          {!hub && can('customer.view') && (draft || bill.customer) && bill.status !== 'void' && (
             <LoyaltyCard
               bill={bill}
               editable={draft && can('customer.manage')}
@@ -206,7 +213,7 @@ export default function BillPage() {
 
           {finalised && can('payment.record') && <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />}
 
-          {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record')} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), 'Refund recorded')} />}
+          {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record') && !hub} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), 'Refund recorded')} />}
 
           {!draft && (
             <Card className="flex flex-wrap gap-2 p-4">
@@ -216,7 +223,7 @@ export default function BillPage() {
               <Button variant="ghost" onClick={() => window.open(`/print/bill/${id}`, '_blank')}>
                 <FileText className="size-4" /> Browser print
               </Button>
-              {bill.status === 'finalised' && bill.paid_paise === 0 && (
+              {!hub && bill.status === 'finalised' && bill.paid_paise === 0 && (
                 <Button variant="ghost" className="text-rose-700" onClick={() => setSheet('void')}>
                   <Undo2 className="size-4" /> Void
                 </Button>

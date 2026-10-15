@@ -72,6 +72,9 @@ export interface OutletDTO {
   loyalty_min_redeem_points: number;
   reservation_minutes: number;
   inventory_auto_stockout: boolean;
+  /** Print-agent device that runs as the outlet hub, and its LAN address for offline mode. */
+  hub_device_id: string | null;
+  hub_url: string | null;
 }
 
 // ---------- Menu ----------
