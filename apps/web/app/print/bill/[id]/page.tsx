@@ -1,0 +1,76 @@
+'use client';
+
+import { useParams } from 'next/navigation';
+import QRCode from 'qrcode';
+import { useEffect, useState } from 'react';
+import type { InvoiceDTO } from '@dineos/shared/dto';
+import { formatRate } from '@/lib/format';
+import { Line, Receipt, Rule, usePrintData } from '@/components/print/receipt';
+
+const money = (p: number) => (p / 100).toFixed(2);
+
+export default function PrintBill() {
+  const { id } = useParams<{ id: string }>();
+  const { data, error } = usePrintData<InvoiceDTO & { upi_uri: string | null }>(`/bills/${id}/invoice`);
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    if (data?.upi_uri) QRCode.toDataURL(data.upi_uri, { margin: 0, width: 220 }).then(setQr);
+  }, [data?.upi_uri]);
+
+  if (error) return <p className="p-6">{error}</p>;
+  if (!data) return <p className="p-6">Loading…</p>;
+  const { bill, outlet, tax_summary } = data;
+  const discount = bill.item_discount_paise + bill.bill_discount_paise;
+
+  return (
+    <Receipt>
+      <div className="text-center">
+        <p className="text-[15px] font-bold">{outlet.name}</p>
+        {outlet.legal_name && <p>{outlet.legal_name}</p>}
+        {outlet.address && <p>{outlet.address}</p>}
+        {outlet.phone && <p>Ph: {outlet.phone}</p>}
+        {outlet.gstin && <p>GSTIN: {outlet.gstin}</p>}
+        {outlet.fssai_no && <p>FSSAI: {outlet.fssai_no}</p>}
+        <p className="mt-2 font-bold">{bill.status === 'draft' ? 'PRE-BILL (NOT A TAX INVOICE)' : 'TAX INVOICE'}</p>
+        {bill.status === 'void' && <p className="font-bold">*** CANCELLED ***</p>}
+      </div>
+      <Rule />
+      <Line left={`Inv: ${bill.invoice_no ?? '—'}`} right={bill.invoice_date ?? ''} />
+      {bill.table_label && <Line left={`Table ${bill.table_label}`} right={bill.split_label ?? ''} />}
+      {bill.customer_name && <p>Customer: {bill.customer_name}</p>}
+      {bill.customer_gstin && <p>Customer GSTIN: {bill.customer_gstin}</p>}
+      <Rule />
+      <Line left="Item" right="Qty    Amount" bold />
+      {bill.lines.map((l) => (
+        <div key={l.id}>
+          <Line left={l.name} right={`${l.qty}  ${money(l.gross_paise).padStart(9)}`} />
+          {l.hsn_sac && <p className="pl-2 text-[11px]">HSN/SAC {l.hsn_sac} @ {money(l.unit_price_paise)}</p>}
+        </div>
+      ))}
+      <Rule />
+      <Line left="Subtotal" right={money(bill.subtotal_paise)} />
+      {discount > 0 && <Line left="Discount" right={`-${money(discount)}`} />}
+      {bill.service_charge_paise > 0 && <Line left={`Service charge (${formatRate(bill.service_charge_bp)})`} right={money(bill.service_charge_paise)} />}
+      {tax_summary.map((t) => (
+        <div key={t.tax_rate_bp}>
+          <Line left={`CGST ${formatRate(t.tax_rate_bp / 2)} on ${money(t.taxable_paise)}`} right={money(t.cgst_paise)} />
+          <Line left={`SGST ${formatRate(t.tax_rate_bp / 2)} on ${money(t.taxable_paise)}`} right={money(t.sgst_paise)} />
+        </div>
+      ))}
+      {bill.round_off_paise !== 0 && <Line left="Round off" right={money(bill.round_off_paise)} />}
+      <Rule />
+      <Line left={<span className="text-[15px]">TOTAL</span>} right={<span className="text-[15px]">Rs. {money(bill.total_paise)}</span>} bold />
+      {bill.payments.map((p) => (
+        <Line key={p.id} left={p.kind === 'refund' ? `Refund (${p.method})` : `Paid ${p.method.replace('_', ' ')}`} right={money(p.amount_paise)} />
+      ))}
+      {bill.balance_paise > 0 && bill.payments.length > 0 && <Line left="Balance due" right={money(bill.balance_paise)} bold />}
+      {qr && bill.balance_paise > 0 && (
+        <div className="mt-3 text-center">
+          <p>Scan to pay with any UPI app</p>
+          <img src={qr} alt="UPI QR" className="mx-auto mt-1 size-32" />
+        </div>
+      )}
+      <p className="mt-3 text-center">Thank you. Visit again!</p>
+    </Receipt>
+  );
+}

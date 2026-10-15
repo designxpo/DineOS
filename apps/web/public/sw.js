@@ -1,3 +1,4 @@
+/* global self, caches, fetch, URL */
 // DineOS service worker: caches the app shell and static assets so staff screens open during a
 // short internet drop. API calls are never cached here; the app keeps its own offline queue.
 const CACHE = 'dineos-shell-v1';

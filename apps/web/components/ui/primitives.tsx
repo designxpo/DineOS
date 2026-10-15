@@ -149,7 +149,7 @@ export function Stat({ label, value, sub, className }: { label: string; value: R
   return (
     <Card className={cn('p-4', className)}>
       <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">{label}</p>
-      <p className="mt-1.5 font-display text-2xl font-semibold text-ink tabular">{value}</p>
+      <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-ink-faint">{sub}</p>}
     </Card>
   );

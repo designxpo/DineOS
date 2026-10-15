@@ -47,6 +47,7 @@ export interface BrandingDTO {
 export interface OutletDTO {
   id: string;
   name: string;
+  legal_name: string | null;
   address: string | null;
   city: string | null;
   state_code: string | null;
