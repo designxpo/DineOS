@@ -1,0 +1,4 @@
+{
+  "courtyard_east": "rtsp://viewer:CHANGE_ME@192.168.1.60:554/stream1",
+  "poolside": "rtsp://viewer:CHANGE_ME@192.168.1.61:554/stream1"
+}

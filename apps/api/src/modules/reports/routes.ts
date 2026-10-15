@@ -6,6 +6,7 @@ import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest } from '../../lib/errors';
 import { parse } from '../../lib/validate';
 import { inventoryReport } from '../inventory/report';
+import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
 import { dashboard, dayEnd, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
 
@@ -83,6 +84,13 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { r } = await range(req, auth.tenantId);
       assertCan(auth, r.outletId, 'report.view');
       return ctx.tx(auth.tenantId, (tx) => insights(tx, r));
+    });
+
+    app.get('/reports/vision', async (req) => {
+      const auth = requireStaff(req);
+      const { r } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      return ctx.tx(auth.tenantId, (tx) => visionAudit(tx, r));
     });
 
     app.get('/reports/inventory', async (req, reply) => {

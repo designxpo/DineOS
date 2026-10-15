@@ -1,0 +1,5 @@
+# Runtime on the camera box. The worker's core (zones, tracking, debouncing, cloud client) needs
+# only the Python standard library; these are for reading cameras and running the detector.
+numpy>=1.26
+onnxruntime>=1.18
+opencv-python-headless>=4.9

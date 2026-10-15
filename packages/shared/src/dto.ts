@@ -13,6 +13,7 @@ import type {
   SessionStatus,
   TableState,
 } from './enums';
+import type { CameraState } from './table-state';
 
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: unknown };
@@ -191,6 +192,46 @@ export interface TableDTO {
   is_active: boolean;
   /** Next booked reservation on this table today, within the next few hours. */
   next_reservation: { id: string; guest_name: string; party_size: number; slot_start: string } | null;
+  /**
+   * Latest camera reading for tables with a camera zone (Phase 3), null when stale or absent.
+   * `occupied_since` with no open session means guests are seated and nobody has attended.
+   */
+  camera: { state: CameraState; confidence: number | null; at: string; occupied_since: string | null } | null;
+}
+
+// ---------- Cameras (Phase 3) ----------
+
+export interface CameraDTO {
+  id: string;
+  outlet_id: string;
+  device_id: string;
+  device_name: string;
+  name: string;
+  rtsp_secret_ref: string;
+  status: 'active' | 'disabled';
+  online: boolean;
+  last_seen_at: string | null;
+  last_error: string | null;
+  fps: number | null;
+  snapshot_at: string | null;
+  snapshot_width: number | null;
+  snapshot_height: number | null;
+  snapshot_requested_at: string | null;
+  zones: { table_id: string; label: string; polygon: [number, number][] }[];
+}
+
+/** What the edge worker needs: its cameras, each table zone, and the detection settings. */
+export interface VisionConfigDTO {
+  device_id: string;
+  outlet_id: string;
+  cameras: {
+    id: string;
+    name: string;
+    rtsp_secret_ref: string;
+    snapshot_requested: boolean;
+    zones: { table_id: string; label: string; polygon: [number, number][] }[];
+  }[];
+  settings: { fps: number; hold_seconds: number; resend_seconds: number; min_confidence: number };
 }
 
 // ---------- Orders ----------

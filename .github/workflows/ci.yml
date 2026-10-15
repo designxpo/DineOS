@@ -44,6 +44,14 @@ jobs:
         run: npx tsx apps/api/src/scripts/codegen.ts --verify
       - name: Tests (shared, API incl. cross-tenant suite, print agent)
         run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Vision worker tests (edge box; numpy for the detector decode test)
+        working-directory: edge/vision-worker
+        run: |
+          pip install numpy
+          python -m unittest discover -s tests -v
       - name: Build
         run: |
           npm run build -w @dineos/api

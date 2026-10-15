@@ -61,12 +61,13 @@ function requireOwner(auth: StaffAuth): void {
 }
 
 /** Keys that hold secrets never leave the building, even in a data export. */
-const EXPORT_OMIT = new Set(['password_hash', 'pin_hash', 'token_hash']);
+// Camera stills are not exported either: they may show guests.
+const EXPORT_OMIT = new Set(['password_hash', 'pin_hash', 'token_hash', 'snapshot']);
 const EXPORT_TABLES = [
   'outlets', 'users', 'user_outlet_roles', 'menu_categories', 'menu_items', 'modifier_groups', 'modifiers', 'item_modifier_groups',
   'tables', 'table_sessions', 'orders', 'order_items', 'kots', 'bills', 'bill_lines', 'payments', 'service_requests',
   'devices', 'audit_log', 'subscriptions', 'platform_invoices', 'customers', 'loyalty_ledger', 'reservations',
-  'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements',
+  'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements', 'cameras', 'table_state_events',
 ] as const;
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {

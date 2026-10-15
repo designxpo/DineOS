@@ -63,6 +63,14 @@ export async function runMaintenance(adminDb: Database): Promise<Record<string, 
         )
         .executeTakeFirst(),
     );
+    // Camera stills exist only to draw zones; they may show guests, so they do not linger.
+    out.camera_snapshots_deleted = count(
+      await trx
+        .updateTable('cameras')
+        .set({ snapshot: null, snapshot_at: null })
+        .where('snapshot_at', '<', sql<Date>`now() - interval '1 day'`)
+        .executeTakeFirst(),
+    );
     out.waitlist_closed = count(
       await trx
         .updateTable('waitlist_entries')

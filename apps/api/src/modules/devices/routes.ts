@@ -49,10 +49,10 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       });
     });
 
-    /** Registers a print agent. The token is shown once; the agent stores it locally. */
+    /** Registers a print agent or a camera (vision) box. The token is shown once; the device stores it. */
     app.post('/devices', async (req, reply) => {
       const body = parse(
-        z.object({ outlet_id: z.uuid(), kind: z.enum(['print_agent']).default('print_agent'), name: z.string().trim().min(1).max(60), config: printerConfig.optional() }),
+        z.object({ outlet_id: z.uuid(), kind: z.enum(['print_agent', 'vision']).default('print_agent'), name: z.string().trim().min(1).max(60), config: printerConfig.optional() }),
         req.body,
       );
       const auth = requireAction(req, body.outlet_id, 'device.manage');

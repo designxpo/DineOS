@@ -1,0 +1,22 @@
+# systemd unit for the camera box. Copy to /etc/systemd/system/, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now dineos-vision
+[Unit]
+Description=DineOS table vision worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dineos
+WorkingDirectory=/opt/dineos-vision
+EnvironmentFile=/etc/dineos-vision.env
+ExecStart=/opt/dineos-vision/venv/bin/python -m dineos_vision
+Restart=always
+RestartSec=5
+# The worker needs the network and its model; nothing else.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

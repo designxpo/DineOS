@@ -11,9 +11,10 @@ import { Button, IconButton } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/overlay';
 import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { CamerasSettings } from '@/components/staff/cameras';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'brand' | 'outlets' | 'account' | 'audit';
+type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -26,6 +27,7 @@ export default function SettingsPage() {
     { value: 'billing', label: 'Billing & UPI' },
     { value: 'guests', label: 'Loyalty & stock' },
     { value: 'printers', label: 'Printers' },
+    { value: 'cameras', label: 'Cameras' },
     ...(owner ? [{ value: 'brand' as Tab, label: 'Brand & plan' }, { value: 'outlets' as Tab, label: 'Outlets' }] : []),
     { value: 'account', label: 'My PIN' },
     { value: 'audit', label: 'Audit log' },
@@ -42,6 +44,7 @@ export default function SettingsPage() {
         {tab === 'billing' && <BillingForm />}
         {tab === 'guests' && <GuestsForm />}
         {tab === 'printers' && <Printers />}
+        {tab === 'cameras' && <CamerasSettings />}
         {tab === 'brand' && <Brand />}
         {tab === 'outlets' && <Outlets />}
         {tab === 'account' && <MyPin />}
@@ -280,6 +283,7 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
 
 interface Device {
   id: string;
+  kind: string;
   name: string;
   status: string;
   online: boolean;
@@ -291,7 +295,9 @@ function Printers() {
   const { api, outletId, outlet } = useStaff();
   const qc = useQueryClient();
   const toast = useToast();
-  const { data: devices } = useQuery({ queryKey: ['devices', outletId], queryFn: () => api<Device[]>(`/devices?outlet_id=${outletId}`), refetchInterval: 30_000 });
+  const { data: all } = useQuery({ queryKey: ['devices', outletId], queryFn: () => api<Device[]>(`/devices?outlet_id=${outletId}`), refetchInterval: 30_000 });
+  // Camera boxes are managed under Cameras.
+  const devices = all?.filter((d) => d.kind === 'print_agent');
   const [created, setCreated] = useState<string | null>(null);
   const [editing, setEditing] = useState<Device | null>(null);
   const targets = ['bill', ...(outlet?.kitchen_stations ?? [])];

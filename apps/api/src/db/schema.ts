@@ -140,6 +140,26 @@ export interface Bills {
   voided_by: string | null;
 }
 
+export interface Cameras {
+  created_at: Generated<Timestamp>;
+  device_id: string;
+  fps: number | null;
+  id: Generated<string>;
+  last_error: string | null;
+  last_seen_at: Timestamp | null;
+  name: string;
+  outlet_id: string;
+  rtsp_secret_ref: string;
+  snapshot: Buffer | null;
+  snapshot_at: Timestamp | null;
+  snapshot_height: number | null;
+  snapshot_requested_at: Timestamp | null;
+  snapshot_width: number | null;
+  status: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Counters {
   name: string;
   outlet_id: string;
@@ -579,6 +599,11 @@ export interface Subscriptions {
 
 export interface Tables {
   assigned_waiter_id: string | null;
+  camera_at: Timestamp | null;
+  camera_confidence: number | null;
+  camera_id: string | null;
+  camera_occupied_since: Timestamp | null;
+  camera_state: string | null;
   camera_zone_polygon: Json | null;
   created_at: Generated<Timestamp>;
   current_session_id: string | null;
@@ -699,6 +724,7 @@ export interface DB {
   audit_log: AuditLog;
   bill_lines: BillLines;
   bills: Bills;
+  cameras: Cameras;
   counters: Counters;
   customers: Customers;
   devices: Devices;

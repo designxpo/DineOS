@@ -2,7 +2,7 @@
 // and floor operations. Every function runs inside the caller's tenant transaction.
 
 import type { OrderStatus, SessionStatus, TableState, TableStateSource } from '@dineos/shared/enums';
-import { deriveTableState } from '@dineos/shared/table-state';
+import { deriveTableState, type CameraState } from '@dineos/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { gone, notFound } from '../../lib/errors';
@@ -74,6 +74,8 @@ export async function openSession(
     .where('id', '=', sessionId)
     .where('status', '=', 'pending')
     .execute();
+  // Someone is looking after the guests now.
+  await tx.db.updateTable('tables').set({ camera_occupied_since: null }).where('current_session_id', '=', sessionId).execute();
   if (opts.guestCount != null || opts.waiterId != null) {
     await tx.db
       .updateTable('table_sessions')
@@ -139,7 +141,12 @@ export async function closeSession(
  * Recomputes the derived state of each table and, where it changed, stores it, logs a
  * table_state_events row and emits table.state_changed to staff.
  */
-export async function refreshTableStates(tx: Tx, tableIds: readonly string[], source: TableStateSource): Promise<void> {
+export async function refreshTableStates(
+  tx: Tx,
+  tableIds: readonly string[],
+  source: TableStateSource,
+  opts: { confidence?: number | null; log?: boolean } = {},
+): Promise<void> {
   if (tableIds.length === 0) return;
   const tables = await tx.db
     .selectFrom('tables')
@@ -150,6 +157,9 @@ export async function refreshTableStates(tx: Tx, tableIds: readonly string[], so
       'tables.state',
       'tables.needs_cleaning',
       'tables.current_session_id',
+      'tables.camera_id',
+      'tables.camera_state',
+      'tables.camera_at',
       'table_sessions.status as session_status',
       'table_sessions.bill_requested_at',
     ])
@@ -173,9 +183,10 @@ export async function refreshTableStates(tx: Tx, tableIds: readonly string[], so
           ? { status: t.session_status as SessionStatus, bill_requested_at: t.bill_requested_at }
           : null,
       orderStatuses: orders.filter((o) => o.table_session_id === t.current_session_id).map((o) => o.status as OrderStatus),
+      camera: t.camera_id && t.camera_state && t.camera_at ? { state: t.camera_state as CameraState, at: t.camera_at } : null,
     });
     if (state === t.state) continue;
-    await setTableState(tx, { id: t.id, outlet_id: t.outlet_id }, state, source);
+    await setTableState(tx, { id: t.id, outlet_id: t.outlet_id }, state, source, opts.confidence ?? null, opts.log ?? true);
   }
 }
 
@@ -185,12 +196,16 @@ export async function setTableState(
   state: TableState,
   source: TableStateSource,
   confidence: number | null = null,
+  log = true,
 ): Promise<void> {
   await tx.db.updateTable('tables').set({ state }).where('id', '=', table.id).execute();
-  await tx.db
-    .insertInto('table_state_events')
-    .values({ tenant_id: tx.tenantId, outlet_id: table.outlet_id, table_id: table.id, source, state, confidence })
-    .execute();
+  // Camera readings are logged by the vision ingest itself, so they are not logged twice.
+  if (log) {
+    await tx.db
+      .insertInto('table_state_events')
+      .values({ tenant_id: tx.tenantId, outlet_id: table.outlet_id, table_id: table.id, source, state, confidence })
+      .execute();
+  }
   await tx.emit({
     outletId: table.outlet_id,
     type: 'table.state_changed',

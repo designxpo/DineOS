@@ -1,11 +1,11 @@
 'use client';
 
 import { usePersistedQuery } from '@/lib/persisted-query';
-import { BellRing, CalendarClock, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
+import { BellRing, CalendarClock, Cctv, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
-import { ago, formatPaise, time } from '@/lib/format';
+import { ago, formatPaise, minutesSince, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
@@ -77,13 +77,15 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
   const style = TABLE_STATE[table.state];
   const calling = table.open_requests.some((r) => r.kind === 'call_waiter' && r.status === 'open');
   const billAsked = table.open_requests.some((r) => r.kind === 'bill');
+  // The camera sees people at a table nobody has opened yet.
+  const waiting = !table.session && table.camera?.state === 'occupied' && table.camera.occupied_since ? minutesSince(table.camera.occupied_since) : null;
   return (
     <button
       onClick={onOpen}
       className={cn(
         'relative flex min-h-32 cursor-pointer flex-col rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)]',
         style.tile,
-        calling && 'animate-pulse-ring',
+        (calling || (waiting !== null && waiting >= 3)) && 'animate-pulse-ring',
       )}
       aria-label={`Table ${table.label}, ${style.label}`}
     >
@@ -93,6 +95,11 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           {calling && <BellRing className="size-4 text-amber-700" />}
           {billAsked && <ReceiptIndianRupee className="size-4 text-violet-700" />}
           {table.merged_with.length > 0 && <Link2 className="size-4 text-ink-faint" />}
+          {table.camera && !table.session && table.camera.state !== 'vacant' && (
+            <span title={t('floor.camera')}>
+              <Cctv className="size-4 text-ink-faint" aria-label={t('floor.camera')} />
+            </span>
+          )}
         </span>
       </div>
       <span className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-ink-soft">
@@ -117,6 +124,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           </p>
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}
+        {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { n: Math.max(1, waiting) })}</p>}
         {table.next_reservation && table.session?.status !== 'open' && (
           <div className="mt-1 text-sky-800">
             <p className="flex items-center gap-1 font-medium">

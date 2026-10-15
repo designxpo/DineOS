@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { CameraDTO } from '@dineos/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -13,7 +14,7 @@ import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end';
+type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'vision';
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -45,6 +46,8 @@ export default function ReportsPage() {
   const range = preset === 'custom' ? custom : presetRange(preset, today);
   const qs = `outlet_id=${outletId}&from=${range.from}&to=${range.to}`;
 
+  const cameras = useQuery({ queryKey: ['cameras', outletId], enabled: can('table.manage'), queryFn: () => api<CameraDTO[]>(`/cameras?outlet_id=${outletId}`) });
+  const hasCameras = (cameras.data?.length ?? 0) > 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const q = useQuery<any>({
     queryKey: ['report', outletId, tab, range.from, range.to],
@@ -73,7 +76,7 @@ export default function ReportsPage() {
         subtitle={range.from === range.to ? range.from : `${range.from} to ${range.to}`}
         actions={
           <>
-            {tab === 'insights' ? null : tab !== 'day-end' ? (
+            {tab === 'insights' || tab === 'vision' ? null : tab !== 'day-end' ? (
               <Button variant="outline" onClick={() => void csv()}>
                 <Download className="size-4" /> CSV
               </Button>
@@ -86,7 +89,15 @@ export default function ReportsPage() {
         }
       />
       <div className="no-print flex flex-wrap items-center gap-3 px-4 pb-4 lg:px-8">
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'sales', label: 'Sales' }, { value: 'insights', label: 'Insights' }, { value: 'gst', label: 'GST' }, { value: 'items', label: 'Dishes' }, { value: 'day-end', label: 'Day end' }]} />
+        <Segmented value={tab} onChange={setTab} options={[
+            { value: 'sales', label: 'Sales' },
+            { value: 'insights', label: 'Insights' },
+            { value: 'gst', label: 'GST' },
+            { value: 'items', label: 'Dishes' },
+            { value: 'day-end', label: 'Day end' },
+            ...(hasCameras ? [{ value: 'vision' as Tab, label: 'Camera' }] : []),
+          ]}
+        />
         <Segmented
           value={preset}
           onChange={setPreset}
@@ -115,6 +126,8 @@ export default function ReportsPage() {
           <Sales data={q.data} />
         ) : tab === 'insights' ? (
           <Insights data={q.data} />
+        ) : tab === 'vision' ? (
+          <VisionAudit data={q.data} />
         ) : tab === 'gst' ? (
           <Gst data={q.data} />
         ) : tab === 'items' ? (
@@ -343,6 +356,45 @@ function Insights({ data }: { data: any }) {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function VisionAudit({ data }: { data: any }) {
+  const pct = data.agreement_pct;
+  const ok = pct !== null && pct >= data.target_pct;
+  const c = data.confusion;
+  const d = data.dwell;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          label="Agrees with the till"
+          value={pct === null ? '-' : `${pct}%`}
+          sub={<span className={ok ? 'text-emerald-700' : 'text-amber-700'}>{pct === null ? 'No readings yet' : `Target ${data.target_pct}%, ${data.readings} readings`}</span>}
+        />
+        <Stat label="Time to attend" value={d.avg_wait_to_attend_seconds === null ? '-' : `${Math.round(d.avg_wait_to_attend_seconds / 60)} min`} sub="From guests sitting to the table being opened" />
+        <Stat label="Average stay (camera)" value={d.avg_minutes === null ? '-' : `${d.avg_minutes} min`} sub={`${d.visits_seen} visits seen`} />
+        <Stat label="Sat without an order" value={d.without_order} sub={`${d.without_order_minutes} table-minutes`} />
+      </div>
+      <Table
+        title="Camera against open table visits"
+        head={['', 'Visit open', 'No visit']}
+        rows={[
+          ['Camera saw people', c.occupied_and_open, c.occupied_no_visit],
+          ['Camera saw no one', c.missed_open_visit, c.vacant_and_closed],
+        ]}
+      />
+      <Table
+        title="By table (weakest first)"
+        head={['Table', 'Readings', 'Agreement', 'People, no visit', 'Missed visits']}
+        rows={data.tables.map((t: any) => [t.label, t.readings, `${t.agreement_pct}%`, t.false_alarms, t.misses])}
+        empty="No readings in this period"
+      />
+      <p className="text-xs text-ink-faint">
+        “People, no visit” is either a camera mistake or guests who sat without ordering; a table with many of them needs its zone redrawn or the camera moved. Readings are sampled when the
+        camera&apos;s view changes and every few minutes.
+      </p>
     </div>
   );
 }

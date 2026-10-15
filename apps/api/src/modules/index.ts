@@ -18,6 +18,7 @@ import reports from './reports/routes';
 import reservations from './reservations/routes';
 import staff from './staff/routes';
 import tables from './tables/routes';
+import vision from './vision/routes';
 
 /** Every module exposes `routes(ctx)`; all are mounted under /v1. */
 export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = {
@@ -39,4 +40,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   devices,
   hub,
   events,
+  vision,
 };

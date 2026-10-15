@@ -337,6 +337,8 @@ export class HubEngine {
         open_requests: [],
         is_active: t.is_active,
         next_reservation: null,
+        // Camera readings go to the cloud; offline, the hub works from orders alone.
+        camera: null,
       };
     });
   }

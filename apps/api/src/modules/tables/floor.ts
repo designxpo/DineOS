@@ -2,6 +2,7 @@
 
 import type { ServiceRequestDTO, TableDTO } from '@dineos/shared/dto';
 import { ACTIVE_ORDER_STATUSES, type ServiceRequestKind, type SessionStatus, type TableState } from '@dineos/shared/enums';
+import { CAMERA_FRESH_MS, type CameraState } from '@dineos/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest, conflict, notFound } from '../../lib/errors';
@@ -12,6 +13,15 @@ import {
   refreshSessionTables,
   refreshTableStates,
 } from './sessions';
+
+/**
+ * A state that only the camera put there (no visit, not flagged by staff) lapses when the camera
+ * goes quiet, e.g. the edge box lost power, instead of showing an old reading forever.
+ */
+function cameraExpired(r: { state: string; needs_cleaning: boolean; session_status: string | null; camera_at: Date | null }): boolean {
+  if (r.session_status === 'open' || r.needs_cleaning || !['occupied', 'needs_cleaning'].includes(r.state)) return false;
+  return !r.camera_at || Date.now() - r.camera_at.getTime() >= CAMERA_FRESH_MS;
+}
 
 export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly string[]): Promise<TableDTO[]> {
   let q = tx.db
@@ -31,6 +41,11 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       'tables.qr_token_version',
       'tables.is_active',
       'tables.current_session_id',
+      'tables.camera_id',
+      'tables.camera_state',
+      'tables.camera_confidence',
+      'tables.camera_at',
+      'tables.camera_occupied_since',
       'users.name as waiter_name',
       'table_sessions.status as session_status',
       'table_sessions.opened_at',
@@ -90,7 +105,7 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       seats: r.seats,
       zone: r.zone,
       sort: r.sort,
-      state: r.state as TableState,
+      state: cameraExpired(r) ? 'vacant' : (r.state as TableState),
       needs_cleaning: r.needs_cleaning,
       assigned_waiter_id: r.assigned_waiter_id,
       assigned_waiter_name: r.waiter_name,
@@ -110,6 +125,15 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       running_total_paise: Number(totals.find((t) => t.table_session_id === sid)?.total ?? 0),
       open_requests: requests.filter((q) => q.table_id === r.id),
       is_active: r.is_active,
+      camera:
+        r.camera_id && r.camera_state && r.camera_at && Date.now() - r.camera_at.getTime() < CAMERA_FRESH_MS
+          ? {
+              state: r.camera_state as CameraState,
+              confidence: r.camera_confidence,
+              at: r.camera_at.toISOString(),
+              occupied_since: r.camera_occupied_since?.toISOString() ?? null,
+            }
+          : null,
       next_reservation: (() => {
         const n = upcoming.find((u) => u.table_id === r.id);
         return n ? { id: n.id, guest_name: n.guest_name, party_size: n.party_size, slot_start: n.slot_start.toISOString() } : null;
@@ -311,7 +335,12 @@ export async function releaseTable(tx: Tx, tableId: string): Promise<void> {
 
 export async function markClean(tx: Tx, tableId: string): Promise<void> {
   const table = await lockTable(tx, tableId);
-  await tx.db.updateTable('tables').set({ needs_cleaning: false }).where('id', '=', tableId).execute();
+  // Staff saying "clean" also overrides a camera that still thinks the table is messy.
+  await tx.db
+    .updateTable('tables')
+    .set((eb) => ({ needs_cleaning: false, camera_state: eb.case().when('camera_state', '=', 'needs_cleaning').then(null).else(eb.ref('camera_state')).end() }))
+    .where('id', '=', tableId)
+    .execute();
   await refreshTableStates(tx, [table.id], 'staff');
 }
 

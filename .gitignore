@@ -17,3 +17,9 @@ apps/web/.next/
 
 # Outlet hub state when run from the repo
 dineos-hub.json*
+
+# Camera box: local stream addresses, models and collected frames never go in git
+edge/vision-worker/cameras.json
+edge/vision-worker/models/
+edge/vision-worker/frames/
+__pycache__/
