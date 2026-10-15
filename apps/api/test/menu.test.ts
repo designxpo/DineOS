@@ -180,6 +180,24 @@ describe('spreadsheet import', () => {
     expect(second.json()).toMatchObject({ categories_created: 0, items_created: 0, items_updated: 3 });
   });
 
+  it('imports an Excel workbook', async () => {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('Menu');
+    sheet.addRow(['Category', 'Name', 'Price', 'Veg', 'Tax Rate']);
+    sheet.addRow(['South Indian', 'Rava Idli', 140, 'yes', 5]);
+    sheet.addRow(['South Indian', 'Chicken Chettinad', 480, 'no', 5]);
+    const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+    const res = await owner({
+      method: 'POST',
+      url: `/v1/menu/import?outlet_id=${tenant.outletId}`,
+      ...multipart('menu.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer),
+    });
+    expect(res.json()).toMatchObject({ categories_created: 1, items_created: 2, errors: [] });
+    const menu: MenuDTO = (await owner({ method: 'GET', url: `/v1/menu?outlet_id=${tenant.outletId}` })).json();
+    expect(menu.items.find((i) => i.name === 'Chicken Chettinad')).toMatchObject({ price_paise: 48000, is_veg: false });
+  });
+
   it('imports nothing when any row is invalid', async () => {
     const bad = 'category,name,price\nSnacks,Samosa,40\nSnacks,Kachori,forty\n,Vada,30';
     const res = await owner({ method: 'POST', url: `/v1/menu/import?outlet_id=${tenant.outletId}`, ...multipart('bad.csv', 'text/csv', bad) });

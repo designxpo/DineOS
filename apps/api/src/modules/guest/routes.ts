@@ -64,7 +64,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     });
 
     /** Attaches this phone to the table's current session (creating a pending one if needed). */
-    app.post('/guest/join', { config: { rateLimit: { max: 30, timeWindow: '1 minute', keyGenerator: (r) => r.ip } } }, async (req): Promise<GuestJoinResponseDTO> => {
+    app.post('/guest/join', { config: { rateLimit: { max: ctx.config.GUEST_JOIN_RATE_LIMIT, timeWindow: '1 minute', keyGenerator: (r) => r.ip } } }, async (req): Promise<GuestJoinResponseDTO> => {
       const body = parse(z.object({ qr_token: z.string().min(10).max(200), device_id: z.uuid().optional() }), req.body);
       const claims = await qrClaims(body.qr_token);
       const session = await ctx.tx(claims.tenantId, async (tx) => {

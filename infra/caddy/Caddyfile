@@ -1,0 +1,21 @@
+# TLS certificates are issued and renewed automatically.
+# For tenant subdomains ({slug}.dineos.in) add a wildcard site with a DNS-challenge provider; the
+# guest QR token already identifies the restaurant, so subdomains are optional branding.
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	# WebSocket upgrades for live orders pass through automatically.
+	reverse_proxy api:4000 {
+		health_uri /healthz
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+}

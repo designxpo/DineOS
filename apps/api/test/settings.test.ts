@@ -100,7 +100,7 @@ describe('data rights', () => {
   it('purges every row of a tenant and nothing of anyone else', async () => {
     const doomed = await createTenant(t);
     await createMenu(t, doomed);
-    const { purgeTenant } = await import('../src/scripts/purge-tenant');
+    const { purgeTenant } = await import('../src/lib/purge');
     await purgeTenant(t.ctx.adminDb, doomed.tenantId);
     const left = await t.ctx.adminDb.selectFrom('menu_items').select('id').where('tenant_id', '=', doomed.tenantId).execute();
     expect(left).toHaveLength(0);

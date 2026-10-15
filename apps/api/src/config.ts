@@ -24,6 +24,10 @@ const schema = z.object({
   GUEST_URL_TEMPLATE: z.string().default('http://localhost:3000/t/{token}'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   REDIS_URL: z.string().optional(),
+  /** Joins per minute per IP (guests on one restaurant Wi-Fi share an IP). Raised for load tests. */
+  GUEST_JOIN_RATE_LIMIT: z.coerce.number().int().min(1).default(120),
+  /** Requests per minute per token or IP for everything else. */
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(600),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
   STORAGE_DIR: z.string().default('./storage'),
   PUBLIC_API_URL: z.string().default('http://localhost:4000'),

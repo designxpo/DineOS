@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dineos_owner
+          POSTGRES_PASSWORD: ci-owner
+          POSTGRES_DB: dineos_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U dineos_owner" --health-interval 5s --health-retries 20
+    env:
+      DATABASE_OWNER_URL: postgres://dineos_owner:ci-owner@localhost:5432/dineos_dev
+      DATABASE_URL: postgres://dineos_app:ci-app@localhost:5432/dineos_dev
+      DATABASE_ADMIN_URL: postgres://dineos_admin:ci-admin@localhost:5432/dineos_dev
+      DINEOS_APP_PASSWORD: ci-app
+      DINEOS_ADMIN_PASSWORD: ci-admin
+      TOKEN_SECRET: ci-token-secret-ci-token-secret-ci-token-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npm run typecheck
+      - name: Database roles and migrations
+        run: |
+          npm run db:setup
+          npm run db:migrate
+      - name: Migration check (generated DB types match the migrations)
+        run: npx tsx apps/api/src/scripts/codegen.ts --verify
+      - name: Tests (shared, API incl. cross-tenant suite, print agent)
+        run: npm test
+      - name: Build
+        run: |
+          npm run build -w @dineos/api
+          npm run build -w @dineos/print-agent
+          NEXT_PUBLIC_API_URL=https://api.example.test npm run build -w @dineos/web
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with: { context: ., file: infra/docker/api.Dockerfile, push: false, tags: dineos-api:ci }
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: false
+          tags: dineos-web:ci
+          build-args: NEXT_PUBLIC_API_URL=https://api.example.test

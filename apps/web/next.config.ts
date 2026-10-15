@@ -1,10 +1,16 @@
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
+
+// Monorepo root: standalone output must include the hoisted node_modules and @dineos/shared.
+const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 const config: NextConfig = {
   transpilePackages: ['@dineos/shared'],
   output: 'standalone',
+  outputFileTracingRoot: repoRoot,
+  turbopack: { root: repoRoot },
   poweredByHeader: false,
   reactStrictMode: true,
   images: { unoptimized: true },

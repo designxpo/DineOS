@@ -48,7 +48,7 @@ export async function buildApp(
   });
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
   await app.register(rateLimit, {
-    max: opts.rateLimitMax ?? 600,
+    max: opts.rateLimitMax ?? config.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
     keyGenerator: (req) => bearerToken(req) ?? req.ip,
   });

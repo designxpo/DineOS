@@ -1,0 +1,123 @@
+# DineOS on one server (rented, India region). Scale `api` horizontally once there are several
+# hundred outlets; Redis carries live events between API instances.
+#
+#   cp .env.production.example .env.production   # fill in secrets and domains
+#   docker compose --env-file .env.production up -d --build
+#   docker compose --env-file .env.production run --rm api node apps/api/dist/create-admin.js --email you@company.in --name You --password '...'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dineos_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: dineos
+      DINEOS_APP_PASSWORD: ${DINEOS_APP_PASSWORD:?}
+      DINEOS_ADMIN_PASSWORD: ${DINEOS_ADMIN_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dineos_owner -d dineos']
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+
+  migrate:
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    command: ['node', 'apps/api/dist/migrate.js']
+    environment:
+      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://dineos_app:${DINEOS_APP_PASSWORD}@postgres:5432/dineos
+      DATABASE_ADMIN_URL: postgres://dineos_admin:${DINEOS_ADMIN_PASSWORD}@postgres:5432/dineos
+      TOKEN_SECRET: ${TOKEN_SECRET:?}
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: https://${APP_DOMAIN}
+      GUEST_URL_TEMPLATE: https://${APP_DOMAIN}/t/{token}
+      PUBLIC_API_URL: https://${API_DOMAIN}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-fs}
+      STORAGE_DIR: /app/apps/api/storage
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+    volumes:
+      - uploads:/app/apps/api/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_started }
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+    restart: unless-stopped
+    depends_on: [api]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?}
+      API_DOMAIN: ${API_DOMAIN:?}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+
+  # One-shot: run nightly from the host's cron, e.g.
+  #   30 2 * * * cd /opt/dineos && docker compose --env-file .env.production run --rm backup
+  backup:
+    build: { context: ., dockerfile: infra/docker/backup.Dockerfile }
+    profiles: ['ops']
+    environment:
+      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?}
+      BACKUP_RSYNC_TARGET: ${BACKUP_RSYNC_TARGET:-}
+      BACKUP_S3_URI: ${BACKUP_S3_URI:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      AWS_ENDPOINT_URL: ${BACKUP_S3_ENDPOINT:-}
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Optional self-hosted object storage for menu photos (STORAGE_DRIVER=s3).
+  minio:
+    # Pin this to the MinIO release you test before going live.
+    image: minio/minio:latest
+    profiles: ['s3']
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dineos}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change-me-please}
+    volumes:
+      - miniodata:/data
+
+volumes:
+  pgdata:
+  uploads:
+  backups:
+  caddy_data:
+  caddy_config:
+  miniodata:

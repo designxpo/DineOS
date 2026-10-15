@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "tsx src/main.ts",
-    "build": "tsup src/main.ts --format esm --target node22 --clean --noExternal @dineos/shared",
+    "build": "tsup",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

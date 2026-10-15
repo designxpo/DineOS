@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // DineOS print agent.
 //
 //   DINEOS_API_URL=https://api.dineos.in DINEOS_DEVICE_TOKEN=dv_... dineos-print-agent

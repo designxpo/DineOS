@@ -12,7 +12,7 @@ import { createBill, finaliseBill, recordPayment } from '../modules/billing/serv
 import { createOrder, transitionOrder } from '../modules/orders/service';
 import { getOrCreateSession } from '../modules/tables/sessions';
 import { createStaffSession } from '../modules/auth/service';
-import { purgeTenant } from './purge-tenant';
+import { purgeTenant } from '../lib/purge';
 
 const SLUG = 'aurum-courtyard';
 const PASSWORD = 'demo1234';

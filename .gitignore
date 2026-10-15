@@ -12,3 +12,5 @@ backups/
 .DS_Store
 graphify-out/
 apps/api/storage-test/
+apps/web/next-env.d.ts
+apps/web/.next/
