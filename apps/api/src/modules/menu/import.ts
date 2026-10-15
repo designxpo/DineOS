@@ -76,21 +76,32 @@ function toRecords(grid: string[][]): Record<string, string>[] {
   return body.map((cells) => Object.fromEntries(keys.map((k, i) => [k, (cells[i] ?? '').trim()])));
 }
 
-export async function readSpreadsheet(filename: string, buffer: Buffer): Promise<Record<string, string>[]> {
+/** First sheet of an .xlsx, or a .csv, as rows of text cells. Dates become YYYY-MM-DD. */
+export async function readGrid(filename: string, buffer: Buffer): Promise<string[][]> {
   if (/\.xlsx$/i.test(filename)) {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buffer as unknown as ArrayBuffer);
     const sheet = wb.worksheets[0];
     if (!sheet) throw badRequest('empty_file', 'The workbook has no sheets');
     const grid: string[][] = [];
+    const cell = (v: unknown): string => {
+      if (v == null) return '';
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      if (typeof v === 'object' && 'text' in v) return String((v as { text: unknown }).text);
+      if (typeof v === 'object' && 'result' in v) return cell((v as { result: unknown }).result);
+      return String(v);
+    };
     sheet.eachRow({ includeEmpty: false }, (r) => {
-      const values = r.values as unknown[];
-      grid.push(values.slice(1).map((v) => (v == null ? '' : typeof v === 'object' && 'text' in (v as object) ? String((v as { text: unknown }).text) : String(v))));
+      grid.push((r.values as unknown[]).slice(1).map(cell));
     });
-    return toRecords(grid);
+    return grid;
   }
-  if (/\.csv$/i.test(filename) || !/\.\w+$/.test(filename)) return toRecords(parseCsv(buffer.toString('utf8')));
+  if (/\.csv$/i.test(filename) || !/\.\w+$/.test(filename)) return parseCsv(buffer.toString('utf8'));
   throw badRequest('invalid_file_type', 'Upload a .csv or .xlsx file');
+}
+
+export async function readSpreadsheet(filename: string, buffer: Buffer): Promise<Record<string, string>[]> {
+  return toRecords(await readGrid(filename, buffer));
 }
 
 function parseBool(value: string, fallback: boolean): boolean | null {

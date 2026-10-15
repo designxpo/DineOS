@@ -67,7 +67,7 @@ const EXPORT_TABLES = [
   'outlets', 'users', 'user_outlet_roles', 'menu_categories', 'menu_items', 'modifier_groups', 'modifiers', 'item_modifier_groups',
   'tables', 'table_sessions', 'orders', 'order_items', 'kots', 'bills', 'bill_lines', 'payments', 'service_requests',
   'devices', 'audit_log', 'subscriptions', 'platform_invoices', 'customers', 'loyalty_ledger', 'reservations',
-  'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements', 'cameras', 'table_state_events',
+  'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements', 'cameras', 'table_state_events', 'bank_statements', 'bank_credits',
 ] as const;
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {

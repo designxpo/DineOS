@@ -7,6 +7,7 @@ import {
   ChefHat,
   ClipboardList,
   LayoutDashboard,
+  Landmark,
   LayoutGrid,
   LogOut,
   Menu as MenuIcon,
@@ -55,6 +56,7 @@ export const NAV: NavItem[] = [
   { href: '/app/inventory', label: 'nav.inventory', icon: Package, action: 'inventory.record' },
   { href: '/app/tables', label: 'nav.tables', icon: QrCode, action: 'table.manage' },
   { href: '/app/reports', label: 'nav.reports', icon: BarChart3, action: 'report.view' },
+  { href: '/app/reconcile', label: 'nav.reconcile', icon: Landmark, action: 'payment.reconcile' },
   { href: '/app/staff', label: 'nav.staff', icon: Users, action: 'staff.manage' },
   { href: '/app/settings', label: 'nav.settings', icon: Settings, action: 'outlet.settings' },
 ];

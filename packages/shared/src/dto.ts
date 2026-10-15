@@ -565,3 +565,63 @@ export interface RecipesDTO {
   items: Record<string, RecipeLineDTO[]>;
   modifiers: Record<string, RecipeLineDTO[]>;
 }
+
+// ---------- UPI reconciliation (Phase 4, no gateway) ----------
+
+export interface ReconSummaryDTO {
+  matched: number;
+  matched_paise: number;
+  /** UPI credits in the bank with no payment recorded in DineOS. */
+  unrecorded_upi: number;
+  unrecorded_upi_paise: number;
+  /** Cash deposits, card settlements and other credits: shown, not flagged. */
+  other_credits: number;
+  dismissed: number;
+  /** UPI payments staff confirmed that the bank never received. */
+  missing: number;
+  missing_paise: number;
+}
+
+export interface BankStatementDTO {
+  id: string;
+  outlet_id: string;
+  file_name: string;
+  period_from: string;
+  period_to: string;
+  credits: number;
+  duplicates: number;
+  uploaded_by_name: string | null;
+  created_at: string;
+  summary: ReconSummaryDTO;
+}
+
+export interface ReconPaymentDTO {
+  id: string;
+  bill_id: string;
+  invoice_no: string | null;
+  table_label: string | null;
+  amount_paise: number;
+  reference: string | null;
+  confirmed_by_name: string | null;
+  created_at: string;
+}
+
+export interface BankCreditDTO {
+  id: string;
+  txn_date: string;
+  amount_paise: number;
+  narration: string;
+  reference: string | null;
+  utr: string | null;
+  is_upi: boolean;
+  match_kind: 'utr' | 'amount_date' | 'manual' | null;
+  payment: ReconPaymentDTO | null;
+  dismissed_reason: string | null;
+}
+
+export interface StatementDetailDTO {
+  statement: BankStatementDTO;
+  credits: BankCreditDTO[];
+  /** UPI payments in the statement's dates with no bank credit; those on its last day may still post. */
+  missing: (ReconPaymentDTO & { late_possible: boolean })[];
+}

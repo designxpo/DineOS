@@ -29,6 +29,7 @@ export const ACTIONS = [
   'reservation.manage',
   'inventory.manage', // ingredients, recipes, purchases
   'inventory.record', // wastage and stock counts
+  'payment.reconcile', // match UPI payments against the bank statement
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 

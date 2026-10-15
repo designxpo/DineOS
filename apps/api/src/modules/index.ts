@@ -14,6 +14,7 @@ import menu from './menu/routes';
 import orders from './orders/routes';
 import outlets from './outlets/routes';
 import print from './print/routes';
+import reconciliation from './reconciliation/routes';
 import reports from './reports/routes';
 import reservations from './reservations/routes';
 import staff from './staff/routes';
@@ -41,4 +42,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   hub,
   events,
   vision,
+  reconciliation,
 };

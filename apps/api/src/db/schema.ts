@@ -64,6 +64,42 @@ export interface AuditLog {
   updated_at: Generated<Timestamp>;
 }
 
+export interface BankCredits {
+  amount_paise: number;
+  created_at: Generated<Timestamp>;
+  dismissed_by: string | null;
+  dismissed_reason: string | null;
+  fingerprint: string;
+  id: Generated<string>;
+  is_upi: Generated<boolean>;
+  match_kind: string | null;
+  matched_at: Timestamp | null;
+  matched_by: string | null;
+  narration: Generated<string>;
+  outlet_id: string;
+  payment_id: string | null;
+  reference: string | null;
+  statement_id: string;
+  tenant_id: string;
+  txn_date: string;
+  updated_at: Generated<Timestamp>;
+  utr: string | null;
+}
+
+export interface BankStatements {
+  created_at: Generated<Timestamp>;
+  credits: Generated<number>;
+  duplicates: Generated<number>;
+  file_name: string;
+  id: Generated<string>;
+  outlet_id: string;
+  period_from: string;
+  period_to: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  uploaded_by: string | null;
+}
+
 export interface BillLines {
   amount_paise: number;
   bill_discount_paise: Generated<number>;
@@ -722,6 +758,8 @@ export interface DB {
   admin_sessions: AdminSessions;
   approval_tokens: ApprovalTokens;
   audit_log: AuditLog;
+  bank_credits: BankCredits;
+  bank_statements: BankStatements;
   bill_lines: BillLines;
   bills: Bills;
   cameras: Cameras;
