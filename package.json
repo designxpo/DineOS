@@ -1,0 +1,31 @@
+{
+  "name": "dineos",
+  "private": true,
+  "description": "DineOS: multi-tenant restaurant and cafe platform (QR ordering, POS, KDS, owner portal)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @dineos/api & npm run dev -w @dineos/web & wait",
+    "db:setup": "npm run db:setup -w @dineos/api",
+    "db:migrate": "npm run db:migrate -w @dineos/api",
+    "db:seed": "npm run db:seed -w @dineos/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.19.2",
+    "eslint": "^9.39.0",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
+  }
+}
