@@ -213,7 +213,7 @@ function ItemRow({ g, item, available, onOpen }: { g: GuestApi; item: MenuItemDT
         )}
         <div className={cn('absolute inset-x-2', item.photo_url ? '-bottom-3' : 'bottom-0')}>
           {disabled ? (
-            <div className="grid h-10 place-items-center rounded-xl border border-line bg-surface text-xs font-semibold text-ink-faint shadow-sm">
+            <div className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface px-2 text-center text-[11px] leading-tight font-semibold text-ink-faint shadow-sm">
               {!item.in_stock ? t('guest.sold_out') : t('guest.not_now')}
             </div>
           ) : qty === 0 ? (

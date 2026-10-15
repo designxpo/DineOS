@@ -12,7 +12,7 @@ let t: TestApp;
 let a: TestTenant;
 let b: TestTenant;
 const B: Record<string, string> = {};
-const MARKERS = ['Bravo Secret Outlet', 'Bravo Secret Dish', 'BX9', 'Bravo Secret Category'];
+const MARKERS = ['Bravo Secret Outlet', 'Bravo Secret Dish', 'BX9', 'Bravo Secret Category', 'Bravo Secret Guest', 'Bravo Secret Spice', '9000012345'];
 
 const SKIP = [
   /^\/healthz$/,
@@ -71,6 +71,18 @@ beforeAll(async () => {
   const { createServiceRequest } = await import('../src/modules/tables/floor');
   B.request = (await t.ctx.tx(b.tenantId, (tx) => createServiceRequest(tx, { outletId: b.outletId, tableId: B.table!, sessionId: B.session! }, 'call_waiter'))).id;
   B.staff = (await addStaff(t, b, 'waiter')).userId;
+  B.customer = (await ob({ method: 'POST', url: '/v1/customers', payload: { outlet_id: b.outletId, phone: '9000012345', name: 'Bravo Secret Guest', consent: true } })).json().id;
+  B.reservation = (
+    await ob({
+      method: 'POST',
+      url: '/v1/reservations',
+      payload: { outlet_id: b.outletId, guest_name: 'Bravo Secret Guest', party_size: 2, table_id: B.table2, slot_start: new Date(Date.now() + 86_400_000).toISOString() },
+    })
+  ).json().id;
+  B.waitlist = (await ob({ method: 'POST', url: '/v1/waitlist', payload: { outlet_id: b.outletId, guest_name: 'Bravo Secret Guest', party_size: 2 } })).json().id;
+  B.ingredient = (await ob({ method: 'POST', url: '/v1/inventory/ingredients', payload: { outlet_id: b.outletId, name: 'Bravo Secret Spice', unit: 'g', opening_qty: 100 } })).json().id;
+  await ob({ method: 'PUT', url: `/v1/inventory/recipes/items/${B.item}`, payload: { lines: [{ ingredient_id: B.ingredient, qty: 1 }] } });
+  for (const key of ['customer', 'reservation', 'waitlist', 'ingredient']) if (!B[key]) throw new Error(`could not seed ${key}`);
   for (const id of Object.values(B)) MARKERS.push(id);
 });
 afterAll(() => t.close());
@@ -91,6 +103,12 @@ function fill(url: string): string {
     [/\/print-jobs\/:id/, B.printJob!],
     [/\/outlets\/:id/, B.outlet!],
     [/\/staff\/:id/, B.staff!],
+    [/\/customers\/:id/, B.customer!],
+    [/\/reservations\/:id/, B.reservation!],
+    [/\/waitlist\/:id/, B.waitlist!],
+    [/\/inventory\/ingredients\/:id/, B.ingredient!],
+    [/\/inventory\/recipes\/items\/:id/, B.item!],
+    [/\/inventory\/recipes\/modifiers\/:id/, B.modifier!],
     [/\/admin\/tenants\/:id/, b.tenantId],
     [/\/admin\/invoices\/:id/, B.bill!],
   ];
@@ -113,6 +131,9 @@ const query = () =>
     since: '0',
     station: 'kitchen',
     qr: 'x'.repeat(20),
+    ingredient_id: B.ingredient!,
+    slot_start: new Date(Date.now() + 86_400_000).toISOString(),
+    party_size: '2',
   }).toString();
 
 const body = () => ({
@@ -125,7 +146,18 @@ const body = () => ({
   category_id: B.category,
   item_id: B.item,
   tenant_id: b.tenantId,
-  lines: [{ item_id: B.item, qty: 1 }],
+  lines: [{ item_id: B.item, ingredient_id: B.ingredient, qty: 1 }],
+  customer_id: B.customer,
+  ingredient_id: B.ingredient,
+  redeem_points: 0,
+  phone: '9000012345',
+  consent: true,
+  guest_name: 'Probe',
+  party_size: 2,
+  slot_start: new Date(Date.now() + 86_400_000).toISOString(),
+  points: 10,
+  note: 'cross-tenant probe',
+  unit: 'g',
   add: [{ item_id: B.item, qty: 1 }],
   cancel: [{ order_item_id: B.orderItem, reason: 'probe' }],
   set_qty: [{ order_item_id: B.orderItem, qty: 3 }],

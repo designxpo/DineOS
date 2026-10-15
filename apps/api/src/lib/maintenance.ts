@@ -45,6 +45,32 @@ export async function runMaintenance(adminDb: Database): Promise<Record<string, 
       await trx.updateTable('table_sessions').set({ status: 'closed', closed_at: new Date(), cart: sql`'[]'::jsonb`, cart_version: 0 }).where('id', 'in', ids).execute();
     }
     out.pending_sessions_closed = stale.length;
+
+    // Bookings nobody turned up for, once the outlet's grace period has passed.
+    out.reservations_no_show = count(
+      await trx
+        .updateTable('reservations')
+        .set({ status: 'no_show' })
+        .where('status', '=', 'booked')
+        .where(({ eb, selectFrom }) =>
+          eb(
+            'slot_start',
+            '<',
+            selectFrom('outlets')
+              .select(sql<Date>`now() - make_interval(mins => outlets.reservation_grace_minutes)`.as('cutoff'))
+              .whereRef('outlets.id', '=', 'reservations.outlet_id'),
+          ),
+        )
+        .executeTakeFirst(),
+    );
+    out.waitlist_closed = count(
+      await trx
+        .updateTable('waitlist_entries')
+        .set({ status: 'left' })
+        .where('status', 'in', ['waiting', 'notified'])
+        .where('created_at', '<', sql<Date>`now() - interval '12 hours'`)
+        .executeTakeFirst(),
+    );
     return out;
   });
 }

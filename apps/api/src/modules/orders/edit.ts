@@ -6,6 +6,7 @@ import { requireApproval } from '../../lib/approvals';
 import { audit } from '../../lib/audit';
 import { assertCan, type StaffAuth } from '../../lib/auth';
 import { badRequest, conflict, notFound } from '../../lib/errors';
+import { syncStock } from '../inventory/stock';
 import { loadOrder } from './serialize';
 import { announceOrder, createKots, insertOrderItems, loadOutlet, prepareLines, type OrderLineInput } from './service';
 
@@ -96,6 +97,7 @@ export async function editOrderItems(
       .execute();
   }
 
+  await syncStock(tx, orderId, auth.userId);
   const dto = (await loadOrder(tx, orderId))!;
   if (cancelledAfterAccept.length) await createKots(tx, outlet, dto, cancelledAfterAccept, { cancelled: true });
   if (accepted && addedIds.length) await createKots(tx, outlet, dto, addedIds);

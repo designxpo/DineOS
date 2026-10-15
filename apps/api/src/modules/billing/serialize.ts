@@ -24,6 +24,12 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
     .select(['table_sessions.table_id as session_table_id', 'orders.table_id as order_table_id'])
     .where('bills.id', 'in', [...ids])
     .execute();
+  const customerIds = [...new Set(bills.map((b) => b.customer_id).filter((x): x is string => !!x))];
+  const customers = new Map(
+    customerIds.length
+      ? (await tx.db.selectFrom('customers').select(['id', 'name', 'phone', 'points']).where('id', 'in', customerIds).execute()).map((c) => [c.id, c])
+      : [],
+  );
   const tableIds = [...new Set(bills.map((b) => b.session_table_id ?? b.order_table_id).filter((x): x is string => !!x))];
   const labels = new Map(
     tableIds.length
@@ -95,6 +101,10 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         paid_paise: b.paid_paise,
         balance_paise: Math.max(0, b.total_paise - b.paid_paise),
         amount_shares: shares(b.amount_shares, b.total_paise),
+        customer: b.customer_id ? (customers.get(b.customer_id) ?? null) : null,
+        loyalty_points_redeemed: b.loyalty_points_redeemed,
+        loyalty_discount_paise: b.loyalty_discount_paise,
+        loyalty_points_earned: b.loyalty_points_earned,
         invoice_no: b.invoice_no,
         invoice_date: b.invoice_date,
         customer_name: b.customer_name,

@@ -21,6 +21,7 @@ import { audit } from '../../lib/audit';
 import { can, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
+import { syncStock } from '../inventory/stock';
 import { hasPrintAgent, queuePrintJob } from '../print/jobs';
 import { lockLiveSession, openSession, refreshSessionTables } from '../tables/sessions';
 import { loadOrder, toGuestOrder } from './serialize';
@@ -301,6 +302,7 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
     }
   }
 
+  if (accepted) await syncStock(tx, order.id, input.createdBy ?? null);
   const dto = (await loadOrder(tx, order.id))!;
   if (accepted) await createKots(tx, outlet, dto, dto.items.map((i) => i.id));
   await tx.emit({ outletId: outlet.id, type: 'order.placed', channels: ['outlet'], payload: { order: dto } });
@@ -475,6 +477,7 @@ export async function transitionOrder(
     }
   }
 
+  await syncStock(tx, orderId, auth.userId);
   const dto = (await loadOrder(tx, orderId))!;
   const outlet = await loadOutlet(tx, order.outlet_id);
   if (to === 'accepted') {

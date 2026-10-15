@@ -7,6 +7,7 @@ import type { GuestAuth } from '../../lib/auth';
 import { badRequest, gone, notFound, tooMany } from '../../lib/errors';
 import { loadOrders, toGuestOrder } from '../orders/serialize';
 import { createOrder, prepareLines, type OrderLineInput } from '../orders/service';
+import { upsertCustomer } from '../customers/service';
 import { lockLiveSession } from '../tables/sessions';
 
 export const MAX_CART_LINES = 50;
@@ -74,7 +75,7 @@ function cartDto(sessionId: string, version: number, lines: StoredLine[]): CartD
 export async function readGuestSession(tx: Tx, auth: GuestAuth) {
   const s = await tx.db
     .selectFrom('table_sessions')
-    .select(['id', 'status', 'opened_at', 'bill_requested_at', 'cart', 'cart_version', 'table_id'])
+    .select(['id', 'status', 'opened_at', 'bill_requested_at', 'cart', 'cart_version', 'table_id', 'customer_id'])
     .where('id', '=', auth.sessionId)
     .executeTakeFirst();
   if (!s) throw notFound('Table session');
@@ -98,7 +99,14 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth): Promise<GuestSe
     .where('table_session_id', '=', s.id)
     .where('status', '<>', 'void')
     .execute();
-  const outlet = await tx.db.selectFrom('outlets').select('event_seq').where('id', '=', auth.outletId).executeTakeFirstOrThrow();
+  const outlet = await tx.db
+    .selectFrom('outlets')
+    .select(['event_seq', 'loyalty_enabled', 'loyalty_earn_bp'])
+    .where('id', '=', auth.outletId)
+    .executeTakeFirstOrThrow();
+  const customer = s.customer_id
+    ? await tx.db.selectFrom('customers').select('phone').where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
+    : undefined;
   const finalised = bills.filter((b) => b.status !== 'draft');
   return {
     context,
@@ -112,6 +120,8 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth): Promise<GuestSe
     orders: orders.map(toGuestOrder),
     device_id: auth.deviceId,
     last_seq: outlet.event_seq,
+    customer: customer ? { phone_last4: customer.phone.slice(-4) } : null,
+    loyalty: { enabled: outlet.loyalty_enabled, earn_bp: outlet.loyalty_earn_bp },
     bill: finalised.length
       ? {
           total_paise: finalised.reduce((a, b) => a + b.total_paise, 0),
@@ -235,4 +245,26 @@ export async function placeGuestOrder(tx: Tx, auth: GuestAuth, input: { line_ids
     lines.filter((l) => !chosenIds.has(l.line_id)),
   );
   return { order: toGuestOrder(order), cart };
+}
+
+/**
+ * A guest shares their phone (with consent) to earn points on this visit. Links the table session,
+ * and any unprinted bill, to their customer record.
+ */
+export async function joinLoyalty(
+  tx: Tx,
+  auth: GuestAuth,
+  input: { phone: string; name?: string | null; marketing_opt_in?: boolean },
+): Promise<{ phone_last4: string }> {
+  const s = await readGuestSession(tx, auth);
+  const customer = await upsertCustomer(tx, { phone: input.phone, name: input.name, consentSource: 'guest', marketingOptIn: input.marketing_opt_in });
+  await tx.db.updateTable('table_sessions').set({ customer_id: customer.id }).where('id', '=', s.id).execute();
+  await tx.db
+    .updateTable('bills')
+    .set({ customer_id: customer.id })
+    .where('table_session_id', '=', s.id)
+    .where('status', '=', 'draft')
+    .where('customer_id', 'is', null)
+    .execute();
+  return { phone_last4: customer.phone.slice(-4) };
 }

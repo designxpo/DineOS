@@ -58,7 +58,8 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
   p.align('left');
   p.line(columns(`Inv: ${bill.invoice_no ?? 'DRAFT'}`, bill.invoice_date ?? '', width));
   if (bill.table_label) p.line(`Table: ${bill.table_label}${bill.split_label ? `  (${bill.split_label})` : ''}`);
-  if (bill.customer_name) p.line(`Customer: ${bill.customer_name}`);
+  const customer = bill.customer_name ?? bill.customer?.name;
+  if (customer) p.line(`Customer: ${customer}`);
   if (bill.customer_gstin) p.line(`Customer GSTIN: ${bill.customer_gstin}`);
   p.line(rule);
   const amtW = 10;
@@ -75,6 +76,7 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
   p.line(columns('Subtotal', money(bill.subtotal_paise), width));
   const discount = bill.item_discount_paise + bill.bill_discount_paise;
   if (discount) p.line(columns('Discount', `-${money(discount)}`, width));
+  if (bill.loyalty_discount_paise) p.line(columns(`Points redeemed (${bill.loyalty_points_redeemed})`, `-${money(bill.loyalty_discount_paise)}`, width));
   if (bill.service_charge_paise) p.line(columns(`Service charge (${pct(bill.service_charge_bp)})`, money(bill.service_charge_paise), width));
   for (const t of tax_summary) {
     const half = pct(t.tax_rate_bp / 2);
@@ -95,6 +97,7 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
   if (doc.upi_uri && bill.balance_paise > 0) {
     p.feed(1).align('center').line('Scan to pay with any UPI app').qr(doc.upi_uri, 6).align('left');
   }
+  if (bill.loyalty_points_earned) p.line(`Points earned on this bill: ${bill.loyalty_points_earned}`);
   p.feed(1).align('center').line('Thank you. Visit again!');
   return p.feed(3).cut();
 }

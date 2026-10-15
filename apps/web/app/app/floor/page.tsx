@@ -1,11 +1,11 @@
 'use client';
 
 import { usePersistedQuery } from '@/lib/persisted-query';
-import { BellRing, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
+import { BellRing, CalendarClock, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
-import { ago, formatPaise } from '@/lib/format';
+import { ago, formatPaise, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
@@ -117,6 +117,16 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           </p>
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}
+        {table.next_reservation && table.session?.status !== 'open' && (
+          <div className="mt-1 text-sky-800">
+            <p className="flex items-center gap-1 font-medium">
+              <CalendarClock className="size-3 shrink-0" /> {t('floor.booked', { time: time(table.next_reservation.slot_start) })}
+            </p>
+            <p className="truncate">
+              {table.next_reservation.guest_name} · {table.next_reservation.party_size}
+            </p>
+          </div>
+        )}
       </div>
     </button>
   );

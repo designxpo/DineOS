@@ -16,6 +16,8 @@ export type BillDiscount = { kind: 'percent'; bp: number } | { kind: 'amount'; p
 export interface BillInput {
   lines: readonly BillLineInput[];
   bill_discount?: BillDiscount | null;
+  /** Loyalty points redeemed, as money. Applied after the bill discount, capped at what is left. */
+  loyalty_paise?: number;
   /** 0 when the outlet has no service charge or staff removed it. */
   service_charge_bp: number;
   service_charge_tax_rate_bp: number;
@@ -43,6 +45,7 @@ export interface BillTotals {
   subtotal_paise: number;
   item_discount_paise: number;
   bill_discount_paise: number;
+  loyalty_discount_paise: number;
   service_charge_paise: number;
   service_charge_tax_paise: number;
   taxable_paise: number;
@@ -93,8 +96,10 @@ export function computeBill(input: BillInput): BillTotals {
   const d = input.bill_discount;
   if (d?.kind === 'percent') billDiscount = Math.round((discountable * Math.min(d.bp, 10000)) / 10000);
   else if (d?.kind === 'amount') billDiscount = Math.min(Math.max(d.paise, 0), discountable);
+  // Loyalty redemption is a discount at the time of sale, so it also reduces the taxable value.
+  const loyalty = Math.min(Math.max(input.loyalty_paise ?? 0, 0), discountable - billDiscount);
   const shares = allocate(
-    billDiscount,
+    billDiscount + loyalty,
     prepared.map((p) => p.afterItem),
   );
 
@@ -145,6 +150,7 @@ export function computeBill(input: BillInput): BillTotals {
     subtotal_paise: prepared.reduce((a, p) => a + p.gross, 0),
     item_discount_paise: prepared.reduce((a, p) => a + p.itemDiscount, 0),
     bill_discount_paise: billDiscount,
+    loyalty_discount_paise: loyalty,
     service_charge_paise: serviceCharge,
     service_charge_tax_paise: scHalf * 2,
     taxable_paise: taxable,

@@ -37,7 +37,7 @@ export default function PrintBill() {
       <Rule />
       <Line left={`Inv: ${bill.invoice_no ?? '—'}`} right={bill.invoice_date ?? ''} />
       {bill.table_label && <Line left={`Table ${bill.table_label}`} right={bill.split_label ?? ''} />}
-      {bill.customer_name && <p>Customer: {bill.customer_name}</p>}
+      {(bill.customer_name ?? bill.customer?.name) && <p>Customer: {bill.customer_name ?? bill.customer?.name}</p>}
       {bill.customer_gstin && <p>Customer GSTIN: {bill.customer_gstin}</p>}
       <Rule />
       <Line left="Item" right="Qty    Amount" bold />
@@ -50,6 +50,7 @@ export default function PrintBill() {
       <Rule />
       <Line left="Subtotal" right={money(bill.subtotal_paise)} />
       {discount > 0 && <Line left="Discount" right={`-${money(discount)}`} />}
+      {bill.loyalty_discount_paise > 0 && <Line left={`Points redeemed (${bill.loyalty_points_redeemed})`} right={`-${money(bill.loyalty_discount_paise)}`} />}
       {bill.service_charge_paise > 0 && <Line left={`Service charge (${formatRate(bill.service_charge_bp)})`} right={money(bill.service_charge_paise)} />}
       {tax_summary.map((t) => (
         <div key={t.tax_rate_bp}>

@@ -2,6 +2,8 @@
 
 import {
   BarChart3,
+  BookUser,
+  CalendarClock,
   ChefHat,
   ClipboardList,
   CloudOff,
@@ -9,6 +11,7 @@ import {
   LayoutGrid,
   LogOut,
   Menu as MenuIcon,
+  Package,
   QrCode,
   ReceiptIndianRupee,
   Settings,
@@ -22,12 +25,13 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Action } from '@dineos/shared/permissions';
 import { onOutboxChange } from '@/lib/outbox';
-import { useConnection } from '@/lib/realtime';
+import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/toast';
 
 interface NavItem {
   href: string;
@@ -43,12 +47,25 @@ export const NAV: NavItem[] = [
   { href: '/app/floor', label: 'nav.floor', icon: LayoutGrid, action: 'table.operate' },
   { href: '/app/pos', label: 'nav.pos', icon: ShoppingCart, action: 'order.create' },
   { href: '/app/bills', label: 'nav.bills', icon: ReceiptIndianRupee, action: 'bill.manage' },
+  { href: '/app/reservations', label: 'nav.reservations', icon: CalendarClock, action: 'reservation.manage' },
+  { href: '/app/customers', label: 'nav.customers', icon: BookUser, action: 'customer.view' },
   { href: '/app/menu', label: 'nav.menu', icon: UtensilsCrossed, action: 'menu.stock' },
+  { href: '/app/inventory', label: 'nav.inventory', icon: Package, action: 'inventory.record' },
   { href: '/app/tables', label: 'nav.tables', icon: QrCode, action: 'table.manage' },
   { href: '/app/reports', label: 'nav.reports', icon: BarChart3, action: 'report.view' },
   { href: '/app/staff', label: 'nav.staff', icon: Users, action: 'staff.manage' },
   { href: '/app/settings', label: 'nav.settings', icon: Settings, action: 'outlet.settings' },
 ];
+
+/** Tells the kitchen and managers when an ingredient reaches its reorder level. */
+function useLowStockAlerts(enabled: boolean) {
+  const toast = useToast();
+  useOutletEvents((e) => {
+    if (!enabled || e.type !== 'inventory.low') return;
+    const p = e.payload as { name: string; stock_qty: number; unit: string };
+    toast(`${p.name} is running low: ${Number(p.stock_qty.toFixed(3))} ${p.unit} left`, 'error');
+  });
+}
 
 /** Where each role starts its day. */
 export function homeFor(can: (a: Action) => boolean): string {
@@ -67,6 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   useEffect(() => onOutboxChange(setPending), []);
   useEffect(() => setOpen(false), [pathname]);
+  useLowStockAlerts(can('inventory.record'));
 
   const items = NAV.filter((n) => can(n.action));
   // Kitchen display is a full-screen tool.

@@ -32,6 +32,8 @@ const updateBody = z.object({
   item_discounts: z.record(z.uuid(), z.number().int().min(0).max(100_000_000)).optional(),
   customer_name: z.string().max(100).nullable().optional(),
   customer_gstin: z.string().max(15).nullable().optional(),
+  customer_id: z.uuid().nullable().optional(),
+  redeem_points: z.number().int().min(0).max(10_000_000).optional(),
 });
 
 const splitBody = z.discriminatedUnion('mode', [

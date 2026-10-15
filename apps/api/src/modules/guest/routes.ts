@@ -15,6 +15,7 @@ import {
   addCartLine,
   guestContext,
   guestSessionView,
+  joinLoyalty,
   placeGuestOrder,
   readGuestSession,
   removeCartLines,
@@ -139,6 +140,24 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const body = parse(z.object({ line_ids: z.array(z.uuid()).max(50).optional(), note: z.string().max(300).nullable().optional() }), req.body);
       const result = await ctx.tx(auth.tenantId, (tx) => placeGuestOrder(tx, auth, body));
       return reply.status(201).send(result);
+    });
+
+    app.post('/guest/loyalty', async (req) => {
+      const auth = requireGuest(req);
+      const body = parse(
+        z.object({
+          phone: z.string().min(10).max(20),
+          name: z.string().trim().max(80).nullable().optional(),
+          marketing_opt_in: z.boolean().optional(),
+          consent: z.literal(true, { error: 'Tick the box to agree to us saving your number' }),
+        }),
+        req.body,
+      );
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const o = await tx.db.selectFrom('outlets').select('loyalty_enabled').where('id', '=', auth.outletId).executeTakeFirstOrThrow();
+        if (!o.loyalty_enabled) throw conflict('loyalty_disabled', 'This restaurant does not run a loyalty programme');
+        return joinLoyalty(tx, auth, body);
+      });
     });
 
     app.post('/guest/call-waiter', async (req) => {

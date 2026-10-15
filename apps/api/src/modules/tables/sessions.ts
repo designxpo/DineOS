@@ -121,6 +121,7 @@ export async function closeSession(
     .where('table_session_id', '=', sessionId)
     .where('status', '<>', 'closed')
     .execute();
+  await tx.db.updateTable('reservations').set({ status: 'completed' }).where('table_session_id', '=', sessionId).where('status', '=', 'seated').execute();
   await refreshTableStates(
     tx,
     tables.map((t) => t.id),

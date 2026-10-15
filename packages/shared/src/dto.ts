@@ -66,6 +66,12 @@ export interface OutletDTO {
   upi_vpa: string | null;
   upi_payee_name: string | null;
   status: string;
+  loyalty_enabled: boolean;
+  loyalty_earn_bp: number;
+  loyalty_point_value_paise: number;
+  loyalty_min_redeem_points: number;
+  reservation_minutes: number;
+  inventory_auto_stockout: boolean;
 }
 
 // ---------- Menu ----------
@@ -180,6 +186,8 @@ export interface TableDTO {
   running_total_paise: number;
   open_requests: ServiceRequestDTO[];
   is_active: boolean;
+  /** Next booked reservation on this table today, within the next few hours. */
+  next_reservation: { id: string; guest_name: string; party_size: number; slot_start: string } | null;
 }
 
 // ---------- Orders ----------
@@ -301,6 +309,12 @@ export interface GuestSessionDTO {
   device_id: string;
   /** Latest outlet event sequence at the time of the read; resume realtime from here. */
   last_seq: number;
+  /**
+   * Set once someone at the table has shared a phone number for loyalty. Only the last digits are
+   * shown: guests are anonymous, so a typed number must not reveal whose it is or their balance.
+   */
+  customer: { phone_last4: string } | null;
+  loyalty: { enabled: boolean; earn_bp: number };
   bill: { total_paise: number; paid_paise: number; status: BillStatus } | null;
 }
 
@@ -365,6 +379,10 @@ export interface BillDTO {
   balance_paise: number;
   /** Planned shares when split by amount; payments are matched against these. */
   amount_shares: number[] | null;
+  customer: { id: string; name: string | null; phone: string; points: number } | null;
+  loyalty_points_redeemed: number;
+  loyalty_discount_paise: number;
+  loyalty_points_earned: number;
   invoice_no: string | null;
   invoice_date: string | null;
   customer_name: string | null;
@@ -390,4 +408,116 @@ export interface InvoiceDTO {
     state_code: string | null;
   };
   tax_summary: { tax_rate_bp: number; taxable_paise: number; cgst_paise: number; sgst_paise: number }[];
+}
+
+// ---------- Customers and loyalty (Phase 2) ----------
+
+export interface CustomerDTO {
+  id: string;
+  phone: string;
+  name: string | null;
+  email: string | null;
+  birthday: string | null;
+  notes: string | null;
+  consent_at: string;
+  consent_source: 'staff' | 'guest';
+  marketing_opt_in: boolean;
+  visits: number;
+  total_spend_paise: number;
+  points: number;
+  last_visit_at: string | null;
+  created_at: string;
+}
+
+export interface LoyaltyEntryDTO {
+  id: string;
+  kind: 'earn' | 'redeem' | 'reverse' | 'adjust';
+  points: number;
+  note: string | null;
+  bill_id: string | null;
+  invoice_no: string | null;
+  created_at: string;
+}
+
+// ---------- Reservations and waitlist (Phase 2) ----------
+
+export type ReservationStatus = 'booked' | 'seated' | 'completed' | 'cancelled' | 'no_show';
+
+export interface ReservationDTO {
+  id: string;
+  outlet_id: string;
+  table_id: string | null;
+  table_label: string | null;
+  customer_id: string | null;
+  guest_name: string;
+  guest_phone: string | null;
+  party_size: number;
+  slot_start: string;
+  slot_end: string;
+  status: ReservationStatus;
+  source: 'phone' | 'walk_in' | 'online' | 'other';
+  notes: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface WaitlistEntryDTO {
+  id: string;
+  outlet_id: string;
+  guest_name: string;
+  guest_phone: string | null;
+  party_size: number;
+  quoted_minutes: number | null;
+  status: 'waiting' | 'notified' | 'seated' | 'left';
+  notes: string | null;
+  table_label: string | null;
+  created_at: string;
+  notified_at: string | null;
+  seated_at: string | null;
+}
+
+// ---------- Inventory (Phase 2) ----------
+
+export const INGREDIENT_UNITS = ['g', 'kg', 'ml', 'l', 'pcs'] as const;
+export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
+
+export interface IngredientDTO {
+  id: string;
+  outlet_id: string;
+  name: string;
+  unit: IngredientUnit;
+  stock_qty: number;
+  reorder_level: number;
+  /** Moving-average cost of one unit. */
+  cost_per_unit_paise: number;
+  is_active: boolean;
+  low: boolean;
+  used_by: number;
+}
+
+export type StockMovementType = 'purchase' | 'sale' | 'return' | 'wastage' | 'adjust' | 'count';
+
+export interface StockMovementDTO {
+  id: string;
+  ingredient_id: string;
+  ingredient_name: string;
+  unit: IngredientUnit;
+  type: StockMovementType;
+  qty: number;
+  unit_cost_paise: number | null;
+  stock_after: number | null;
+  supplier: string | null;
+  note: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface RecipeLineDTO {
+  ingredient_id: string;
+  qty: number;
+}
+
+export interface RecipesDTO {
+  items: Record<string, RecipeLineDTO[]>;
+  modifiers: Record<string, RecipeLineDTO[]>;
 }

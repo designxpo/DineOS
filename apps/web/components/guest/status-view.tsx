@@ -1,6 +1,6 @@
 'use client';
 
-import { BellRing, Check, ChefHat, CircleX, Clock, HandPlatter, Plus, ReceiptIndianRupee } from 'lucide-react';
+import { BellRing, Check, ChefHat, CircleX, Clock, Gift, HandPlatter, Plus, ReceiptIndianRupee } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import type { GuestOrderDTO } from '@dineos/shared/dto';
@@ -10,7 +10,7 @@ import { time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { VegMark } from '@/components/ui/primitives';
+import { Input, VegMark } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { formatRupee } from './guest-app';
 import type { GuestApi } from './use-guest';
@@ -58,6 +58,8 @@ export function StatusView({ g, onAddMore }: { g: GuestApi; onAddMore: () => voi
       </div>
 
       {bill && <BillCard g={g} total={bill.total_paise} paid={bill.paid_paise} />}
+
+      {g.session?.loyalty.enabled && <LoyaltyCard g={g} />}
 
       {orders.map((order) => (
         <OrderCard key={order.id} order={order} />
@@ -151,6 +153,67 @@ function OrderCard({ order }: { order: GuestOrderDTO }) {
         ))}
       </ul>
     </article>
+  );
+}
+
+/** Guests share their number with explicit consent; nothing about an existing member is shown. */
+function LoyaltyCard({ g }: { g: GuestApi }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [offers, setOffers] = useState(false);
+  const member = g.session?.customer;
+  const pct = ((g.session?.loyalty.earn_bp ?? 0) / 100).toString();
+  const restaurant = g.context?.outlet.name ?? '';
+
+  if (member) {
+    return (
+      <section className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+        <Gift className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+        <div>
+          <p className="font-medium text-ink">{t('guest.loyalty_member', { last4: member.phone_last4 })}</p>
+          <p className="mt-0.5 text-sm text-ink-soft">{t('guest.loyalty_member_hint')}</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-4">
+      <button className="flex w-full cursor-pointer items-start gap-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Gift className="mt-0.5 size-5 shrink-0 text-[var(--brand)]" />
+        <span>
+          <span className="block font-semibold text-ink">{t('guest.loyalty_title', { pct })}</span>
+          <span className="mt-0.5 block text-sm text-ink-soft">{t('guest.loyalty_hint')}</span>
+        </span>
+      </button>
+      {open && (
+        <form
+          className="mt-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            g.joinLoyalty.mutate({ phone, name: name.trim() || null, marketing_opt_in: offers }, { onError: (err) => toast(errorMessage(err), 'error') });
+          }}
+        >
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder={t('guest.loyalty_phone')} aria-label={t('guest.loyalty_phone')} />
+          <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" placeholder={t('guest.loyalty_name')} aria-label={t('guest.loyalty_name')} />
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-ink-soft">
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]" />
+            {t('guest.loyalty_consent', { name: restaurant })}
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 text-sm text-ink-soft">
+            <input type="checkbox" checked={offers} onChange={(e) => setOffers(e.target.checked)} className="size-4 shrink-0 accent-[var(--brand)]" />
+            {t('guest.loyalty_offers')}
+          </label>
+          <Button type="submit" block disabled={!consent || phone.replace(/\D/g, '').length < 10} loading={g.joinLoyalty.isPending}>
+            {t('guest.loyalty_join')}
+          </Button>
+        </form>
+      )}
+    </section>
   );
 }
 

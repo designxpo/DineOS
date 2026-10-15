@@ -19,17 +19,20 @@ const Ctx = createContext<RealtimeCtx | null>(null);
 
 /** Which cached screens each event makes stale. */
 const INVALIDATES: Partial<Record<EventType, string[]>> = {
-  'order.placed': ['orders', 'kds', 'tables', 'dashboard', 'session-orders'],
-  'order.status_changed': ['orders', 'kds', 'tables', 'dashboard', 'session-orders'],
-  'order.updated': ['orders', 'kds', 'tables', 'session-orders'],
+  'order.placed': ['orders', 'kds', 'tables', 'dashboard', 'session-orders', 'inventory'],
+  'order.status_changed': ['orders', 'kds', 'tables', 'dashboard', 'session-orders', 'inventory'],
+  'order.updated': ['orders', 'kds', 'tables', 'session-orders', 'inventory'],
   'table.state_changed': ['tables'],
   'tables.updated': ['tables'],
   'waiter.called': ['service-requests', 'tables'],
   'bill.requested': ['service-requests', 'tables'],
   'service_request.updated': ['service-requests', 'tables'],
-  'bill.updated': ['bills', 'bill', 'tables', 'dashboard'],
+  'bill.updated': ['bills', 'bill', 'tables', 'dashboard', 'customers'],
   'menu.updated': ['menu'],
   'item.stock_changed': ['menu'],
+  'reservations.updated': ['reservations'],
+  'waitlist.updated': ['waitlist'],
+  'inventory.low': ['inventory'],
 };
 
 const LATEST = 2_147_483_647;

@@ -201,6 +201,13 @@ export function useGuest(qr: string) {
     onError: handleGone,
   });
 
+  const joinLoyalty = useMutation({
+    mutationFn: (body: { phone: string; name: string | null; marketing_opt_in: boolean }) =>
+      apiFetch<{ phone_last4: string }>('/guest/loyalty', { method: 'POST', token, body: { ...body, consent: true } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['guest-session'] }),
+    onError: handleGone,
+  });
+
   const startOver = useCallback(async () => {
     writeLocal(tokenKey(qr), null);
     firstLoad.current = true;
@@ -229,6 +236,7 @@ export function useGuest(qr: string) {
     placeOrder,
     callWaiter,
     requestBill,
+    joinLoyalty,
     startOver,
   };
 }

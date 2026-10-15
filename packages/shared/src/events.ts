@@ -16,6 +16,9 @@ export const EVENT_TYPES = [
   'session.closed',
   'bill.updated',
   'print.job',
+  'reservations.updated',
+  'waitlist.updated',
+  'inventory.low',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 

@@ -9,6 +9,7 @@ import { authenticate, type StaffAuth } from '../lib/auth';
 import { hashSecret } from '../lib/crypto';
 import { provisionTenant } from '../modules/admin/provision';
 import { createBill, finaliseBill, recordPayment } from '../modules/billing/service';
+import { applyMovement } from '../modules/inventory/stock';
 import { createOrder, transitionOrder } from '../modules/orders/service';
 import { getOrCreateSession } from '../modules/tables/sessions';
 import { createStaffSession } from '../modules/auth/service';
@@ -115,6 +116,40 @@ const TABLES: { zone: string; prefix: string; count: number; seats: number }[] =
   { zone: 'Private dining', prefix: 'PD', count: 2, seats: 10 },
 ];
 
+// Ingredients (unit, opening stock, reorder level, price per unit in paise) and per-portion recipes.
+const INGREDIENTS: Record<string, [unit: 'g' | 'kg' | 'ml' | 'l' | 'pcs', stock: number, reorder: number, cost: number]> = {
+  Paneer: ['kg', 6, 2, 32000],
+  Chicken: ['kg', 8, 3, 26000],
+  'Basmati rice': ['kg', 15, 5, 11000],
+  'Black urad dal': ['kg', 4, 1.5, 14000],
+  Butter: ['kg', 3, 1, 52000],
+  Cream: ['l', 2.4, 2, 24000],
+  Milk: ['l', 12, 6, 6000],
+  'Coffee beans': ['g', 900, 500, 140],
+  Tomatoes: ['kg', 10, 3, 4000],
+  Limes: ['pcs', 40, 20, 400],
+};
+const RECIPES: Record<string, Record<string, number>> = {
+  'Paneer Tikka': { Paneer: 0.2, Butter: 0.01 },
+  'Paneer Butter Masala': { Paneer: 0.18, Butter: 0.03, Tomatoes: 0.15, Cream: 0.04 },
+  'Butter Chicken': { Chicken: 0.25, Butter: 0.03, Tomatoes: 0.15, Cream: 0.05 },
+  'Chicken Malai Tikka': { Chicken: 0.25, Cream: 0.05 },
+  'Dal Makhani': { 'Black urad dal': 0.08, Butter: 0.03, Cream: 0.03, Tomatoes: 0.05 },
+  'Veg Dum Biryani': { 'Basmati rice': 0.15 },
+  'Hyderabadi Chicken Biryani': { 'Basmati rice': 0.15, Chicken: 0.2 },
+  'Masala Chai': { Milk: 0.12 },
+  'Filter Coffee': { Milk: 0.1, 'Coffee beans': 12 },
+  Cappuccino: { Milk: 0.15, 'Coffee beans': 18 },
+  'Cold Coffee': { Milk: 0.25, 'Coffee beans': 18 },
+  'Fresh Lime Soda': { Limes: 1 },
+  'Virgin Mojito': { Limes: 1 },
+};
+const CUSTOMERS: { name: string; phone: string; marketing: boolean; points?: number }[] = [
+  { name: 'Ananya Rao', phone: '+919876543210', marketing: true },
+  { name: 'Vikram Mehta', phone: '+919812345678', marketing: false, points: 180 },
+  { name: 'Fatima Sheikh', phone: '+919900112233', marketing: true, points: 60 },
+];
+
 const STAFF: { name: string; email: string; phone: string; role: 'manager' | 'cashier' | 'waiter' | 'kitchen'; pin?: string }[] = [
   { name: 'Arjun Mehta', email: 'arjun@courtyard.demo', phone: '9800000001', role: 'manager', pin: '1234' },
   { name: 'Priya Nair', email: 'priya@courtyard.demo', phone: '9800000002', role: 'cashier' },
@@ -164,6 +199,10 @@ async function main() {
       upi_payee_name: 'Aurum Hospitality',
       auto_accept: false,
       approve_flagged_orders: true,
+      loyalty_enabled: true,
+      loyalty_earn_bp: 500,
+      loyalty_point_value_paise: 100,
+      loyalty_min_redeem_points: 100,
     })
     .where('id', '=', outletId)
     .execute();
@@ -248,6 +287,53 @@ async function main() {
     }
   }
 
+  // Stock and recipes, so the demo orders below use up ingredients.
+  const ingredientIds: Record<string, string> = {};
+  await ctx.tx(t, async (tx) => {
+    for (const [name, [unit, stock, reorder, cost]] of Object.entries(INGREDIENTS)) {
+      const row = await tx.db
+        .insertInto('ingredients')
+        .values({ tenant_id: t, outlet_id: outletId, name, unit, reorder_level: reorder, cost_per_unit_paise: cost })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      ingredientIds[name] = row.id;
+      await applyMovement(tx, { ingredientId: row.id, type: 'purchase', qty: stock, unitCostPaise: cost, supplier: 'Opening stock', userId: ids.ownerId });
+    }
+    for (const [dish, lines] of Object.entries(RECIPES)) {
+      await tx.db
+        .insertInto('recipes')
+        .values(Object.entries(lines).map(([ing, qty]) => ({ tenant_id: t, item_id: itemIds[dish]!, ingredient_id: ingredientIds[ing]!, qty })))
+        .execute();
+    }
+    const large = await tx.db.selectFrom('modifiers').select('id').where('group_id', '=', groupIds.coffeeSize!).where('name', '=', 'Large').executeTakeFirstOrThrow();
+    await tx.db.insertInto('modifier_recipes').values({ tenant_id: t, modifier_id: large.id, ingredient_id: ingredientIds.Milk!, qty: 0.1 }).execute();
+  });
+
+  // Guests who agreed to share their number.
+  const customerIds: Record<string, string> = {};
+  for (const [i, c] of CUSTOMERS.entries()) {
+    const row = await db
+      .insertInto('customers')
+      .values({
+        tenant_id: t,
+        phone: c.phone,
+        name: c.name,
+        consent_at: new Date(Date.now() - (30 - i * 7) * 86_400_000),
+        consent_source: 'staff',
+        marketing_opt_in: c.marketing,
+        points: c.points ?? 0,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    customerIds[c.name] = row.id;
+    if (c.points) {
+      await db
+        .insertInto('loyalty_ledger')
+        .values({ tenant_id: t, customer_id: row.id, outlet_id: outletId, kind: 'adjust', points: c.points, note: 'Carried over from the old register', created_by: ids.ownerId })
+        .execute();
+    }
+  }
+
   // A few settled and live tables so the floor map and dashboard have something to show.
   const session = await ctx.tx(t, (tx) => createStaffSession(tx, ids.ownerId, { userAgent: 'seed' }));
   const owner = (await authenticate(ctx, session.token)) as StaffAuth;
@@ -261,8 +347,8 @@ async function main() {
       .execute();
     return picks.map((p) => rows.find((r) => r.name === p)!.id);
   };
-  const scenarios: { table: string; lines: [string, number, string[]][]; settle?: 'cash' | 'upi'; serve?: boolean }[] = [
-    { table: 'C2', lines: [['Paneer Tikka', 1, ['Medium']], ['Dal Makhani', 1, ['Butter naan']], ['Masala Chai', 2, []]], settle: 'upi' },
+  const scenarios: { table: string; lines: [string, number, string[]][]; settle?: 'cash' | 'upi'; serve?: boolean; customer?: string }[] = [
+    { table: 'C2', lines: [['Paneer Tikka', 1, ['Medium']], ['Dal Makhani', 1, ['Butter naan']], ['Masala Chai', 2, []]], settle: 'upi', customer: 'Ananya Rao' },
     { table: 'C5', lines: [['Butter Chicken', 1, ['Garlic naan']], ['Fresh Lime Soda', 2, []]], settle: 'cash' },
     { table: 'P3', lines: [['Hyderabadi Chicken Biryani', 2, []], ['Gulab Jamun', 2, []]], settle: 'upi' },
     { table: 'C7', lines: [['Hara Bhara Kebab', 1, []], ['Cold Coffee', 2, ['Large']]], serve: true },
@@ -271,6 +357,7 @@ async function main() {
   for (const s of scenarios) {
     await ctx.tx(t, async (tx) => {
       const sess = await getOrCreateSession(tx, tableIds[s.table]!);
+      if (s.customer) await tx.db.updateTable('table_sessions').set({ customer_id: customerIds[s.customer]! }).where('id', '=', sess.id).execute();
       const lines = [];
       for (const [name, qty, picks] of s.lines) lines.push({ item_id: itemIds[name]!, qty, modifier_ids: await modsOf(name, picks) });
       const order = await createOrder(tx, { outletId, type: 'dine_in', source: 'waiter', sessionId: sess.id, lines, createdBy: owner.userId });
@@ -298,6 +385,42 @@ async function main() {
       ],
     });
   });
+  // Tonight's bookings and a party waiting for a table.
+  const slot = (hoursAhead: number) => {
+    const d = new Date(Date.now() + hoursAhead * 3600_000);
+    d.setUTCMinutes(Math.ceil(d.getUTCMinutes() / 15) * 15, 0, 0);
+    return d;
+  };
+  const bookings: { name: string; party: number; at: Date; table?: string; customer?: string; notes?: string }[] = [
+    { name: 'Vikram Mehta', party: 4, at: slot(1), table: 'C4', customer: 'Vikram Mehta', notes: 'Anniversary, quiet corner' },
+    { name: 'Sharma family', party: 8, at: slot(2), table: 'PD1', notes: 'High chair for a toddler' },
+    { name: 'Fatima Sheikh', party: 2, at: slot(3), customer: 'Fatima Sheikh' },
+    { name: 'Corporate lunch: Infra Ltd', party: 10, at: slot(26), table: 'PD2' },
+  ];
+  for (const b of bookings) {
+    await db
+      .insertInto('reservations')
+      .values({
+        tenant_id: t,
+        outlet_id: outletId,
+        table_id: b.table ? tableIds[b.table]! : null,
+        customer_id: b.customer ? customerIds[b.customer]! : null,
+        guest_name: b.name,
+        guest_phone: b.customer ? CUSTOMERS.find((c) => c.name === b.customer)!.phone : null,
+        party_size: b.party,
+        slot_start: b.at,
+        slot_end: new Date(b.at.getTime() + 90 * 60_000),
+        source: 'phone',
+        notes: b.notes ?? null,
+        created_by: ids.ownerId,
+      })
+      .execute();
+  }
+  await db
+    .insertInto('waitlist_entries')
+    .values({ tenant_id: t, outlet_id: outletId, guest_name: 'Kapoor', party_size: 5, quoted_minutes: 20, created_at: new Date(Date.now() - 12 * 60_000), created_by: ids.ownerId })
+    .execute();
+
   await ctx.tx(t, (tx) => tx.db.deleteFrom('user_sessions').where('id', '=', owner.sessionId).execute());
 
   // Platform admin

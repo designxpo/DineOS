@@ -23,6 +23,12 @@ export const ACTIONS = [
   'outlet.settings',
   'device.manage',
   'audit.view',
+  'customer.view',
+  'customer.manage', // create customers (with consent), attach to bills, redeem points
+  'customer.adjust', // manual point adjustments, erasure
+  'reservation.manage',
+  'inventory.manage', // ingredients, recipes, purchases
+  'inventory.record', // wastage and stock counts
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -42,6 +48,9 @@ const MATRIX: Record<Role, readonly Action[]> = {
     'service_request.handle',
     'bill.manage',
     'payment.record',
+    'customer.view',
+    'customer.manage',
+    'reservation.manage',
   ],
   waiter: [
     'order.view',
@@ -51,8 +60,10 @@ const MATRIX: Record<Role, readonly Action[]> = {
     'order.edit_items',
     'table.operate',
     'service_request.handle',
+    'customer.view',
+    'reservation.manage',
   ],
-  kitchen: ['order.view', 'order.kitchen', 'menu.stock'],
+  kitchen: ['order.view', 'order.kitchen', 'menu.stock', 'inventory.record'],
 };
 
 export function roleCan(role: Role, action: Action): boolean {

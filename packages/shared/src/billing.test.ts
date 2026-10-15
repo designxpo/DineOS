@@ -99,6 +99,22 @@ describe('computeBill', () => {
     expect(t.total_paise).toBe(10500);
   });
 
+  it('applies loyalty after the bill discount, capped, and taxes the rest', () => {
+    const t = computeBill({
+      ...base,
+      lines: [{ key: 'a', qty: 1, unit_price_paise: 100000, tax_rate_bp: 500 }],
+      bill_discount: { kind: 'percent', bp: 1000 },
+      loyalty_paise: 20000,
+    });
+    expect(t.bill_discount_paise).toBe(10000);
+    expect(t.loyalty_discount_paise).toBe(20000);
+    expect(t.taxable_paise).toBe(70000);
+    expect(t.tax_total_paise).toBe(3500);
+    const capped = computeBill({ ...base, lines: [{ key: 'a', qty: 1, unit_price_paise: 5000, tax_rate_bp: 500 }], loyalty_paise: 99999 });
+    expect(capped.loyalty_discount_paise).toBe(5000);
+    expect(capped.total_paise).toBe(0);
+  });
+
   it('handles an empty bill', () => {
     const t = computeBill({ ...base, lines: [] });
     expect(t.total_paise).toBe(0);

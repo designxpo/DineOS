@@ -18,6 +18,7 @@ import { badRequest, conflict, notFound } from '../../lib/errors';
 import { markOrdersBilled } from '../orders/service';
 import { hasPrintAgent, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
+import { earnOnPaid, lockCustomer, redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
 import { paymentAdapterFor } from './payment-adapter';
 import { loadBill, loadBills, loadInvoice, shares, upiUri, type AmountSplit } from './serialize';
 
@@ -89,7 +90,7 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
   const outlet = await outletFor(tx, bill.outlet_id);
   const items = await billableItems(tx, bill);
   const discounts = (bill.item_discounts ?? {}) as Record<string, number>;
-  const totals = computeBill({
+  const input = {
     lines: items.map((i) => ({
       key: i.id,
       qty: i.qty,
@@ -101,7 +102,15 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
     service_charge_bp: bill.service_charge_waived ? 0 : bill.service_charge_bp,
     service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
     prices_include_tax: outlet.prices_include_tax,
-  });
+  };
+  // Redeemed points can only cover what is left after other discounts, in whole points.
+  let points = bill.loyalty_points_redeemed;
+  if (points > 0) {
+    const pre = computeBill(input);
+    const room = pre.subtotal_paise - pre.item_discount_paise - pre.bill_discount_paise;
+    points = Math.min(points, Math.floor(room / outlet.loyalty_point_value_paise));
+  }
+  const totals = computeBill({ ...input, loyalty_paise: points * outlet.loyalty_point_value_paise });
 
   await tx.db.deleteFrom('bill_lines').where('bill_id', '=', billId).execute();
   if (items.length) {
@@ -148,6 +157,8 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
       tax_total_paise: totals.tax_total_paise,
       round_off_paise: totals.round_off_paise,
       total_paise: totals.total_paise,
+      loyalty_points_redeemed: points,
+      loyalty_discount_paise: totals.loyalty_discount_paise,
     })
     .where('id', '=', billId)
     .execute();
@@ -222,6 +233,11 @@ export async function createBill(
   });
   if (pending.length === 0) throw conflict('nothing_to_bill', 'There are no unbilled items. Accepted orders appear here.');
 
+  // A guest who shared their phone at the table (or a takeaway customer) is carried onto the bill.
+  const customerId = input.table_session_id
+    ? ((await tx.db.selectFrom('table_sessions').select('customer_id').where('id', '=', input.table_session_id).executeTakeFirst())?.customer_id ?? null)
+    : ((await tx.db.selectFrom('orders').select('customer_id').where('id', '=', input.order_id!).executeTakeFirst())?.customer_id ?? null);
+
   const bill = await tx.db
     .insertInto('bills')
     .values({
@@ -229,6 +245,7 @@ export async function createBill(
       outlet_id: outletId,
       table_session_id: input.table_session_id ?? null,
       order_id: input.order_id ?? null,
+      customer_id: customerId,
       service_charge_bp: outlet.service_charge_bp,
       service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
       created_by: auth.userId,
@@ -247,6 +264,8 @@ export interface UpdateBillInput {
   item_discounts?: Record<string, number>;
   customer_name?: string | null;
   customer_gstin?: string | null;
+  customer_id?: string | null;
+  redeem_points?: number;
 }
 
 export async function updateBill(
@@ -260,6 +279,15 @@ export async function updateBill(
   assertCan(auth, bill.outlet_id, 'bill.manage');
   if (bill.status !== 'draft') throw conflict('bill_finalised', 'This bill is already printed. Void it to make changes.');
 
+  if (input.customer_id !== undefined || input.redeem_points !== undefined) {
+    assertCan(auth, bill.outlet_id, 'customer.manage');
+    const customerId = input.customer_id !== undefined ? input.customer_id : bill.customer_id;
+    if (input.customer_id) await lockCustomer(tx, input.customer_id);
+    const points = input.customer_id === null ? 0 : (input.redeem_points ?? (input.customer_id !== undefined ? 0 : bill.loyalty_points_redeemed));
+    await validateRedemption(tx, bill.outlet_id, customerId, points);
+    await tx.db.updateTable('bills').set({ customer_id: customerId, loyalty_points_redeemed: points }).where('id', '=', billId).execute();
+  }
+
   const touchesDiscount = input.bill_discount !== undefined || input.item_discounts !== undefined;
   if (touchesDiscount) {
     const anyDiscount =
@@ -269,18 +297,15 @@ export async function updateBill(
     if (anyDiscount && !reason) throw badRequest('reason_required', 'Give a reason for the discount');
   }
 
-  await tx.db
-    .updateTable('bills')
-    .set({
-      ...(input.bill_discount !== undefined ? { bill_discount: input.bill_discount ? json(input.bill_discount) : null } : {}),
-      ...(input.discount_reason !== undefined ? { discount_reason: input.discount_reason?.trim() || null } : {}),
-      ...(input.service_charge_waived !== undefined ? { service_charge_waived: input.service_charge_waived } : {}),
-      ...(input.item_discounts !== undefined ? { item_discounts: json(input.item_discounts) } : {}),
-      ...(input.customer_name !== undefined ? { customer_name: input.customer_name?.trim() || null } : {}),
-      ...(input.customer_gstin !== undefined ? { customer_gstin: input.customer_gstin?.trim().toUpperCase() || null } : {}),
-    })
-    .where('id', '=', billId)
-    .execute();
+  const changes = {
+    ...(input.bill_discount !== undefined ? { bill_discount: input.bill_discount ? json(input.bill_discount) : null } : {}),
+    ...(input.discount_reason !== undefined ? { discount_reason: input.discount_reason?.trim() || null } : {}),
+    ...(input.service_charge_waived !== undefined ? { service_charge_waived: input.service_charge_waived } : {}),
+    ...(input.item_discounts !== undefined ? { item_discounts: json(input.item_discounts) } : {}),
+    ...(input.customer_name !== undefined ? { customer_name: input.customer_name?.trim() || null } : {}),
+    ...(input.customer_gstin !== undefined ? { customer_gstin: input.customer_gstin?.trim().toUpperCase() || null } : {}),
+  };
+  if (Object.keys(changes).length) await tx.db.updateTable('bills').set(changes).where('id', '=', billId).execute();
   await syncDraft(tx, billId);
 
   if (touchesDiscount) {
@@ -382,6 +407,7 @@ export async function splitBill(tx: Tx, auth: StaffAuth, billId: string, input: 
         service_charge_tax_rate_bp: bill.service_charge_tax_rate_bp,
         customer_name: bill.customer_name,
         customer_gstin: bill.customer_gstin,
+        customer_id: bill.customer_id,
         created_by: auth.userId,
       })
       .returning('id')
@@ -454,9 +480,13 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
     .where('id', '=', billId)
     .execute();
 
+  await redeemOnFinalise(tx, bill, auth.userId);
   await markFullyBilledOrders(tx, billId);
   if (await hasPrintAgent(tx, outlet.id)) await printBill(tx, billId, false);
-  if (bill.total_paise === 0) await settleSessionIfDone(tx, billId);
+  if (bill.total_paise === 0) {
+    await earnOnPaid(tx, billId, auth.userId);
+    await settleSessionIfDone(tx, billId);
+  }
   const dto = (await loadBill(tx, billId))!;
   await announceBill(tx, dto);
   return dto;
@@ -588,7 +618,10 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
     .set({ paid_paise: paid, ...(fullyPaid ? { status: 'paid', paid_at: new Date() } : {}) })
     .where('id', '=', billId)
     .execute();
-  if (fullyPaid) await settleSessionIfDone(tx, billId);
+  if (fullyPaid) {
+    await earnOnPaid(tx, billId, auth.userId);
+    await settleSessionIfDone(tx, billId);
+  }
   const dto = (await loadBill(tx, billId))!;
   await announceBill(tx, dto);
   return dto;
@@ -607,6 +640,7 @@ export async function voidBill(tx: Tx, auth: StaffAuth, billId: string, reason: 
     .set({ status: 'void', voided_at: new Date(), voided_by: auth.userId, void_reason: reason.trim() })
     .where('id', '=', billId)
     .execute();
+  await reverseOnVoid(tx, bill, auth.userId);
   // Orders marked billed by this bill go back to served so their items can be billed again.
   const orderIds = await tx.db
     .selectFrom('bill_lines')

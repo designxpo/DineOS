@@ -1,13 +1,13 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, CreditCard, FileText, Percent, Printer, Scissors, Smartphone, Trash2, Undo2, Wallet } from 'lucide-react';
+import { ArrowLeft, Banknote, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
-import type { BillDTO, BillLineDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
+import type { BillDTO, BillLineDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
@@ -20,6 +20,7 @@ import { ConfirmDialog, Sheet } from '@/components/ui/overlay';
 import { Badge, Card, Field, Input, Segmented, Spinner, Switch } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { useWithApproval } from '@/components/staff/approval';
+import { NewCustomerSheet } from '@/components/staff/customer-sheet';
 import { ReasonPicker } from '@/components/staff/orders';
 
 type Invoice = InvoiceDTO & { upi_uri: string | null };
@@ -136,6 +137,7 @@ export default function BillPage() {
           <dl className="space-y-1.5 border-t border-line bg-stone-50/60 px-4 py-4 text-sm">
             <Row label="Subtotal" value={formatPaise(bill.subtotal_paise)} />
             {discount > 0 && <Row label={`Discount${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
+            {bill.loyalty_discount_paise > 0 && <Row label={`Points redeemed (${bill.loyalty_points_redeemed})`} value={`− ${formatPaise(bill.loyalty_discount_paise)}`} tone="text-emerald-700" />}
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
               <Row label={`Service charge ${bill.service_charge_waived ? '(removed)' : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
             )}
@@ -194,6 +196,14 @@ export default function BillPage() {
             </Card>
           )}
 
+          {can('customer.view') && (draft || bill.customer) && bill.status !== 'void' && (
+            <LoyaltyCard
+              bill={bill}
+              editable={draft && can('customer.manage')}
+              onUpdate={(body, done) => act('loyalty', () => api(`/bills/${id}`, { method: 'PATCH', body }), done)}
+            />
+          )}
+
           {finalised && can('payment.record') && <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />}
 
           {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record')} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), 'Refund recorded')} />}
@@ -244,6 +254,119 @@ export default function BillPage() {
       <CustomerSheet bill={bill} open={sheet === 'customer'} onClose={() => setSheet(null)} onSave={(body) => act('customer', () => api(`/bills/${id}`, { method: 'PATCH', body }), 'Customer details saved').then((ok) => ok && setSheet(null))} />
       <VoidDialog open={sheet === 'void'} onClose={() => setSheet(null)} busy={busy === 'void'} onConfirm={(reason) => void act('void', (approval) => api(`/bills/${id}/void`, { method: 'POST', body: { reason }, approvalToken: approval }), 'Bill voided').then((ok) => ok && setSheet(null))} />
     </div>
+  );
+}
+
+/** Member on the bill: attach by phone, redeem points while the bill is a draft. */
+function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: boolean; onUpdate: (body: object, done: string) => Promise<boolean> }) {
+  const { api, outletId, outlet } = useStaff();
+  const [phone, setPhone] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [points, setPoints] = useState('');
+  const digits = phone.replace(/\D/g, '');
+  const matches = useQuery({
+    queryKey: ['customers', outletId, 'bill-search', digits],
+    enabled: editable && !bill.customer && digits.length >= 4,
+    queryFn: () => api<CustomerDTO[]>(`/customers?outlet_id=${outletId}&q=${digits}&limit=5`),
+  });
+  const loyalty = outlet?.loyalty_enabled;
+  const value = outlet?.loyalty_point_value_paise ?? 100;
+  const c = bill.customer;
+  // Points cannot take the bill below zero; the API caps it the same way.
+  const room = bill.subtotal_paise - bill.item_discount_paise - bill.bill_discount_paise;
+  const max = c ? Math.min(c.points, Math.floor(room / value)) : 0;
+  const canRedeem = loyalty && c && max >= (outlet?.loyalty_min_redeem_points ?? 0) && max > 0;
+
+  return (
+    <Card className="space-y-3 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <Gift className="size-4 text-[var(--brand)]" /> {loyalty ? 'Loyalty' : 'Customer'}
+      </p>
+      {c ? (
+        <>
+          <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-3 py-2.5">
+            <UserRound className="size-5 shrink-0 text-ink-faint" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{c.name ?? 'Guest'}</p>
+              <p className="text-xs text-ink-faint tabular">
+                {c.phone}
+                {loyalty && ` · ${c.points} points`}
+              </p>
+            </div>
+            {editable && (
+              <button className="grid size-8 cursor-pointer place-items-center rounded-lg text-ink-faint hover:bg-stone-200" aria-label="Remove customer" onClick={() => void onUpdate({ customer_id: null }, 'Customer removed')}>
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          {bill.loyalty_points_redeemed > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span>
+                Using {bill.loyalty_points_redeemed} points ({formatPaise(bill.loyalty_discount_paise)})
+              </span>
+              {editable && (
+                <Button size="sm" variant="ghost" onClick={() => void onUpdate({ redeem_points: 0 }, 'Points no longer used')}>
+                  Undo
+                </Button>
+              )}
+            </div>
+          )}
+          {editable && canRedeem && bill.loyalty_points_redeemed === 0 && (
+            <div className="flex gap-2">
+              <Input value={points} onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder={`Up to ${max}`} aria-label="Points to redeem" className="h-9" />
+              <Button size="sm" variant="outline" onClick={() => setPoints(String(max))}>
+                Max
+              </Button>
+              <Button size="sm" disabled={!Number(points)} onClick={() => void onUpdate({ redeem_points: Number(points) }, 'Points applied').then((ok) => ok && setPoints(''))}>
+                Redeem
+              </Button>
+            </div>
+          )}
+          {editable && loyalty && !canRedeem && bill.loyalty_points_redeemed === 0 && c.points > 0 && (
+            <p className="text-xs text-ink-faint">Points can be used from {outlet?.loyalty_min_redeem_points} upwards.</p>
+          )}
+          {bill.loyalty_points_earned > 0 && <p className="text-sm text-emerald-700">Earned {bill.loyalty_points_earned} points on this bill</p>}
+          {loyalty && bill.status === 'draft' && <p className="text-xs text-ink-faint">Points are earned when the bill is paid.</p>}
+        </>
+      ) : editable ? (
+        <>
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" />
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Customer's phone" className="h-10 pl-9" aria-label="Find customer by phone" />
+          </div>
+          {matches.data?.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => void onUpdate({ customer_id: m.id }, `${m.name ?? 'Customer'} added to the bill`)}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2 text-left text-sm hover:bg-stone-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{m.name ?? 'Guest'}</span>
+                <span className="text-xs text-ink-faint tabular">{m.phone}</span>
+              </span>
+              {loyalty && <span className="text-xs font-semibold tabular">{m.points} pts</span>}
+            </button>
+          ))}
+          {digits.length >= 10 && matches.data && !matches.data.length && (
+            <Button size="sm" variant="outline" block onClick={() => setAdding(true)}>
+              Save as new customer
+            </Button>
+          )}
+          {digits.length < 10 && <p className="text-xs text-ink-faint">Add the guest to give them {loyalty ? 'points' : 'a visit history'}. Only with their consent.</p>}
+        </>
+      ) : null}
+      {adding && (
+        <NewCustomerSheet
+          initialPhone={phone}
+          onClose={() => setAdding(false)}
+          onCreated={(cid, created) => {
+            setAdding(false);
+            setPhone('');
+            void onUpdate({ customer_id: cid }, `${created.name ?? 'Customer'} added to the bill`);
+          }}
+        />
+      )}
+    </Card>
   );
 }
 

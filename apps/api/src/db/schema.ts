@@ -21,6 +21,8 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type Numeric = ColumnType<number, number | string, number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface AdminSessions {
@@ -95,6 +97,7 @@ export interface Bills {
   created_at: Generated<Timestamp>;
   created_by: string | null;
   customer_gstin: string | null;
+  customer_id: string | null;
   customer_name: string | null;
   discount_reason: string | null;
   finalised_at: Timestamp | null;
@@ -107,6 +110,9 @@ export interface Bills {
   item_discount_paise: Generated<number>;
   item_discounts: Generated<Json>;
   item_scope: Json | null;
+  loyalty_discount_paise: Generated<number>;
+  loyalty_points_earned: Generated<number>;
+  loyalty_points_redeemed: Generated<number>;
   order_id: string | null;
   outlet_id: string;
   outlet_snapshot: Json | null;
@@ -141,6 +147,26 @@ export interface Counters {
   value: Generated<number>;
 }
 
+export interface Customers {
+  birthday: string | null;
+  consent_at: Timestamp;
+  consent_source: string;
+  created_at: Generated<Timestamp>;
+  email: string | null;
+  erased_at: Timestamp | null;
+  id: Generated<string>;
+  last_visit_at: Timestamp | null;
+  marketing_opt_in: Generated<boolean>;
+  name: string | null;
+  notes: string | null;
+  phone: string;
+  points: Generated<number>;
+  tenant_id: string;
+  total_spend_paise: Generated<number>;
+  updated_at: Generated<Timestamp>;
+  visits: Generated<number>;
+}
+
 export interface Devices {
   config: Generated<Json>;
   created_at: Generated<Timestamp>;
@@ -167,6 +193,20 @@ export interface IdempotencyKeys {
   tenant_id: string;
 }
 
+export interface Ingredients {
+  cost_per_unit_paise: Generated<Numeric>;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  is_active: Generated<boolean>;
+  name: string;
+  outlet_id: string;
+  reorder_level: Generated<Numeric>;
+  stock_qty: Generated<Numeric>;
+  tenant_id: string;
+  unit: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface ItemModifierGroups {
   group_id: string;
   item_id: string;
@@ -184,6 +224,20 @@ export interface Kots {
   outlet_id: string;
   printed_at: Timestamp | null;
   station: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface LoyaltyLedger {
+  bill_id: string | null;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  customer_id: string;
+  id: Generated<string>;
+  kind: string;
+  note: string | null;
+  outlet_id: string | null;
+  points: number;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
 }
@@ -238,6 +292,13 @@ export interface ModifierGroups {
   updated_at: Generated<Timestamp>;
 }
 
+export interface ModifierRecipes {
+  ingredient_id: string;
+  modifier_id: string;
+  qty: Numeric;
+  tenant_id: string;
+}
+
 export interface Modifiers {
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
@@ -270,6 +331,7 @@ export interface OrderItems {
   seat_no: number | null;
   station: string;
   status: Generated<string>;
+  stock_applied: Generated<boolean>;
   tax_rate_bp: number;
   tenant_id: string;
   unit_price_paise: number;
@@ -282,6 +344,7 @@ export interface Orders {
   cancelled_reason: string | null;
   created_at: Generated<Timestamp>;
   created_by: string | null;
+  customer_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   device_id: string | null;
@@ -325,13 +388,20 @@ export interface Outlets {
   fssai_no: string | null;
   gstin: string | null;
   id: Generated<string>;
+  inventory_auto_stockout: Generated<boolean>;
   invoice_prefix: Generated<string>;
   kitchen_stations: Generated<string[]>;
   legal_name: string | null;
+  loyalty_earn_bp: Generated<number>;
+  loyalty_enabled: Generated<boolean>;
+  loyalty_min_redeem_points: Generated<number>;
+  loyalty_point_value_paise: Generated<number>;
   menu_version: Generated<number>;
   name: string;
   phone: string | null;
   prices_include_tax: Generated<boolean>;
+  reservation_grace_minutes: Generated<number>;
+  reservation_minutes: Generated<number>;
   service_charge_bp: Generated<number>;
   service_charge_tax_rate_bp: Generated<number>;
   state_code: string | null;
@@ -434,6 +504,33 @@ export interface PrintJobs {
   updated_at: Generated<Timestamp>;
 }
 
+export interface Recipes {
+  ingredient_id: string;
+  item_id: string;
+  qty: Numeric;
+  tenant_id: string;
+}
+
+export interface Reservations {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  customer_id: string | null;
+  guest_name: string;
+  guest_phone: string | null;
+  id: Generated<string>;
+  notes: string | null;
+  outlet_id: string;
+  party_size: number;
+  slot_end: Timestamp;
+  slot_start: Timestamp;
+  source: Generated<string>;
+  status: Generated<string>;
+  table_id: string | null;
+  table_session_id: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface ServiceRequests {
   acknowledged_at: Timestamp | null;
   acknowledged_by: string | null;
@@ -445,6 +542,23 @@ export interface ServiceRequests {
   table_id: string;
   table_session_id: string | null;
   tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface StockMovements {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  ingredient_id: string;
+  note: string | null;
+  order_item_id: string | null;
+  outlet_id: string;
+  qty: Numeric;
+  stock_after: Numeric | null;
+  supplier: string | null;
+  tenant_id: string;
+  type: string;
+  unit_cost_paise: Numeric | null;
   updated_at: Generated<Timestamp>;
 }
 
@@ -484,6 +598,7 @@ export interface TableSessions {
   cart_version: Generated<number>;
   closed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
+  customer_id: string | null;
   guest_count: number | null;
   id: Generated<string>;
   opened_at: Timestamp | null;
@@ -555,6 +670,25 @@ export interface UserSessions {
   user_id: string;
 }
 
+export interface WaitlistEntries {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  guest_name: string;
+  guest_phone: string | null;
+  id: Generated<string>;
+  notes: string | null;
+  notified_at: Timestamp | null;
+  outlet_id: string;
+  party_size: number;
+  quoted_minutes: number | null;
+  seated_at: Timestamp | null;
+  status: Generated<string>;
+  table_id: string | null;
+  table_session_id: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface DB {
   admin_sessions: AdminSessions;
   approval_tokens: ApprovalTokens;
@@ -562,13 +696,17 @@ export interface DB {
   bill_lines: BillLines;
   bills: Bills;
   counters: Counters;
+  customers: Customers;
   devices: Devices;
   idempotency_keys: IdempotencyKeys;
+  ingredients: Ingredients;
   item_modifier_groups: ItemModifierGroups;
   kots: Kots;
+  loyalty_ledger: LoyaltyLedger;
   menu_categories: MenuCategories;
   menu_items: MenuItems;
   modifier_groups: ModifierGroups;
+  modifier_recipes: ModifierRecipes;
   modifiers: Modifiers;
   order_items: OrderItems;
   orders: Orders;
@@ -581,7 +719,10 @@ export interface DB {
   platform_counters: PlatformCounters;
   platform_invoices: PlatformInvoices;
   print_jobs: PrintJobs;
+  recipes: Recipes;
+  reservations: Reservations;
   service_requests: ServiceRequests;
+  stock_movements: StockMovements;
   subscriptions: Subscriptions;
   table_sessions: TableSessions;
   table_state_events: TableStateEvents;
@@ -590,4 +731,5 @@ export interface DB {
   user_outlet_roles: UserOutletRoles;
   user_sessions: UserSessions;
   users: Users;
+  waitlist_entries: WaitlistEntries;
 }

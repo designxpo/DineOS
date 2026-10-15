@@ -68,6 +68,17 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
         .execute()
     : [];
   const requests = await loadServiceRequests(tx, outletId, rows.map((r) => r.id));
+  // The next booking per table, from slightly in the past (late arrivals) to a few hours ahead.
+  const upcoming = await tx.db
+    .selectFrom('reservations')
+    .select(['id', 'table_id', 'guest_name', 'party_size', 'slot_start'])
+    .where('outlet_id', '=', outletId)
+    .where('status', '=', 'booked')
+    .where('table_id', 'in', rows.map((r) => r.id))
+    .where('slot_start', '>', new Date(Date.now() - 60 * 60_000))
+    .where('slot_start', '<', new Date(Date.now() + 4 * 3600_000))
+    .orderBy('slot_start')
+    .execute();
 
   return rows.map((r) => {
     const sid = r.current_session_id;
@@ -99,6 +110,10 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       running_total_paise: Number(totals.find((t) => t.table_session_id === sid)?.total ?? 0),
       open_requests: requests.filter((q) => q.table_id === r.id),
       is_active: r.is_active,
+      next_reservation: (() => {
+        const n = upcoming.find((u) => u.table_id === r.id);
+        return n ? { id: n.id, guest_name: n.guest_name, party_size: n.party_size, slot_start: n.slot_start.toISOString() } : null;
+      })(),
     };
   });
 }

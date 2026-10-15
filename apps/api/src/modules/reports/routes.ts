@@ -5,6 +5,7 @@ import type { AppContext } from '../../context';
 import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest } from '../../lib/errors';
 import { parse } from '../../lib/validate';
+import { inventoryReport } from '../inventory/report';
 import { dashboard, dayEnd, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
 
 const rangeQuery = z.object({
@@ -74,6 +75,14 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { r } = await range(req, auth.tenantId);
       assertCan(auth, r.outletId, 'report.view');
       return ctx.tx(auth.tenantId, (tx) => dayEnd(tx, r));
+    });
+
+    app.get('/reports/inventory', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { r, format } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      const data = await ctx.tx(auth.tenantId, (tx) => inventoryReport(tx, r));
+      return format === 'csv' ? sendCsv(reply, `inventory-${r.from}-${r.to}`, data.ingredients) : data;
     });
 
     app.get('/reports/dashboard', async (req) => {

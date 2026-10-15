@@ -13,7 +13,7 @@ import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@
 import { useToast } from '@/components/ui/toast';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'outlet' | 'orders' | 'billing' | 'printers' | 'brand' | 'outlets' | 'account' | 'audit';
+type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -24,6 +24,7 @@ export default function SettingsPage() {
     { value: 'outlet', label: 'Outlet & GST' },
     { value: 'orders', label: 'Ordering' },
     { value: 'billing', label: 'Billing & UPI' },
+    { value: 'guests', label: 'Loyalty & stock' },
     { value: 'printers', label: 'Printers' },
     ...(owner ? [{ value: 'brand' as Tab, label: 'Brand & plan' }, { value: 'outlets' as Tab, label: 'Outlets' }] : []),
     { value: 'account', label: 'My PIN' },
@@ -39,6 +40,7 @@ export default function SettingsPage() {
         {tab === 'outlet' && <OutletForm fields={['name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix']} />}
         {tab === 'orders' && <OrderingForm />}
         {tab === 'billing' && <BillingForm />}
+        {tab === 'guests' && <GuestsForm />}
         {tab === 'printers' && <Printers />}
         {tab === 'brand' && <Brand />}
         {tab === 'outlets' && <Outlets />}
@@ -184,6 +186,81 @@ function BillingForm() {
           <Field label="Name shown in UPI apps">{(id) => <Input id={id} value={upi.name} onChange={(e) => setUpi({ ...upi, name: e.target.value })} />}</Field>
         </div>
         <Button onClick={() => void save({ upi_vpa: upi.vpa.trim() || null, upi_payee_name: upi.name.trim() || null })}>Save UPI details</Button>
+      </Card>
+    </div>
+  );
+}
+
+function GuestsForm() {
+  const { outlet } = useStaff();
+  const save = useSaveOutlet();
+  const [form, setForm] = useState({ earn: '5', value: '1', min: '100', minutes: '90' });
+  useEffect(() => {
+    if (!outlet) return;
+    setForm({
+      earn: String(outlet.loyalty_earn_bp / 100),
+      value: String(outlet.loyalty_point_value_paise / 100),
+      min: String(outlet.loyalty_min_redeem_points),
+      minutes: String(outlet.reservation_minutes),
+    });
+  }, [outlet]);
+  if (!outlet) return <Spinner />;
+  const earn = Number(form.earn);
+  const value = Number(form.value);
+  const example = earn > 0 && value > 0 ? Math.floor((1000 * earn) / 100 / value) : 0;
+  return (
+    <div className="space-y-4">
+      <Card className="divide-y divide-line">
+        <Row title="Loyalty points" hint="Guests who share their number (with consent) earn points on paid bills and spend them as a discount.">
+          <Switch label="Loyalty points" checked={outlet.loyalty_enabled} onChange={(v) => void save({ loyalty_enabled: v })} />
+        </Row>
+        {outlet.loyalty_enabled && (
+          <div className="space-y-4 p-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Points back (%)" hint="Of the bill total">
+                {(id) => <Input id={id} value={form.earn} onChange={(e) => setForm({ ...form, earn: e.target.value })} inputMode="decimal" />}
+              </Field>
+              <Field label="1 point is worth (₹)">{(id) => <Input id={id} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} inputMode="decimal" />}</Field>
+              <Field label="Use from (points)" hint="Smallest redemption">
+                {(id) => <Input id={id} value={form.min} onChange={(e) => setForm({ ...form, min: e.target.value })} inputMode="numeric" />}
+              </Field>
+            </div>
+            <p className="rounded-xl bg-stone-50 px-3 py-2 text-sm text-ink-soft">
+              A ₹1,000 bill earns <span className="font-semibold text-ink">{example} points</span>, worth ₹{(example * value).toFixed(0)} on a later visit.
+            </p>
+            <Button
+              onClick={() =>
+                void save({
+                  loyalty_earn_bp: Math.round(earn * 100),
+                  loyalty_point_value_paise: Math.round(value * 100),
+                  loyalty_min_redeem_points: Math.round(Number(form.min) || 0),
+                })
+              }
+              disabled={!(earn >= 0 && earn <= 50 && value > 0)}
+            >
+              Save loyalty rules
+            </Button>
+          </div>
+        )}
+      </Card>
+      <Card className="divide-y divide-line">
+        <Row title="Default booking length" hint="How long a table is held for a reservation, unless changed on the booking.">
+          <div className="flex gap-2">
+            <Select value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} className="w-28" aria-label="Default booking length">
+              {[45, 60, 75, 90, 105, 120, 150, 180].map((m) => (
+                <option key={m} value={m}>
+                  {m} min
+                </option>
+              ))}
+            </Select>
+            <Button variant="outline" onClick={() => void save({ reservation_minutes: Number(form.minutes) })}>
+              Save
+            </Button>
+          </div>
+        </Row>
+        <Row title="Sold out when an ingredient runs out" hint="With recipes set up, dishes needing an empty ingredient are greyed out on every menu automatically.">
+          <Switch label="Auto sold-out from stock" checked={outlet.inventory_auto_stockout} onChange={(v) => void save({ inventory_auto_stockout: v })} />
+        </Row>
       </Card>
     </div>
   );

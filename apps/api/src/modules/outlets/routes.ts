@@ -30,6 +30,12 @@ const outletFields = {
   kitchen_stations: z.array(station).min(1).max(12),
   upi_vpa: z.string().trim().regex(/^[\w.-]{2,256}@[a-zA-Z][\w]{1,63}$/, 'UPI ID looks like name@bank').nullable(),
   upi_payee_name: z.string().trim().max(60).nullable(),
+  loyalty_enabled: z.boolean(),
+  loyalty_earn_bp: z.number().int().min(0).max(5000),
+  loyalty_point_value_paise: z.number().int().min(1).max(100_000),
+  loyalty_min_redeem_points: z.number().int().min(0).max(1_000_000),
+  reservation_minutes: z.number().int().min(15).max(600),
+  inventory_auto_stockout: z.boolean(),
 };
 const updateOutlet = z.object(outletFields).partial();
 const createOutlet = z.object(outletFields).partial().required({ name: true });
@@ -38,6 +44,8 @@ const OUTLET_COLUMNS = [
   'id', 'name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix', 'timezone',
   'auto_accept', 'approve_flagged_orders', 'service_charge_bp', 'service_charge_tax_rate_bp', 'default_tax_rate_bp',
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
+  'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
+  'reservation_minutes', 'inventory_auto_stockout',
 ] as const;
 
 async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
@@ -55,7 +63,8 @@ const EXPORT_OMIT = new Set(['password_hash', 'pin_hash', 'token_hash']);
 const EXPORT_TABLES = [
   'outlets', 'users', 'user_outlet_roles', 'menu_categories', 'menu_items', 'modifier_groups', 'modifiers', 'item_modifier_groups',
   'tables', 'table_sessions', 'orders', 'order_items', 'kots', 'bills', 'bill_lines', 'payments', 'service_requests',
-  'devices', 'audit_log', 'subscriptions', 'platform_invoices',
+  'devices', 'audit_log', 'subscriptions', 'platform_invoices', 'customers', 'loyalty_ledger', 'reservations',
+  'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements',
 ] as const;
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {

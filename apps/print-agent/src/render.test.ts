@@ -77,6 +77,7 @@ describe('bill', () => {
         cgst_paise: 1250, sgst_paise: 1250, tax_total_paise: 2500, round_off_paise: 0, total_paise: 52500, paid_paise: 0, balance_paise: 52500,
         amount_shares: null, invoice_no: 'AURM/2627/000123', invoice_date: '2026-10-15', customer_name: null, customer_gstin: null,
         payments: [], finalised_at: null, paid_at: null, voided_at: null, void_reason: null, created_at: '2026-10-15T07:00:00Z',
+        customer: null, loyalty_points_redeemed: 0, loyalty_discount_paise: 0, loyalty_points_earned: 0,
       },
     },
   };
@@ -93,5 +94,20 @@ describe('bill', () => {
     expect(text).toMatch(/TOTAL\s+Rs\. 525\.00/);
     expect(text).toContain('[QR upi://pay?pa=courtyard@okbank&am=903.00]');
     for (const line of renderBill(doc, 42).preview.filter((l) => !l.startsWith('[QR'))) expect(line.length).toBeLessThanOrEqual(42);
+    expect(text).not.toContain('Points');
+  });
+
+  it('shows redeemed and earned loyalty points and the member name', () => {
+    const bill = {
+      ...doc.invoice.bill,
+      customer: { id: 'c', name: 'Meera', phone: '+919876500001', points: 40 },
+      loyalty_points_redeemed: 50,
+      loyalty_discount_paise: 5000,
+      loyalty_points_earned: 4,
+    };
+    const text = renderBill({ ...doc, invoice: { ...doc.invoice, bill } }, 42).preview.join('\n');
+    expect(text).toContain('Customer: Meera');
+    expect(text).toMatch(/Points redeemed \(50\)\s+-50\.00/);
+    expect(text).toContain('Points earned on this bill: 4');
   });
 });
