@@ -8,10 +8,10 @@ import { json } from '../db';
 import { authenticate, type StaffAuth } from '../lib/auth';
 import { hashSecret } from '../lib/crypto';
 import { provisionTenant } from '../modules/admin/provision';
-import { createBill, finaliseBill, recordPayment } from '../modules/billing/service';
+import { createBill, finaliseBill, recordPayment, updateBill } from '../modules/billing/service';
 import { applyMovement } from '../modules/inventory/stock';
 import { createOrder, transitionOrder } from '../modules/orders/service';
-import { getOrCreateSession } from '../modules/tables/sessions';
+import { getOrCreateSession, openSession } from '../modules/tables/sessions';
 import { createStaffSession } from '../modules/auth/service';
 import { purgeTenant } from '../lib/purge';
 
@@ -209,6 +209,7 @@ async function main() {
   await db.updateTable('tenants').set({ branding: json({ primary_color: '#9A3412' }) }).where('id', '=', t).execute();
 
   // Staff
+  const staffIds: Record<string, string> = {};
   for (const s of STAFF) {
     const u = await db
       .insertInto('users')
@@ -223,6 +224,7 @@ async function main() {
       .returning('id')
       .executeTakeFirstOrThrow();
     await db.insertInto('user_outlet_roles').values({ tenant_id: t, user_id: u.id, outlet_id: outletId, role: s.role }).execute();
+    staffIds[s.email] = u.id;
   }
 
   // Menu
@@ -286,6 +288,10 @@ async function main() {
       tableIds[label] = row.id;
     }
   }
+
+  // Two weeks of trading history (before recipes exist, so today's stock stays intact), oldest
+  // first so invoice numbers rise with the dates. Reports and the dashboard then have a shape.
+  await seedHistory({ ctx, t, outletId, itemIds, tableIds, staff: [staffIds['ravi@courtyard.demo']!, staffIds['sunita@courtyard.demo']!], cashier: staffIds['priya@courtyard.demo']! });
 
   // Stock and recipes, so the demo orders below use up ingredients.
   const ingredientIds: Record<string, string> = {};
@@ -441,6 +447,92 @@ Seeded "${SLUG}" (Aurum Grand Hotel, The Courtyard): ${Object.keys(itemIds).leng
 Print a table QR from Tables in the portal, or open the guest menu for C1 via the portal's "Open guest view".
 `);
   await ctx.close();
+}
+
+/** Deterministic pseudo-random numbers so every reseed looks the same. */
+function rng(seed: number) {
+  let x = seed;
+  return () => {
+    x = (x * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return x / 2_147_483_648;
+  };
+}
+
+async function seedHistory(o: {
+  ctx: ReturnType<typeof createContext>;
+  t: string;
+  outletId: string;
+  itemIds: Record<string, string>;
+  tableIds: Record<string, string>;
+  staff: string[];
+  cashier: string;
+}) {
+  const { ctx, t, outletId } = o;
+  const rand = rng(20261015);
+  const pick = <T,>(list: readonly T[]): T => list[Math.floor(rand() * list.length)]!;
+  const auths: StaffAuth[] = [];
+  for (const userId of [...o.staff, o.cashier]) {
+    const session = await ctx.tx(t, (tx) => createStaffSession(tx, userId, { userAgent: 'seed' }));
+    auths.push((await authenticate(ctx, session.token)) as StaffAuth);
+  }
+  const cashier = auths[auths.length - 1]!;
+  // Breakfast items are only orderable in the morning, so history uses the all-day menu.
+  const dishes = MENU.filter((c) => c.category !== 'Breakfast').flatMap((c) => c.items.filter((i) => !i.groups?.some((g) => ['spice', 'coffeeSize', 'eggs'].includes(g))).map((i) => i.name));
+  const drinks = MENU.find((c) => c.category === 'Beverages')!.items.filter((i) => !i.groups).map((i) => i.name);
+  const tables = Object.keys(o.tableIds).filter((l) => !l.startsWith('PD'));
+  const hours = [12, 12, 13, 13, 13, 14, 15, 19, 20, 20, 20, 21, 21, 21, 22];
+  const reasons = ['Regular guest', 'Hotel guest', 'Late food'];
+
+  for (let daysAgo = 14; daysAgo >= 1; daysAgo--) {
+    const weekend = [0, 6].includes(new Date(Date.now() - daysAgo * 86_400_000).getDay());
+    const visits = (weekend ? 11 : 7) + Math.floor(rand() * 4);
+    const slots = Array.from({ length: visits }, () => ({ hour: pick(hours), minute: Math.floor(rand() * 60) })).sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));
+    for (const slot of slots) {
+      const day = new Date(Date.now() - daysAgo * 86_400_000);
+      const ist = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(day);
+      const start = new Date(`${ist}T${String(slot.hour).padStart(2, '0')}:${String(slot.minute).padStart(2, '0')}:00+05:30`);
+      const at = (minutes: number) => new Date(start.getTime() + minutes * 60_000);
+      const guests = 1 + Math.floor(rand() * 5);
+      const viaQr = rand() < 0.35;
+      const waiter = pick(auths.slice(0, -1));
+      const lines = [
+        ...Array.from({ length: 1 + Math.floor(rand() * 3) }, () => ({ item_id: o.itemIds[pick(dishes)]!, qty: 1 + Math.floor(rand() * 2), modifier_ids: [] })),
+        { item_id: o.itemIds[pick(drinks)]!, qty: Math.max(1, guests - 1), modifier_ids: [] },
+      ];
+      const dwell = 35 + Math.floor(rand() * 60);
+      await ctx.tx(t, async (tx) => {
+        const sess = await getOrCreateSession(tx, o.tableIds[pick(tables)]!);
+        await openSession(tx, sess.id, { guestCount: guests, waiterId: waiter.userId });
+        const order = viaQr
+          ? await createOrder(tx, { outletId, type: 'dine_in', source: 'guest_qr', sessionId: sess.id, lines, deviceId: crypto.randomUUID() })
+          : await createOrder(tx, { outletId, type: 'dine_in', source: 'waiter', sessionId: sess.id, lines, createdBy: waiter.userId });
+        if (viaQr) await transitionOrder(tx, waiter, order.id, 'accepted');
+        await transitionOrder(tx, waiter, order.id, 'served');
+        const bill = await createBill(tx, cashier, { table_session_id: sess.id });
+        if (rand() < 0.12) await updateBill(tx, cashier, bill.id, { bill_discount: { kind: 'percent', bp: 1000 }, discount_reason: pick(reasons) });
+        const fin = await finaliseBill(tx, cashier, bill.id);
+        await recordPayment(tx, cashier, bill.id, { method: rand() < 0.6 ? 'upi' : rand() < 0.8 ? 'cash' : 'card_slip', amount_paise: fin.total_paise, reference: null });
+
+        const accepted = at(viaQr ? 1 + rand() * 2 : 0);
+        await tx.db
+          .updateTable('orders')
+          .set({ placed_at: at(0), created_at: at(0), accepted_at: accepted, ready_at: at(18 + rand() * 10), served_at: at(22 + rand() * 10), business_date: ist })
+          .where('id', '=', order.id)
+          .execute();
+        await tx.db.updateTable('order_items').set({ created_at: at(0) }).where('order_id', '=', order.id).execute();
+        await tx.db.updateTable('table_sessions').set({ opened_at: at(-3), created_at: at(-3), closed_at: at(dwell) }).where('id', '=', sess.id).execute();
+        await tx.db.updateTable('bills').set({ invoice_date: ist, created_at: at(dwell - 8), finalised_at: at(dwell - 6), paid_at: at(dwell - 2) }).where('id', '=', bill.id).execute();
+        await tx.db.updateTable('payments').set({ created_at: at(dwell - 2) }).where('bill_id', '=', bill.id).execute();
+        await tx.db.updateTable('kots').set({ created_at: at(0) }).where('order_id', '=', order.id).execute();
+        // The tables are free again for today's demo scenarios.
+        await tx.db.updateTable('tables').set({ needs_cleaning: false }).where('outlet_id', '=', outletId).execute();
+      });
+    }
+  }
+  await ctx.tx(t, async (tx) => {
+    await tx.db.deleteFrom('user_sessions').where('id', 'in', auths.map((a) => a.sessionId)).execute();
+    await tx.db.updateTable('tables').set({ state: 'vacant', needs_cleaning: false }).where('outlet_id', '=', outletId).execute();
+  });
 }
 
 main().catch((err) => {

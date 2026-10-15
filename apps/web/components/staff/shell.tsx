@@ -6,7 +6,6 @@ import {
   CalendarClock,
   ChefHat,
   ClipboardList,
-  CloudOff,
   LayoutDashboard,
   LayoutGrid,
   LogOut,
@@ -24,7 +23,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Action } from '@dineos/shared/permissions';
-import { onOutboxChange } from '@/lib/outbox';
+import { discard, flush, listQueued } from '@/lib/outbox';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -32,6 +31,8 @@ import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { ConfirmDialog } from '@/components/ui/overlay';
+import { OutboxBadge, useOutboxState } from './outbox-panel';
 
 interface NavItem {
   href: string;
@@ -76,15 +77,38 @@ export function homeFor(can: (a: Action) => boolean): string {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { me, outletId, outlet, setOutletId, can, logout } = useStaff();
+  const { me, outletId, outlet, setOutletId, can, logout, token } = useStaff();
   const { t, lang, setLang } = useI18n();
   const pathname = usePathname();
   const connection = useConnection();
-  const [pending, setPending] = useState(0);
+  const { pending } = useOutboxState();
   const [open, setOpen] = useState(false);
-  useEffect(() => onOutboxChange(setPending), []);
+  const [unsynced, setUnsynced] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   useLowStockAlerts(can('inventory.record'));
+
+  // Signing out revokes this session, so changes still waiting on this device would be lost.
+  const signOut = async () => {
+    if (pending > 0) {
+      await flush(token);
+      if ((await listQueued()).length > 0) return setUnsynced(true);
+    }
+    await logout();
+  };
+  const signOutAnyway = async () => {
+    for (const q of await listQueued()) await discard(q.key);
+    await logout();
+  };
+  const unsyncedDialog = (
+    <ConfirmDialog
+      open={unsynced}
+      onClose={() => setUnsynced(false)}
+      title="Changes not sent yet"
+      description={`${pending} change${pending === 1 ? ' is' : 's are'} saved on this device but could not reach the server. Stay signed in until the internet is back, or sign out and lose ${pending === 1 ? 'it' : 'them'}.`}
+      confirmLabel="Sign out anyway"
+      onConfirm={() => void signOutAnyway()}
+    />
+  );
 
   const items = NAV.filter((n) => can(n.action));
   // Kitchen display is a full-screen tool.
@@ -115,11 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const status = (
     <div className="flex items-center gap-2 text-xs">
-      {pending > 0 && (
-        <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-900" title="Saved on this device, will send when back online">
-          <CloudOff className="size-3.5" /> {pending} waiting to sync
-        </span>
-      )}
+      <OutboxBadge />
       <span className="flex items-center gap-1.5 text-ink-faint" role="status">
         <span className={cn('size-2 rounded-full', connection === 'online' ? 'bg-emerald-500' : connection === 'connecting' ? 'bg-amber-400' : 'bg-rose-500')} />
         {connection === 'online' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}
@@ -128,6 +148,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   if (bare) return <>{children}</>;
+
 
   return (
     <div className="flex min-h-dvh">
@@ -151,7 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-xs text-ink-faint capitalize">{(me.outlets.find((o) => o.id === outletId)?.roles ?? []).join(', ')}</p>
               </div>
             </Link>
-            <IconButton label={t('nav.signout')} onClick={() => void logout()}>
+            <IconButton label={t('nav.signout')} onClick={() => void signOut()}>
               <LogOut className="size-4" />
             </IconButton>
           </div>
@@ -182,6 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex-1">{children}</main>
       </div>
+      {unsyncedDialog}
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -197,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/app/account" className="flex h-12 items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
               {me.user.name} · {t('nav.account')}
             </Link>
-            <button onClick={() => void logout()} className="flex h-14 cursor-pointer items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
+            <button onClick={() => void signOut()} className="flex h-14 cursor-pointer items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
               <LogOut className="size-4" /> {t('nav.signout')}
             </button>
           </div>

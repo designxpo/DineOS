@@ -17,6 +17,7 @@ import { useStaff } from '@/lib/staff';
 import { readLocal, writeLocal } from '@/lib/storage';
 import { cn } from '@/components/ui/cn';
 import { VegMark } from '@/components/ui/primitives';
+import { OutboxBadge } from '@/components/staff/outbox-panel';
 import { StaleBanner } from '@/components/staff/stale-banner';
 import { useToast } from '@/components/ui/toast';
 
@@ -107,6 +108,7 @@ export default function KdsPage() {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <OutboxBadge />
           <span className="flex items-center gap-1.5 text-sm text-stone-400">
             <span className={cn('size-2.5 rounded-full', connection === 'online' ? 'bg-emerald-400' : 'bg-rose-500')} />
             {orders.length}

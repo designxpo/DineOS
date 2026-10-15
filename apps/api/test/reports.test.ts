@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { BillDTO } from '@dineos/shared/dto';
+import { previousRange } from '../src/modules/reports/insights';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;
@@ -96,5 +97,38 @@ describe('reports', () => {
   it('is for owners and managers only', async () => {
     const cashier = api(t, (await addStaff(t, tenant, 'cashier')).token);
     expect((await cashier({ method: 'GET', url: `/v1/reports/sales?outlet_id=${tenant.outletId}` })).statusCode).toBe(403);
+  });
+
+  it('insights: categories, rush hours, team, discount reasons, tables and pilot health', async () => {
+    // One guest QR order on top of the three staff orders, accepted by staff.
+    const tableId = await createTable(t, tenant, 'R5');
+    const qr = new URL((await owner({ method: 'GET', url: `/v1/tables/${tableId}/qr` })).json().url).pathname.split('/').pop()!;
+    const guest = api(t, (await t.app.inject({ method: 'POST', url: '/v1/guest/join', payload: { qr_token: qr } })).json().guest_token);
+    await guest({ method: 'POST', url: '/v1/guest/cart/lines', payload: { item_id: menu.paneerTikka, qty: 1, modifier_ids: [] } });
+    const { order: placed } = (await guest({ method: 'POST', url: '/v1/guest/orders', payload: {} })).json();
+    expect((await owner({ method: 'PATCH', url: `/v1/orders/${placed.id}/status`, payload: { status: 'accepted' } })).statusCode).toBe(200);
+
+    const res = await owner({ method: 'GET', url: `/v1/reports/insights?outlet_id=${tenant.outletId}` });
+    expect(res.statusCode).toBe(200);
+    const d = res.json();
+    expect(d.headline.bills).toBe(3);
+    expect(d.headline.net_paise).toBe(paidTotals);
+    expect(d.headline.change_pct.net).toBeNull(); // nothing the day before
+    expect(d.categories).toEqual([{ category: 'Starters', qty: 2 * 3 + 3 + 1 + 1, revenue_paise: (50000 + 32000) * 3 + 25000 + 25000 }]);
+    expect(d.heatmap.reduce((a: number, c: { orders: number }) => a + c.orders, 0)).toBe(5);
+    expect(d.staff).toEqual([expect.objectContaining({ name: 'Owner', orders: 4, bills: 3, net_paise: paidTotals, discount_paise: 5000 })]);
+    expect(d.discounts.by_reason).toEqual([{ reason: 'Staff meal', bills: 1, amount_paise: 5000 }]);
+    expect(d.tables.visits).toBe(3);
+    expect(d.pilot.orders).toBe(5);
+    expect(d.pilot.qr_share_pct).toBe(20);
+    expect(d.pilot.qr_flagged).toBe(1);
+    expect(d.pilot.qr_avg_accept_seconds).not.toBeNull();
+    expect(d.pilot.voided_bills).toBe(1);
+  });
+
+  it('compares with the same number of days just before', () => {
+    const base = { outletId: 'o', timezone: 'Asia/Kolkata' };
+    expect(previousRange({ ...base, from: '2026-10-15', to: '2026-10-15' })).toMatchObject({ from: '2026-10-14', to: '2026-10-14' });
+    expect(previousRange({ ...base, from: '2026-10-01', to: '2026-10-07' })).toMatchObject({ from: '2026-09-24', to: '2026-09-30' });
   });
 });

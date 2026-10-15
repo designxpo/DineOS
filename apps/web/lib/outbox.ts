@@ -14,24 +14,67 @@ export interface QueuedRequest {
   body?: unknown;
   label: string;
   queuedAt: number;
+  /** The session that made the change, so a shared tablet replays it as the right person. */
+  token?: string;
 }
 
-const store = typeof indexedDB !== 'undefined' ? createStore('dineos-outbox', 'requests') : null;
-const listeners = new Set<(n: number) => void>();
+/** A queued change the server refused on replay; kept until someone has seen it. */
+export interface RejectedRequest {
+  key: string;
+  label: string;
+  message: string;
+  queuedAt: number;
+  rejectedAt: number;
+}
 
-async function count(): Promise<number> {
-  return store ? (await entries(store)).length : 0;
+export interface OutboxState {
+  pending: number;
+  rejected: number;
+}
+
+const idb = typeof indexedDB !== 'undefined';
+const store = idb ? createStore('dineos-outbox', 'requests') : null;
+const rejectedStore = idb ? createStore('dineos-outbox-rejected', 'requests') : null;
+const listeners = new Set<(s: OutboxState) => void>();
+
+async function state(): Promise<OutboxState> {
+  return {
+    pending: store ? (await entries(store)).length : 0,
+    rejected: rejectedStore ? (await entries(rejectedStore)).length : 0,
+  };
 }
 
 async function notify() {
-  const n = await count();
-  for (const l of listeners) l(n);
+  const s = await state();
+  for (const l of listeners) l(s);
 }
 
-export function onOutboxChange(fn: (n: number) => void): () => void {
+export function onOutboxChange(fn: (s: OutboxState) => void): () => void {
   listeners.add(fn);
-  void count().then(fn);
+  void state().then(fn);
   return () => listeners.delete(fn);
+}
+
+export async function listQueued(): Promise<QueuedRequest[]> {
+  if (!store) return [];
+  return (await entries<string, QueuedRequest>(store)).map(([, v]) => v).sort((a, b) => a.queuedAt - b.queuedAt);
+}
+
+export async function listRejected(): Promise<RejectedRequest[]> {
+  if (!rejectedStore) return [];
+  return (await entries<string, RejectedRequest>(rejectedStore)).map(([, v]) => v).sort((a, b) => b.rejectedAt - a.rejectedAt);
+}
+
+/** Drops a queued change without sending it. */
+export async function discard(key: string): Promise<void> {
+  if (store) await del(key, store);
+  await notify();
+}
+
+export async function dismissRejected(key?: string): Promise<void> {
+  if (!rejectedStore) return;
+  for (const r of key ? [{ key }] : await listRejected()) await del(r.key, rejectedStore);
+  await notify();
 }
 
 export type SendResult<T> = { queued: false; data: T } | { queued: true };
@@ -50,8 +93,9 @@ export async function send<T>(
     const data = await apiFetch<T>(path, { method: opts.method, body: opts.body, token, idempotencyKey: key, approvalToken: opts.approvalToken });
     return { queued: false, data };
   } catch (err) {
+    // Manager approvals are short-lived and single-use, so those actions are never queued.
     if (!(err instanceof NetworkError) || !store || opts.approvalToken) throw err;
-    await set(key, { key, path, method: opts.method, body: opts.body, label: opts.label, queuedAt: Date.now() } satisfies QueuedRequest, store);
+    await set(key, { key, path, method: opts.method, body: opts.body, label: opts.label, queuedAt: Date.now(), token } satisfies QueuedRequest, store);
     await notify();
     return { queued: true };
   }
@@ -66,17 +110,18 @@ export async function flush(token: string): Promise<{ sent: number; failed: { la
   const failed: { label: string; message: string }[] = [];
   let sent = 0;
   try {
-    const queued = (await entries<string, QueuedRequest>(store)).map(([, v]) => v).sort((a, b) => a.queuedAt - b.queuedAt);
-    for (const req of queued) {
+    for (const req of await listQueued()) {
       try {
-        await apiFetch(req.path, { method: req.method, body: req.body, token, idempotencyKey: req.key });
+        await apiFetch(req.path, { method: req.method, body: req.body, token: req.token ?? token, idempotencyKey: req.key });
         await del(req.key, store);
         sent++;
       } catch (err) {
         if (err instanceof NetworkError) break;
-        // The server refused it (e.g. the order was cancelled meanwhile): drop it and tell staff.
+        // The server refused it (e.g. the order was cancelled meanwhile): keep it visible to staff.
+        const message = err instanceof ApiError ? err.message : 'Failed';
         await del(req.key, store);
-        failed.push({ label: req.label, message: err instanceof ApiError ? err.message : 'Failed' });
+        if (rejectedStore) await set(req.key, { key: req.key, label: req.label, message, queuedAt: req.queuedAt, rejectedAt: Date.now() } satisfies RejectedRequest, rejectedStore);
+        failed.push({ label: req.label, message });
       }
     }
   } finally {

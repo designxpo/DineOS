@@ -1,18 +1,19 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Download, Printer } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { Card, Input, Segmented, Spinner, Stat } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'gst' | 'items' | 'day-end';
+type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end';
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -72,7 +73,7 @@ export default function ReportsPage() {
         subtitle={range.from === range.to ? range.from : `${range.from} to ${range.to}`}
         actions={
           <>
-            {tab !== 'day-end' ? (
+            {tab === 'insights' ? null : tab !== 'day-end' ? (
               <Button variant="outline" onClick={() => void csv()}>
                 <Download className="size-4" /> CSV
               </Button>
@@ -85,7 +86,7 @@ export default function ReportsPage() {
         }
       />
       <div className="no-print flex flex-wrap items-center gap-3 px-4 pb-4 lg:px-8">
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'sales', label: 'Sales' }, { value: 'gst', label: 'GST' }, { value: 'items', label: 'Dishes' }, { value: 'day-end', label: 'Day end' }]} />
+        <Segmented value={tab} onChange={setTab} options={[{ value: 'sales', label: 'Sales' }, { value: 'insights', label: 'Insights' }, { value: 'gst', label: 'GST' }, { value: 'items', label: 'Dishes' }, { value: 'day-end', label: 'Day end' }]} />
         <Segmented
           value={preset}
           onChange={setPreset}
@@ -112,6 +113,8 @@ export default function ReportsPage() {
           </div>
         ) : tab === 'sales' ? (
           <Sales data={q.data} />
+        ) : tab === 'insights' ? (
+          <Insights data={q.data} />
         ) : tab === 'gst' ? (
           <Gst data={q.data} />
         ) : tab === 'items' ? (
@@ -159,6 +162,187 @@ function Sales({ data }: { data: any }) {
           ['Still unpaid', formatPaise(t.outstanding_paise)],
         ]}
       />
+    </div>
+  );
+}
+
+function Change({ pct }: { pct: number | null }) {
+  if (pct == null) return <span>no earlier data</span>;
+  const up = pct >= 0;
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 font-medium', up ? 'text-emerald-700' : 'text-rose-700')}>
+      {up ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+      {Math.abs(pct)}% vs previous period
+    </span>
+  );
+}
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const hourLabel = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
+
+function Heatmap({ cells }: { cells: { dow: number; hour: number; orders: number; revenue_paise: number }[] }) {
+  if (!cells.length) return <p className="px-4 py-6 text-sm text-ink-faint">No orders in this period.</p>;
+  const hours = cells.map((c) => c.hour);
+  const from = Math.min(7, ...hours);
+  const to = Math.max(23, ...hours);
+  const max = Math.max(...cells.map((c) => c.orders));
+  const at = (d: number, h: number) => cells.find((c) => c.dow === d && c.hour === h);
+  const span = Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  return (
+    <div className="overflow-x-auto px-4 pb-4">
+      <table className="border-separate border-spacing-[3px] text-[11px]">
+        <thead>
+          <tr>
+            <th />
+            {span.map((h) => (
+              <th key={h} className="w-7 font-normal text-ink-faint">
+                {h % 2 === 0 ? hourLabel(h) : ''}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {DAYS.map((d, di) => (
+            <tr key={d}>
+              <th className="pr-2 text-left font-medium text-ink-soft">{d}</th>
+              {span.map((h) => {
+                const c = at(di, h);
+                const level = c ? Math.max(0.12, c.orders / max) : 0;
+                return (
+                  <td
+                    key={h}
+                    title={c ? `${d} ${hourLabel(h)}: ${c.orders} orders, ${formatPaise(c.revenue_paise)}` : `${d} ${hourLabel(h)}: no orders`}
+                    className="h-7 w-7 rounded-md"
+                    style={{ background: c ? `color-mix(in oklab, var(--brand) ${Math.round(level * 100)}%, transparent)` : 'var(--color-stone-100, #f5f5f4)' }}
+                  />
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Insights({ data }: { data: any }) {
+  const h = data.headline;
+  const p = data.pilot;
+  const maxCat = Math.max(1, ...data.categories.map((c: any) => c.revenue_paise));
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Net sales" value={formatPaise(h.net_paise)} sub={<Change pct={h.change_pct.net} />} />
+        <Stat label="Bills" value={h.bills} sub={<Change pct={h.change_pct.bills} />} />
+        <Stat label="Average bill" value={formatPaise(h.average_bill_paise)} sub={<Change pct={h.change_pct.average_bill} />} />
+        <Stat label="Guests" value={h.covers} sub={<Change pct={h.change_pct.covers} />} />
+      </div>
+
+      <Card>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-3">
+          <h2 className="text-sm font-semibold">Pilot health</h2>
+          <p className="text-xs text-ink-faint">{p.orders} orders in this period</p>
+        </div>
+        <div className="grid grid-cols-2 gap-px overflow-hidden border-t border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            ['Ordered by QR', `${p.qr_share_pct}%`],
+            ['QR orders rejected', `${p.qr_rejected_pct}%`],
+            ['Time to accept QR', p.qr_avg_accept_seconds == null ? '-' : p.qr_avg_accept_seconds < 90 ? `${p.qr_avg_accept_seconds}s` : `${Math.round(p.qr_avg_accept_seconds / 60)} min`],
+            ['First orders checked', p.qr_flagged],
+            ['Cancelled after kitchen', p.cancelled_after_accept],
+            ['Voided bills', p.voided_bills],
+          ].map(([label, value]) => (
+            <div key={label as string} className="bg-surface px-4 py-3">
+              <p className="text-xs text-ink-faint">{label}</p>
+              <p className="mt-0.5 text-lg font-semibold tabular">{value}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="px-4 pt-4 pb-3 text-sm font-semibold">When orders come in</h2>
+        <Heatmap cells={data.heatmap} />
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="overflow-hidden">
+          <h2 className="border-b border-line px-4 py-2.5 text-sm font-semibold">Sales by category</h2>
+          {!data.categories.length ? (
+            <p className="px-4 py-6 text-sm text-ink-faint">Nothing yet</p>
+          ) : (
+            <ul className="space-y-2.5 p-4">
+              {data.categories.map((c: any) => (
+                <li key={c.category} className="text-sm">
+                  <div className="mb-1 flex justify-between gap-2">
+                    <span>{c.category}</span>
+                    <span className="tabular">
+                      {formatPaise(c.revenue_paise)} <span className="text-ink-faint">· {c.qty}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-stone-100">
+                    <div className="h-full rounded-full bg-[var(--brand)]" style={{ width: `${(c.revenue_paise / maxCat) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Table
+          title="Team"
+          head={['Name', 'Orders taken', 'Bills settled', 'Sales', 'Discounts']}
+          rows={data.staff.map((s: any) => [s.name, s.orders, s.bills, formatPaise(s.net_paise), formatPaise(s.discount_paise)])}
+        />
+        <Card className="overflow-hidden">
+          <h2 className="border-b border-line px-4 py-2.5 text-sm font-semibold">Tables</h2>
+          <div className="grid grid-cols-3 divide-x divide-line border-b border-line text-center">
+            {[
+              ['Visits', data.tables.visits],
+              ['Average stay', data.tables.avg_dwell_minutes == null ? '-' : `${data.tables.avg_dwell_minutes} min`],
+              ['Turns / table / day', data.tables.turns_per_table_per_day],
+            ].map(([label, value]) => (
+              <div key={label as string} className="px-2 py-3">
+                <p className="text-xs text-ink-faint">{label}</p>
+                <p className="text-lg font-semibold tabular">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-line">
+                {data.tables.by_table.map((t: any) => (
+                  <tr key={t.label}>
+                    <td className="px-4 py-2 font-medium">{t.label}</td>
+                    <td className="px-4 py-2 text-right tabular">{t.visits} visits</td>
+                    <td className="px-4 py-2 text-right text-ink-faint tabular">{t.avg_dwell_minutes} min</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        <div className="space-y-4">
+          <Table
+            title="Discounts by reason"
+            head={['Reason', 'Bills', 'Amount']}
+            rows={[
+              ...data.discounts.by_reason.map((d: any) => [d.reason, d.bills, formatPaise(d.amount_paise)]),
+              ...(data.discounts.loyalty.bills ? [['Loyalty points', data.discounts.loyalty.bills, formatPaise(data.discounts.loyalty.amount_paise)]] : []),
+            ]}
+            empty="No discounts"
+          />
+          <Table
+            title="Customers"
+            head={['', '']}
+            rows={[
+              ['Bills with a known customer', `${data.customers.identified_share_pct}%`],
+              ['Customers who came back', `${data.customers.returning} of ${data.customers.distinct}`],
+              ['New customers', data.customers.new],
+              ['Points earned / used', `${data.customers.points_earned} / ${data.customers.points_redeemed}`],
+            ]}
+          />
+        </div>
+      </div>
     </div>
   );
 }
