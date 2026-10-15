@@ -85,6 +85,9 @@ export interface BillLines {
 }
 
 export interface Bills {
+  /**
+   * {"count": n} or {"amounts": [paise, ...]} when split by amount
+   */
   amount_shares: Json | null;
   bill_discount: Json | null;
   bill_discount_paise: Generated<number>;
@@ -102,6 +105,8 @@ export interface Bills {
   invoice_no: string | null;
   invoice_seq: number | null;
   item_discount_paise: Generated<number>;
+  item_discounts: Generated<Json>;
+  item_scope: Json | null;
   order_id: string | null;
   outlet_id: string;
   outlet_snapshot: Json | null;
@@ -111,6 +116,7 @@ export interface Bills {
   round_off_paise: Generated<number>;
   service_charge_bp: Generated<number>;
   service_charge_paise: Generated<number>;
+  service_charge_tax_rate_bp: Generated<number>;
   service_charge_waived: Generated<boolean>;
   sgst_paise: Generated<number>;
   split_label: string | null;
