@@ -320,6 +320,8 @@ async function upsertBill(tx: Tx, outlet: { id: string; prices_include_tax: bool
         reference: p.reference,
         confirmed_by: p.confirmed_by,
         created_at: new Date(p.created_at),
+        room_no: p.method === 'room' ? p.room_no : null,
+        room_guest: p.method === 'room' ? p.room_guest : null,
       })
       .execute();
   }

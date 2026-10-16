@@ -60,7 +60,7 @@ beforeAll(async () => {
   const created = (await owner({ method: 'POST', url: '/v1/devices', payload: { outlet_id: tenant.outletId, name: 'Back office PC' } })).json();
   deviceToken = created.token;
   deviceId = created.device.id;
-  const set = await owner({ method: 'PATCH', url: `/v1/outlets/${tenant.outletId}`, payload: { hub_device_id: deviceId, hub_url: 'http://192.168.1.20:4100/' } });
+  const set = await owner({ method: 'PATCH', url: `/v1/outlets/${tenant.outletId}`, payload: { hub_device_id: deviceId, hub_url: 'http://192.168.1.20:4100/', room_charge_enabled: true } });
   expect(set.statusCode).toBe(200);
   expect(set.json().hub_url).toBe('http://192.168.1.20:4100');
 
@@ -180,8 +180,9 @@ describe('outlet hub', () => {
     const invoice = (await cashier('GET', `/bills/${bill2.id}/invoice`)).json;
     expect(invoice.tax_summary[0].cgst_paise).toBe(fin2.cgst_paise);
 
-    // The takeaway bill printed before the outage is paid during it.
-    expect((await cashier('POST', `/bills/${takeawayBill.id}/payments`, { method: 'card_slip', amount_paise: takeawayBill.total_paise })).json.status).toBe('paid');
+    // The takeaway bill printed before the outage is charged to a hotel room during it.
+    expect((await cashier('POST', `/bills/${takeawayBill.id}/payments`, { method: 'room', amount_paise: takeawayBill.total_paise })).json.error.code).toBe('room_required');
+    expect((await cashier('POST', `/bills/${takeawayBill.id}/payments`, { method: 'room', amount_paise: takeawayBill.total_paise, room_no: '412', room_guest: 'Ms. Iyer' })).json.status).toBe('paid');
 
     // Manager PINs cannot be checked offline: only a manager cancels what the kitchen has.
     const extra: OrderDTO = (await waiter('POST', '/orders', { outlet_id: tenant.outletId, type: 'takeaway', lines: [{ item_id: menu.paneerTikka, qty: 1 }] })).json;
@@ -227,6 +228,8 @@ describe('outlet hub', () => {
     const payments = await db.selectFrom('payments').select(['method', 'amount_paise']).where('bill_id', 'in', bills.map((b) => b.id)).execute();
     expect(payments.map((p) => p.method).sort()).toEqual(['cash', 'cash', 'upi']);
     expect((await db.selectFrom('bills').select('status').where('id', '=', takeawayBill.id).executeTakeFirstOrThrow()).status).toBe('paid');
+    const roomPay = await db.selectFrom('payments').select(['method', 'room_no', 'room_guest']).where('bill_id', '=', takeawayBill.id).executeTakeFirstOrThrow();
+    expect(roomPay).toEqual({ method: 'room', room_no: '412', room_guest: 'Ms. Iyer' });
 
     const sessions = await db.selectFrom('table_sessions').select(['status', 'table_id']).where('table_id', 'in', [tables.H1!, tables.H2!]).execute();
     expect(sessions.every((s) => s.status === 'closed')).toBe(true);

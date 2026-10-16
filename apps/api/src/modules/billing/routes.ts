@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { BILL_STATUSES, PAYMENT_METHODS } from '@dineos/shared/enums';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
+import { audit } from '../../lib/audit';
 import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest, notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
@@ -51,6 +52,8 @@ const paymentBody = z.object({
   amount_paise: z.number().int().min(1).max(100_000_000),
   tendered_paise: z.number().int().min(0).max(100_000_000).nullable().optional(),
   reference: z.string().max(100).nullable().optional(),
+  room_no: z.string().max(10).nullable().optional(),
+  room_guest: z.string().max(80).nullable().optional(),
 });
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
@@ -139,6 +142,30 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { id } = parse(idParams, req.params);
       const body = parse(z.object({ reason: z.string().min(1).max(300) }), req.body);
       return ctx.tx(auth.tenantId, (tx) => voidBill(tx, auth, id, body.reason, approvalHeader(req.headers)));
+    });
+
+    /** The front desk posted these room charges to the guests' folios (or undoes that). */
+    app.post('/payments/room-posted', async (req) => {
+      const auth = requireStaff(req);
+      const body = parse(z.object({ outlet_id: z.uuid(), payment_ids: z.array(z.uuid()).min(1).max(500), posted: z.boolean() }), req.body);
+      assertCan(auth, body.outlet_id, 'payment.reconcile');
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const rows = await tx.db
+          .updateTable('payments')
+          .set(body.posted ? { room_posted_at: new Date(), room_posted_by: auth.userId } : { room_posted_at: null, room_posted_by: null })
+          .where('outlet_id', '=', body.outlet_id)
+          .where('method', '=', 'room')
+          .where('id', 'in', body.payment_ids)
+          .returning('id')
+          .execute();
+        await audit(tx, auth, {
+          outletId: body.outlet_id,
+          action: body.posted ? 'payment.room_posted' : 'payment.room_unposted',
+          entity: 'payment',
+          after: { payments: rows.map((r) => r.id) },
+        });
+        return { updated: rows.length };
+      });
     });
 
     app.post('/payments/:id/refund', async (req) => {

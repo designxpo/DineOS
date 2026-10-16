@@ -53,8 +53,18 @@ What was built after Phase 1, the choices made where the spec is silent, and wha
 | Instead | UPI check: import the bank statement, match credits by UTR and by amount and date, list what does not match on either side | Catches confirmed payments that never arrived and sales that were never billed, with no outside service |
 | Statement formats | CSV and Excel; HDFC, ICICI, SBI, Axis and Kotak layouts tested; others with a date column and a credit or amount column also work | Statements come from net banking downloads |
 
+## Charge to room (hotel pilot)
+
+| Topic | Decision | Why |
+| --- | --- | --- |
+| Model | A payment method `room` with a room number and optional guest name, off unless the outlet turns it on | The bill is settled as far as the restaurant is concerned; the hotel collects at checkout |
+| Posting | Front desk posts by hand from Reports → Room charges or its CSV; managers mark charges posted (audited) | No StayOS API yet; the list of unposted charges is what stops a guest leaving without paying |
+| Refunds | A refund of a room charge stays on the same room, as a negative line | The folio total stays right |
+| Offline | The hub accepts room charges and syncs them like any payment | Hotel restaurants keep billing to rooms through an outage |
+
 ## Still open
 
 - **Payment gateway or bank integration** (Phase 4): accept one external dependency or not. The `PaymentAdapter` interface is where it would plug in.
 - **Camera pilots**: which outlets, and consent and signage there, so frames can be collected to fine-tune the detector.
+- **StayOS link**: posting room charges straight to folios needs StayOS's API and credentials.
 - **Hub hardware**: whether outlets provide a PC or you supply a standard mini PC with the hub and web app preinstalled.

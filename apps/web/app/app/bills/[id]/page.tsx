@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
+import { ArrowLeft, Banknote, BedDouble, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -30,6 +30,7 @@ const METHODS: { value: PaymentMethod; label: I18nKey; icon: React.ComponentType
   { value: 'upi', label: 'pay.upi', icon: Smartphone },
   { value: 'card_slip', label: 'pay.card', icon: CreditCard },
   { value: 'other', label: 'pay.other', icon: Wallet },
+  { value: 'room', label: 'pay.room', icon: BedDouble },
 ];
 
 export default function BillPage() {
@@ -79,7 +80,7 @@ export default function BillPage() {
       </div>
     );
   }
-  if (!bill || !inv) return <p className="p-8 text-ink-faint">This bill no longer exists (it may have been split or discarded).</p>;
+  if (!bill || !inv) return <p className="p-8 text-ink-faint">{t('bill.missing')}</p>;
 
   const draft = bill.status === 'draft';
   const finalised = bill.status === 'finalised';
@@ -88,18 +89,24 @@ export default function BillPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 lg:px-8">
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Link href="/app/bills" className="grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-stone-100" aria-label="Back to bills">
+        <Link href="/app/bills" className="grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-stone-100" aria-label={t('bill.back')}>
           <ArrowLeft className="size-5" />
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-2xl font-semibold">
-            {bill.table_label ? `Table ${bill.table_label}` : 'Counter / takeaway'}
+            {bill.table_label ? t('bill.table', { label: bill.table_label }) : t('bill.counter')}
             {bill.split_label && <span className="ml-2 text-base font-normal text-ink-faint">{bill.split_label}</span>}
           </h1>
-          <p className="text-sm text-ink-faint">{bill.invoice_no ? `${bill.invoice_no} · ${bill.invoice_date}` : 'Draft: not yet a tax invoice'}</p>
+          <p className="text-sm text-ink-faint">{bill.invoice_no ? (
+              <>
+                {bill.invoice_no} · <span className="whitespace-nowrap">{bill.invoice_date}</span>
+              </>
+            ) : (
+              t('bill.draft_note')
+            )}</p>
         </div>
         <Badge tone={draft ? 'amber' : finalised ? 'blue' : bill.status === 'paid' ? 'green' : 'rose'} className="px-3 py-1 text-sm">
-          {draft ? 'Draft' : finalised ? 'Awaiting payment' : bill.status === 'paid' ? 'Paid' : 'Void'}
+          {draft ? t('bill.st_draft') : finalised ? t('bill.st_finalised') : bill.status === 'paid' ? t('bill.st_paid') : t('bill.st_void')}
         </Badge>
       </div>
 
@@ -108,11 +115,11 @@ export default function BillPage() {
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-left text-xs text-ink-faint uppercase">
               <tr>
-                <th className="px-4 py-2.5 font-semibold">Item</th>
-                <th className="px-2 py-2.5 text-right font-semibold">Qty</th>
-                <th className="px-2 py-2.5 text-right font-semibold">Rate</th>
+                <th className="px-4 py-2.5 font-semibold">{t('bill.col_item')}</th>
+                <th className="px-2 py-2.5 text-right font-semibold">{t('bill.col_qty')}</th>
+                <th className="px-2 py-2.5 text-right font-semibold">{t('bill.col_rate')}</th>
                 <th className="px-2 py-2.5 text-right font-semibold">GST</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Amount</th>
+                <th className="px-4 py-2.5 text-right font-semibold">{t('bill.col_amount')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -120,14 +127,14 @@ export default function BillPage() {
                 <tr key={l.id}>
                   <td className="px-4 py-2.5">
                     {draft && can('bill.manage') && l.order_item_id ? (
-                      <button className="cursor-pointer text-left underline-offset-2 hover:underline" onClick={() => setLineDiscount(l)} title="Discount this dish">
+                      <button className="cursor-pointer text-left underline-offset-2 hover:underline" onClick={() => setLineDiscount(l)} title={t('bill.discount_dish')}>
                         {l.name}
                       </button>
                     ) : (
                       l.name
                     )}
-                    {l.seat_no && <span className="ml-1 text-xs text-ink-faint">seat {l.seat_no}</span>}
-                    {l.item_discount_paise > 0 && <span className="block text-xs text-emerald-700">− {formatPaise(l.item_discount_paise)} off</span>}
+                    {l.seat_no && <span className="ml-1 text-xs text-ink-faint">{t('bill.seat', { n: l.seat_no })}</span>}
+                    {l.item_discount_paise > 0 && <span className="block text-xs text-emerald-700">{t('bill.off', { amount: formatPaise(l.item_discount_paise) })}</span>}
                   </td>
                   <td className="px-2 py-2.5 text-right tabular">{l.qty}</td>
                   <td className="px-2 py-2.5 text-right tabular">{formatPaise(l.unit_price_paise)}</td>
@@ -138,16 +145,20 @@ export default function BillPage() {
             </tbody>
           </table>
           <dl className="space-y-1.5 border-t border-line bg-stone-50/60 px-4 py-4 text-sm">
-            <Row label="Subtotal" value={formatPaise(bill.subtotal_paise)} />
-            {discount > 0 && <Row label={`Discount${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
-            {bill.loyalty_discount_paise > 0 && <Row label={`Points redeemed (${bill.loyalty_points_redeemed})`} value={`− ${formatPaise(bill.loyalty_discount_paise)}`} tone="text-emerald-700" />}
+            <Row label={t('bill.subtotal')} value={formatPaise(bill.subtotal_paise)} />
+            {discount > 0 && <Row label={`${t('bill.discount')}${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
+            {bill.loyalty_discount_paise > 0 && <Row label={t('bill.points_row', { n: bill.loyalty_points_redeemed })} value={`− ${formatPaise(bill.loyalty_discount_paise)}`} tone="text-emerald-700" />}
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
-              <Row label={`Service charge ${bill.service_charge_waived ? '(removed)' : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
+              <Row label={`${t('bill.sc')} ${bill.service_charge_waived ? t('bill.sc_removed') : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
             )}
-            {inv.tax_summary.map((t) => (
-              <Row key={t.tax_rate_bp} label={`CGST ${formatRate(t.tax_rate_bp / 2)} + SGST ${formatRate(t.tax_rate_bp / 2)} on ${formatPaise(t.taxable_paise)}`} value={formatPaise(t.cgst_paise + t.sgst_paise)} />
+            {inv.tax_summary.map((tx) => (
+              <Row
+                key={tx.tax_rate_bp}
+                label={t('bill.tax_row', { c: formatRate(tx.tax_rate_bp / 2), s: formatRate(tx.tax_rate_bp / 2), amount: formatPaise(tx.taxable_paise) })}
+                value={formatPaise(tx.cgst_paise + tx.sgst_paise)}
+              />
             ))}
-            {bill.round_off_paise !== 0 && <Row label="Round off" value={formatPaise(bill.round_off_paise)} />}
+            {bill.round_off_paise !== 0 && <Row label={t('bill.round_off')} value={formatPaise(bill.round_off_paise)} />}
             <div className="flex items-baseline justify-between border-t border-line pt-2">
               <dt className="font-semibold">{t('bill.total')}</dt>
               <dd className="font-display text-3xl font-semibold tabular">{formatPaise(bill.total_paise)}</dd>
@@ -170,36 +181,38 @@ export default function BillPage() {
                   </>
                 )}
                 <Button variant="outline" onClick={() => setSheet('customer')}>
-                  <FileText className="size-4" /> Business GSTIN
+                  <FileText className="size-4" /> {t('bill.gstin')}
                 </Button>
                 <Button
                   variant="ghost"
                   loading={busy === 'discard'}
                   onClick={() => void act('discard', () => api(`/bills/${id}`, { method: 'DELETE' })).then((ok) => ok && router.push('/app/bills'))}
                 >
-                  <Trash2 className="size-4" /> Discard
+                  <Trash2 className="size-4" /> {t('bill.discard')}
                 </Button>
               </div>
               {bill.service_charge_bp > 0 && (
                 <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2">
-                  <span className="text-sm">Service charge {formatRate(bill.service_charge_bp)}</span>
+                  <span className="text-sm">
+                    {t('bill.sc')} {formatRate(bill.service_charge_bp)}
+                  </span>
                   <Switch
-                    label="Service charge"
+                    label={t('bill.sc')}
                     checked={!bill.service_charge_waived}
                     onChange={(on) => void act('sc', () => api(`/bills/${id}`, { method: 'PATCH', body: { service_charge_waived: !on } }))}
                   />
                 </div>
               )}
-              {bill.amount_shares && <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900">Split {bill.amount_shares.length} ways: {bill.amount_shares.map(formatPaise).join(' / ')}</p>}
+              {bill.amount_shares && <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900">{t('bill.split_ways', { n: bill.amount_shares.length, shares: bill.amount_shares.map(formatPaise).join(' / ') })}</p>}
               <Button
                 size="xl"
                 block
                 loading={busy === 'finalise'}
-                onClick={() => void act('finalise', () => api<BillDTO>(`/bills/${id}/finalise`, { method: 'POST' }), 'Bill printed: invoice number assigned')}
+                onClick={() => void act('finalise', () => api<BillDTO>(`/bills/${id}/finalise`, { method: 'POST' }), t('bill.printed'))}
               >
                 <Printer className="size-5" /> {t('bill.print')} · {formatPaise(bill.total_paise)}
               </Button>
-              <p className="text-center text-xs text-ink-faint">Printing assigns the GST invoice number. After that, changes need a void.</p>
+              <p className="text-center text-xs text-ink-faint">{t('bill.print_note')}</p>
             </Card>
           )}
 
@@ -213,24 +226,24 @@ export default function BillPage() {
 
           {finalised && can('payment.record') && <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />}
 
-          {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record') && !hub} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), 'Refund recorded')} />}
+          {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record') && !hub} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), t('bill.refund_done'))} />}
 
           {!draft && (
             <Card className="flex flex-wrap gap-2 p-4">
-              <Button variant="outline" onClick={() => void act('print', () => api(`/bills/${id}/print`, { method: 'POST' }), 'Sent to the bill printer')}>
-                <Printer className="size-4" /> Print again
+              <Button variant="outline" onClick={() => void act('print', () => api(`/bills/${id}/print`, { method: 'POST' }), t('bill.sent_printer'))}>
+                <Printer className="size-4" /> {t('bill.print_again')}
               </Button>
               <Button variant="ghost" onClick={() => window.open(`/print/bill/${id}`, '_blank')}>
-                <FileText className="size-4" /> Browser print
+                <FileText className="size-4" /> {t('bill.browser_print')}
               </Button>
               {!hub && bill.status === 'finalised' && bill.paid_paise === 0 && (
                 <Button variant="ghost" className="text-rose-700" onClick={() => setSheet('void')}>
-                  <Undo2 className="size-4" /> Void
+                  <Undo2 className="size-4" /> {t('bill.void')}
                 </Button>
               )}
             </Card>
           )}
-          {bill.status === 'void' && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800">Voided: {bill.void_reason}. The invoice number stays in the series as cancelled.</p>}
+          {bill.status === 'void' && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{t('bill.voided_note', { reason: bill.void_reason ?? '' })}</p>}
         </div>
       </div>
 
@@ -267,6 +280,7 @@ export default function BillPage() {
 /** Member on the bill: attach by phone, redeem points while the bill is a draft. */
 function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: boolean; onUpdate: (body: object, done: string) => Promise<boolean> }) {
   const { api, outletId, outlet } = useStaff();
+  const { t } = useI18n();
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
   const [points, setPoints] = useState('');
@@ -287,21 +301,21 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
   return (
     <Card className="space-y-3 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <Gift className="size-4 text-[var(--brand)]" /> {loyalty ? 'Loyalty' : 'Customer'}
+        <Gift className="size-4 text-[var(--brand)]" /> {loyalty ? t('loy.title') : t('loy.customer')}
       </p>
       {c ? (
         <>
           <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-3 py-2.5">
             <UserRound className="size-5 shrink-0 text-ink-faint" />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{c.name ?? 'Guest'}</p>
+              <p className="truncate font-medium">{c.name ?? t('loy.guest')}</p>
               <p className="text-xs text-ink-faint tabular">
                 {c.phone}
-                {loyalty && ` · ${c.points} points`}
+                {loyalty && ` · ${t('loy.points', { n: c.points })}`}
               </p>
             </div>
             {editable && (
-              <button className="grid size-8 cursor-pointer place-items-center rounded-lg text-ink-faint hover:bg-stone-200" aria-label="Remove customer" onClick={() => void onUpdate({ customer_id: null }, 'Customer removed')}>
+              <button className="grid size-8 cursor-pointer place-items-center rounded-lg text-ink-faint hover:bg-stone-200" aria-label={t('loy.remove')} onClick={() => void onUpdate({ customer_id: null }, t('loy.removed'))}>
                 <X className="size-4" />
               </button>
             )}
@@ -309,57 +323,57 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
           {bill.loyalty_points_redeemed > 0 && (
             <div className="flex items-center justify-between text-sm">
               <span>
-                Using {bill.loyalty_points_redeemed} points ({formatPaise(bill.loyalty_discount_paise)})
+                {t('loy.using', { n: bill.loyalty_points_redeemed, amount: formatPaise(bill.loyalty_discount_paise) })}
               </span>
               {editable && (
-                <Button size="sm" variant="ghost" onClick={() => void onUpdate({ redeem_points: 0 }, 'Points no longer used')}>
-                  Undo
+                <Button size="sm" variant="ghost" onClick={() => void onUpdate({ redeem_points: 0 }, t('loy.unused'))}>
+                  {t('loy.undo')}
                 </Button>
               )}
             </div>
           )}
           {editable && canRedeem && bill.loyalty_points_redeemed === 0 && (
             <div className="flex gap-2">
-              <Input value={points} onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder={`Up to ${max}`} aria-label="Points to redeem" className="h-9" />
+              <Input value={points} onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder={t('loy.up_to', { n: max })} aria-label={t('loy.redeem_aria')} className="h-9" />
               <Button size="sm" variant="outline" onClick={() => setPoints(String(max))}>
-                Max
+                {t('loy.max')}
               </Button>
-              <Button size="sm" disabled={!Number(points)} onClick={() => void onUpdate({ redeem_points: Number(points) }, 'Points applied').then((ok) => ok && setPoints(''))}>
-                Redeem
+              <Button size="sm" disabled={!Number(points)} onClick={() => void onUpdate({ redeem_points: Number(points) }, t('loy.applied')).then((ok) => ok && setPoints(''))}>
+                {t('loy.redeem')}
               </Button>
             </div>
           )}
           {editable && loyalty && !canRedeem && bill.loyalty_points_redeemed === 0 && c.points > 0 && (
-            <p className="text-xs text-ink-faint">Points can be used from {outlet?.loyalty_min_redeem_points} upwards.</p>
+            <p className="text-xs text-ink-faint">{t('loy.min', { n: outlet?.loyalty_min_redeem_points ?? 0 })}</p>
           )}
-          {bill.loyalty_points_earned > 0 && <p className="text-sm text-emerald-700">Earned {bill.loyalty_points_earned} points on this bill</p>}
-          {loyalty && bill.status === 'draft' && <p className="text-xs text-ink-faint">Points are earned when the bill is paid.</p>}
+          {bill.loyalty_points_earned > 0 && <p className="text-sm text-emerald-700">{t('loy.earned', { n: bill.loyalty_points_earned })}</p>}
+          {loyalty && bill.status === 'draft' && <p className="text-xs text-ink-faint">{t('loy.earn_on_pay')}</p>}
         </>
       ) : editable ? (
         <>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" />
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Customer's phone" className="h-10 pl-9" aria-label="Find customer by phone" />
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder={t('loy.phone')} className="h-10 pl-9" aria-label={t('loy.find')} />
           </div>
           {matches.data?.map((m) => (
             <button
               key={m.id}
-              onClick={() => void onUpdate({ customer_id: m.id }, `${m.name ?? 'Customer'} added to the bill`)}
+              onClick={() => void onUpdate({ customer_id: m.id }, t('loy.added', { name: m.name ?? t('loy.customer') }))}
               className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-line px-3 py-2 text-left text-sm hover:bg-stone-50"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{m.name ?? 'Guest'}</span>
+                <span className="block truncate font-medium">{m.name ?? t('loy.guest')}</span>
                 <span className="text-xs text-ink-faint tabular">{m.phone}</span>
               </span>
-              {loyalty && <span className="text-xs font-semibold tabular">{m.points} pts</span>}
+              {loyalty && <span className="text-xs font-semibold tabular">{t('loy.pts', { n: m.points })}</span>}
             </button>
           ))}
           {digits.length >= 10 && matches.data && !matches.data.length && (
             <Button size="sm" variant="outline" block onClick={() => setAdding(true)}>
-              Save as new customer
+              {t('loy.save_new')}
             </Button>
           )}
-          {digits.length < 10 && <p className="text-xs text-ink-faint">Add the guest to give them {loyalty ? 'points' : 'a visit history'}. Only with their consent.</p>}
+          {digits.length < 10 && <p className="text-xs text-ink-faint">{loyalty ? t('loy.hint_points') : t('loy.hint_visits')}</p>}
         </>
       ) : null}
       {adding && (
@@ -369,7 +383,7 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
           onCreated={(cid, created) => {
             setAdding(false);
             setPhone('');
-            void onUpdate({ customer_id: cid }, `${created.name ?? 'Customer'} added to the bill`);
+            void onUpdate({ customer_id: cid }, t('loy.added', { name: created.name ?? t('loy.customer') }));
           }}
         />
       )}
@@ -387,7 +401,11 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
 }
 
 function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string | null; onPaid: () => Promise<void> }) {
-  const { token } = useStaff();
+  const { token, outlet } = useStaff();
+  // Charging to a room only exists in hotel outlets that turned it on.
+  const methods = METHODS.filter((m) => m.value !== 'room' || outlet?.room_charge_enabled);
+  const [roomNo, setRoomNo] = useState('');
+  const [roomGuest, setRoomGuest] = useState('');
   const { t } = useI18n();
   const toast = useToast();
   const [method, setMethod] = useState<PaymentMethod>('cash');
@@ -416,18 +434,29 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
   const change = tenderedPaise !== null ? tenderedPaise - amountPaise : null;
 
   const pay = async () => {
-    if (amountPaise <= 0) return toast('Enter an amount', 'error');
+    if (amountPaise <= 0) return toast(t('bill.enter_amount'), 'error');
     setBusy(true);
     try {
       const res = await send<BillDTO>(token, `/bills/${bill.id}/payments`, {
         method: 'POST',
-        body: { method, amount_paise: amountPaise, tendered_paise: method === 'cash' ? tenderedPaise : null, reference: reference.trim() || null },
-        label: `${method} payment ${formatPaise(amountPaise)}`,
+        body: {
+          method,
+          amount_paise: amountPaise,
+          tendered_paise: method === 'cash' ? tenderedPaise : null,
+          reference: method === 'room' ? null : reference.trim() || null,
+          ...(method === 'room' ? { room_no: roomNo.trim(), room_guest: roomGuest.trim() || null } : {}),
+        },
+        label:
+          method === 'room'
+            ? t('outbox.room_label', { room: roomNo.trim(), amount: formatPaise(amountPaise) })
+            : t('outbox.pay_label', { method: t(METHODS.find((m) => m.value === method)!.label), amount: formatPaise(amountPaise) }),
       });
-      if (res.queued) toast('Saved offline: payment will sync when the connection returns', 'info');
-      else toast(res.data.status === 'paid' ? 'Bill fully paid. Table released for cleaning.' : 'Payment recorded');
+      if (res.queued) toast(t('offline.saved_payment'), 'info');
+      else toast(res.data.status === 'paid' ? t('bill.fully_paid') : t('bill.payment_recorded'));
       setTendered('');
       setReference('');
+      setRoomNo('');
+      setRoomGuest('');
       await onPaid();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -448,13 +477,13 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
         <div className="flex flex-wrap gap-2">
           {shares.map((s, i) => (
             <span key={i} className={cn('rounded-lg px-2.5 py-1 text-xs font-medium', i < paidShares ? 'bg-emerald-100 text-emerald-800 line-through' : i === paidShares ? 'bg-sky-100 text-sky-900' : 'bg-stone-100 text-ink-soft')}>
-              Share {i + 1}: {formatPaise(s)}
+              {t('bill.share', { n: i + 1, amount: formatPaise(s) })}
             </span>
           ))}
         </div>
       )}
-      <div className="grid grid-cols-4 gap-2">
-        {METHODS.map((m) => (
+      <div className={cn('grid gap-2', methods.length > 4 ? 'grid-cols-5' : 'grid-cols-4')}>
+        {methods.map((m) => (
           <button
             key={m.value}
             onClick={() => setMethod(m.value)}
@@ -467,7 +496,7 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
       </div>
       <Field label={t('bill.amount')}>{(fid) => <Input id={fid} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="text-lg font-semibold tabular" />}</Field>
       {method === 'cash' && (
-        <Field label={t('bill.cash_received')} hint={change !== null && change >= 0 ? t('bill.return', { amount: formatPaise(change) }) : 'Optional, to work out the change'}>
+        <Field label={t('bill.cash_received')} hint={change !== null && change >= 0 ? t('bill.return', { amount: formatPaise(change) }) : t('bill.change_hint')}>
           {(fid) => <Input id={fid} value={tendered} onChange={(e) => setTendered(e.target.value)} inputMode="decimal" />}
         </Field>
       )}
@@ -475,20 +504,27 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
         <div className="space-y-2 rounded-xl bg-stone-50 p-3">
           {qr ? (
             <div className="flex items-center gap-3">
-              <img src={qr} alt="UPI QR for the guest to scan" className="size-28 rounded-lg border border-line bg-white" />
-              <p className="text-xs text-ink-soft">Guest scans with any UPI app. Confirm only after you see the payment arrive in your UPI app.</p>
+              <img src={qr} alt={t('bill.upi_qr_alt')} className="size-28 rounded-lg border border-line bg-white" />
+              <p className="text-xs text-ink-soft">{t('bill.upi_hint')}</p>
             </div>
           ) : (
-            <p className="text-xs text-ink-soft">Add the outlet UPI ID in Settings to show a QR here.</p>
+            <p className="text-xs text-ink-soft">{t('bill.upi_missing')}</p>
           )}
-          <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="UTR / reference (last 4 digits is fine)" aria-label="UPI reference" />
+          <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t('bill.upi_ref')} aria-label={t('bill.upi_ref_aria')} />
+        </div>
+      )}
+      {method === 'room' && (
+        <div className="grid grid-cols-[110px_1fr] gap-2 rounded-xl bg-stone-50 p-3">
+          <Input value={roomNo} onChange={(e) => setRoomNo(e.target.value.toUpperCase())} placeholder={t('pay.room_no')} aria-label={t('pay.room_no')} maxLength={10} className="font-semibold" />
+          <Input value={roomGuest} onChange={(e) => setRoomGuest(e.target.value)} placeholder={t('pay.room_guest')} aria-label={t('pay.room_guest')} maxLength={80} />
+          <p className="col-span-2 text-xs text-ink-soft">{t('pay.room_hint')}</p>
         </div>
       )}
       {(method === 'card_slip' || method === 'other') && (
-        <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={method === 'card_slip' ? 'Card slip number' : 'Reference, e.g. room 412'} aria-label="Reference" />
+        <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={method === 'card_slip' ? t('bill.card_slip') : t('bill.reference')} aria-label={t('bill.reference')} />
       )}
-      <Button size="lg" block variant="success" loading={busy} onClick={() => void pay()}>
-        {t('bill.confirm', { amount: formatPaise(Math.max(0, amountPaise)) })}
+      <Button size="lg" block variant="success" loading={busy} disabled={method === 'room' && !roomNo.trim()} onClick={() => void pay()}>
+        {t(method === 'room' ? 'bill.charge_room' : 'bill.confirm', { amount: formatPaise(Math.max(0, amountPaise)) })}
       </Button>
     </Card>
   );
@@ -507,19 +543,27 @@ function countPaidShares(shares: number[], paid: number): number {
 }
 
 function PaymentList({ payments, canRefund, onRefund }: { payments: PaymentDTO[]; canRefund: boolean; onRefund: (p: PaymentDTO, amount: number, reason: string) => Promise<boolean> }) {
+  const { t } = useI18n();
   const [refunding, setRefunding] = useState<PaymentDTO | null>(null);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   return (
     <Card className="p-4">
-      <h2 className="mb-2 font-semibold">Payments</h2>
+      <h2 className="mb-2 font-semibold">{t('bill.payments')}</h2>
       <ul className="divide-y divide-line text-sm">
         {payments.map((p) => (
           <li key={p.id} className="flex items-center gap-3 py-2">
             <span className={cn('flex-1', p.kind === 'refund' && 'text-rose-700')}>
-              {p.kind === 'refund' ? 'Refund' : <MethodLabel method={p.method} />} · {time(p.created_at)}
+              {p.kind === 'refund' ? t('bill.refund') : <MethodLabel method={p.method} />} · {time(p.created_at)}
               {p.reference && p.kind === 'payment' && <span className="block text-xs text-ink-faint">{p.reference}</span>}
-              {p.change_paise ? <span className="block text-xs text-ink-faint">change {formatPaise(p.change_paise)}</span> : null}
+              {p.room_no && (
+                <span className="block text-xs text-ink-faint">
+                  {t('bill.room_line', { room: p.room_no })}
+                  {p.room_guest ? ` · ${p.room_guest}` : ''}
+                  {p.room_posted_at ? ` · ${t('bill.posted')}` : ''}
+                </span>
+              )}
+              {p.change_paise ? <span className="block text-xs text-ink-faint">{t('bill.change', { amount: formatPaise(p.change_paise) })}</span> : null}
             </span>
             <span className="font-medium tabular">
               {p.kind === 'refund' ? '−' : ''}
@@ -533,7 +577,7 @@ function PaymentList({ payments, canRefund, onRefund }: { payments: PaymentDTO[]
                 }}
                 className="cursor-pointer text-xs font-medium text-ink-faint underline"
               >
-                Refund
+                {t('bill.refund')}
               </button>
             )}
           </li>
@@ -542,16 +586,16 @@ function PaymentList({ payments, canRefund, onRefund }: { payments: PaymentDTO[]
       <ConfirmDialog
         open={!!refunding}
         onClose={() => setRefunding(null)}
-        title="Refund payment"
-        description="Needs manager approval and is written to the audit log."
-        confirmLabel="Refund"
+        title={t('bill.refund_title')}
+        description={t('bill.refund_desc')}
+        confirmLabel={t('bill.refund')}
         onConfirm={async () => {
           if (!refunding || !reason.trim()) return;
           if (await onRefund(refunding, rupeesToPaise(amount), reason.trim())) setRefunding(null);
         }}
       >
         <div className="mt-3">
-          <Field label="Amount (₹)">{(fid) => <Input id={fid} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />}</Field>
+          <Field label={t('bill.amount')}>{(fid) => <Input id={fid} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />}</Field>
         </div>
         <ReasonPicker reasons={['Overcharged', 'Item not served', 'Guest complaint']} value={reason} onChange={setReason} />
       </ConfirmDialog>

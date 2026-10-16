@@ -29,17 +29,6 @@ export const STATUS_TONE: Record<OrderStatus, 'amber' | 'blue' | 'violet' | 'gre
   cancelled: 'rose',
 };
 
-export const STATUS_LABEL: Record<OrderStatus, string> = {
-  placed: 'New',
-  accepted: 'Accepted',
-  preparing: 'Preparing',
-  ready: 'Ready',
-  served: 'Served',
-  billed: 'Billed',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled',
-};
-
 const SOURCE: Record<OrderDTO['source'], { label: string; icon: React.ComponentType<{ className?: string }> }> = {
   guest_qr: { label: 'QR', icon: QrCode },
   waiter: { label: 'Waiter', icon: UserRound },
@@ -51,6 +40,7 @@ const REJECT_REASONS = ['Item not available', 'Kitchen is closing', 'Duplicate o
 /** Status changes go through the offline outbox so a short network drop never loses a tap. */
 export function useOrderActions() {
   const { token, api } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const withApproval = useWithApproval();
@@ -63,11 +53,11 @@ export function useOrderActions() {
         send<OrderDTO>(token, `/orders/${order.id}/status`, {
           method: 'PATCH',
           body: { status, reason },
-          label: `Order #${order.order_no} → ${STATUS_LABEL[status]}`,
+          label: t('outbox.order_label', { n: order.order_no, status: t(`order.${status}` as I18nKey) }),
           approvalToken,
         });
       const res = await withApproval(run);
-      if (res?.queued) toast(`Saved offline: order #${order.order_no} will update when back online`, 'info');
+      if (res?.queued) toast(t('offline.saved_order', { n: order.order_no }), 'info');
       await qc.invalidateQueries({ queryKey: ['orders'] });
       await qc.invalidateQueries({ queryKey: ['kds'] });
       return res;

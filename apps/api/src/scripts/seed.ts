@@ -199,6 +199,7 @@ async function main() {
       upi_payee_name: 'Aurum Hospitality',
       auto_accept: false,
       approve_flagged_orders: true,
+      room_charge_enabled: true,
       loyalty_enabled: true,
       loyalty_earn_bp: 500,
       loyalty_point_value_paise: 100,
@@ -482,6 +483,7 @@ async function seedHistory(o: {
   const tables = Object.keys(o.tableIds).filter((l) => !l.startsWith('PD'));
   const hours = [12, 12, 13, 13, 13, 14, 15, 19, 20, 20, 20, 21, 21, 21, 22];
   const reasons = ['Regular guest', 'Hotel guest', 'Late food'];
+  const guestNames = ['Mr. Kapoor', 'Ms. Iyer', 'Dr. Menon', 'Mr. & Mrs. Shah', 'Ms. Fernandes', 'Mr. Gupta'];
 
   for (let daysAgo = 14; daysAgo >= 1; daysAgo--) {
     const weekend = [0, 6].includes(new Date(Date.now() - daysAgo * 86_400_000).getDay());
@@ -511,7 +513,15 @@ async function seedHistory(o: {
         const bill = await createBill(tx, cashier, { table_session_id: sess.id });
         if (rand() < 0.12) await updateBill(tx, cashier, bill.id, { bill_discount: { kind: 'percent', bp: 1000 }, discount_reason: pick(reasons) });
         const fin = await finaliseBill(tx, cashier, bill.id);
-        await recordPayment(tx, cashier, bill.id, { method: rand() < 0.6 ? 'upi' : rand() < 0.8 ? 'cash' : 'card_slip', amount_paise: fin.total_paise, reference: null });
+        const roll = rand();
+        const method = roll < 0.5 ? 'upi' : roll < 0.7 ? 'cash' : roll < 0.85 ? 'card_slip' : 'room';
+        await recordPayment(tx, cashier, bill.id, {
+          method,
+          amount_paise: fin.total_paise,
+          reference: null,
+          // Hotel guests often put dinner on the room.
+          ...(method === 'room' ? { room_no: String((1 + Math.floor(rand() * 4)) * 100 + 1 + Math.floor(rand() * 18)), room_guest: pick(guestNames) } : {}),
+        });
 
         const accepted = at(viaQr ? 1 + rand() * 2 : 0);
         await tx.db
@@ -530,6 +540,13 @@ async function seedHistory(o: {
     }
   }
   await ctx.tx(t, async (tx) => {
+    // The front desk has posted room charges up to the day before yesterday.
+    await tx.db
+      .updateTable('payments')
+      .set({ room_posted_at: new Date(), room_posted_by: cashier.userId })
+      .where('method', '=', 'room')
+      .where('created_at', '<', new Date(Date.now() - 2 * 86_400_000))
+      .execute();
     await tx.db.deleteFrom('user_sessions').where('id', 'in', auths.map((a) => a.sessionId)).execute();
     await tx.db.updateTable('tables').set({ state: 'vacant', needs_cleaning: false }).where('outlet_id', '=', outletId).execute();
   });

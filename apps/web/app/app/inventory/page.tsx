@@ -5,6 +5,7 @@ import { AlertTriangle, ClipboardCheck, Package, Plus, Search, Trash2, Truck, X 
 import { useMemo, useState } from 'react';
 import { INGREDIENT_UNITS, type IngredientDTO, type IngredientUnit, type MenuItemDTO, type RecipeLineDTO, type RecipesDTO, type StockMovementDTO, type StockMovementType } from '@dineos/shared/dto';
 import { errorMessage } from '@/lib/api';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { dateTime, formatPaise, todayIst } from '@/lib/format';
 import { useStaffMenu } from '@/lib/menu-cache';
 import { useStaff } from '@/lib/staff';
@@ -29,7 +30,14 @@ const PRICE_UNIT: Record<IngredientUnit, { label: string; factor: number }> = {
 const qtyFmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 });
 const qty = (n: number, unit: string) => `${qtyFmt.format(n)} ${unit}`;
 const unitPrice = (paisePerUnit: number, unit: IngredientUnit) => `${formatPaise(Math.round(paisePerUnit * PRICE_UNIT[unit].factor))}/${PRICE_UNIT[unit].label}`;
-const TYPE_LABEL: Record<StockMovementType, string> = { purchase: 'Received', sale: 'Used in orders', return: 'Back from cancelled', wastage: 'Wasted', adjust: 'Correction', count: 'Stock count' };
+const TYPE_LABEL: Record<StockMovementType, I18nKey> = {
+  purchase: 'inv.type_purchase',
+  sale: 'inv.type_sale',
+  return: 'inv.type_return',
+  wastage: 'inv.type_wastage',
+  adjust: 'inv.type_adjust',
+  count: 'inv.type_count',
+};
 const TYPE_TONE: Record<StockMovementType, 'green' | 'neutral' | 'blue' | 'rose' | 'amber' | 'violet'> = { purchase: 'green', sale: 'neutral', return: 'blue', wastage: 'rose', adjust: 'amber', count: 'violet' };
 
 function useIngredients() {
@@ -39,21 +47,22 @@ function useIngredients() {
 
 export default function InventoryPage() {
   const { can } = useStaff();
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('stock');
   if (!can('inventory.record')) return <Forbidden />;
   return (
     <div className="pb-12">
-      <PageHeader title="Inventory" subtitle="Stock goes down by itself as the kitchen accepts orders, using each dish's recipe." />
+      <PageHeader title={t('inv.title')} subtitle={t('inv.subtitle')} />
       <div className="px-4 pb-4 lg:px-8">
         <Segmented
           value={tab}
           onChange={setTab}
           className="max-w-full overflow-x-auto"
           options={[
-            { value: 'stock', label: 'Stock' },
-            { value: 'recipes', label: 'Recipes' },
-            { value: 'history', label: 'History' },
-            ...(can('report.view') ? [{ value: 'usage' as Tab, label: 'Usage & food cost' }] : []),
+            { value: 'stock', label: t('inv.tab_stock') },
+            { value: 'recipes', label: t('inv.tab_recipes') },
+            { value: 'history', label: t('inv.tab_history') },
+            ...(can('report.view') ? [{ value: 'usage' as Tab, label: t('inv.tab_usage') }] : []),
           ]}
         />
       </div>
@@ -71,6 +80,7 @@ export default function InventoryPage() {
 
 function StockTab() {
   const { can } = useStaff();
+  const { t } = useI18n();
   const { data, isLoading } = useIngredients();
   const [entry, setEntry] = useState<EntryType | null>(null);
   const [editing, setEditing] = useState<IngredientDTO | 'new' | null>(null);
@@ -82,18 +92,18 @@ function StockTab() {
       <div className="mb-3 flex flex-wrap gap-2">
         {manage && (
           <Button onClick={() => setEntry('purchase')}>
-            <Truck className="size-4" /> Receive stock
+            <Truck className="size-4" /> {t('inv.receive')}
           </Button>
         )}
         <Button variant="outline" onClick={() => setEntry('wastage')}>
-          <Trash2 className="size-4" /> Log wastage
+          <Trash2 className="size-4" /> {t('inv.wastage')}
         </Button>
         <Button variant="outline" onClick={() => setEntry('count')}>
-          <ClipboardCheck className="size-4" /> Stock count
+          <ClipboardCheck className="size-4" /> {t('inv.count')}
         </Button>
         {manage && (
           <Button variant="ghost" className="sm:ml-auto" onClick={() => setEditing('new')}>
-            <Plus className="size-4" /> New ingredient
+            <Plus className="size-4" /> {t('inv.new_ingredient')}
           </Button>
         )}
       </div>
@@ -101,7 +111,7 @@ function StockTab() {
         <p className="mb-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
-            <span className="font-semibold">Reorder soon:</span> {low.map((i) => i.name).join(', ')}
+            <span className="font-semibold">{t('inv.reorder_soon')}</span> {low.map((i) => i.name).join(', ')}
           </span>
         </p>
       )}
@@ -113,19 +123,19 @@ function StockTab() {
         ) : !data?.length ? (
           <EmptyState
             icon={<Package className="size-5" />}
-            title="No ingredients yet"
-            hint="Add what you buy (paneer, milk, coffee beans…), then give each dish a recipe so stock is used up as you sell."
-            action={manage && <Button onClick={() => setEditing('new')}>Add the first ingredient</Button>}
+            title={t('inv.empty')}
+            hint={t('inv.empty_hint')}
+            action={manage && <Button onClick={() => setEditing('new')}>{t('inv.add_first')}</Button>}
           />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-stone-50 text-left text-xs tracking-wide text-ink-faint uppercase">
               <tr>
-                <th className="px-4 py-2.5 font-medium">Ingredient</th>
-                <th className="px-4 py-2.5 text-right font-medium">In stock</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Reorder at</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Cost</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Value</th>
+                <th className="px-4 py-2.5 font-medium">{t('inv.col_ingredient')}</th>
+                <th className="px-4 py-2.5 text-right font-medium">{t('inv.col_stock')}</th>
+                <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">{t('inv.col_reorder')}</th>
+                <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">{t('inv.col_cost')}</th>
+                <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">{t('inv.col_value')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -134,9 +144,9 @@ function StockTab() {
                   <td className="px-4 py-3">
                     <p className="flex items-center gap-2 font-medium">
                       {i.name}
-                      {i.stock_qty <= 0 ? <Badge tone="rose">Out</Badge> : i.low && <Badge tone="amber">Low</Badge>}
+                      {i.stock_qty <= 0 ? <Badge tone="rose">{t('inv.out')}</Badge> : i.low && <Badge tone="amber">{t('inv.low')}</Badge>}
                     </p>
-                    <p className="text-xs text-ink-faint">{i.used_by ? `In ${i.used_by} recipe${i.used_by === 1 ? '' : 's'}` : 'Not in any recipe yet'}</p>
+                    <p className="text-xs text-ink-faint">{i.used_by ? (i.used_by === 1 ? t('inv.in_recipes_one') : t('inv.in_recipes', { n: i.used_by })) : t('inv.no_recipe')}</p>
                   </td>
                   <td className={cn('px-4 py-3 text-right font-semibold tabular', i.stock_qty <= 0 ? 'text-rose-700' : i.low && 'text-amber-800')}>{qty(i.stock_qty, i.unit)}</td>
                   <td className="hidden px-4 py-3 text-right text-ink-faint tabular sm:table-cell">{qty(i.reorder_level, i.unit)}</td>
@@ -163,6 +173,7 @@ interface EntryLine {
 
 function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredients: IngredientDTO[]; onClose: () => void }) {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const [supplier, setSupplier] = useState('');
@@ -172,7 +183,7 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
   // A count lists every ingredient; only the ones typed in are sent.
   const [counts, setCounts] = useState<Record<string, string>>({});
   const byId = useMemo(() => new Map(ingredients.map((i) => [i.id, i])), [ingredients]);
-  const title = { purchase: 'Receive stock', wastage: 'Log wastage', count: 'Stock count', adjust: 'Correct stock' }[type];
+  const title = t(({ purchase: 'inv.receive', wastage: 'inv.wastage', count: 'inv.count', adjust: 'inv.correct' } as const)[type]);
 
   const payload = () => {
     if (type === 'count') {
@@ -199,7 +210,7 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
     try {
       await api('/inventory/movements', { method: 'POST', body: { outlet_id: outletId, type, supplier: supplier.trim() || null, note: note.trim() || null, lines: payload() } });
       await qc.invalidateQueries({ queryKey: ['inventory'] });
-      toast(type === 'purchase' ? 'Stock received' : type === 'count' ? 'Count saved' : 'Saved');
+      toast(type === 'purchase' ? t('inv.received') : type === 'count' ? t('inv.count_saved') : t('inv.saved'));
       onClose();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -210,20 +221,20 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
 
   const used = new Set(lines.map((l) => l.ingredient_id));
   return (
-    <Sheet open onClose={onClose} title={title} wide footer={<Button block onClick={save} loading={busy} disabled={!ready}>Save</Button>}>
+    <Sheet open onClose={onClose} title={title} wide footer={<Button block onClick={save} loading={busy} disabled={!ready}>{t('inv.save')}</Button>}>
       {type === 'count' ? (
         <div className="space-y-1">
-          <p className="mb-3 text-sm text-ink-soft">Type what is on the shelf. Leave a row empty to skip it. Differences are logged as a stock count.</p>
+          <p className="mb-3 text-sm text-ink-soft">{t('inv.count_hint')}</p>
           {ingredients.map((i) => (
             <div key={i.id} className="flex items-center gap-3 rounded-lg px-1 py-1.5 hover:bg-stone-50">
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{i.name}</span>
-              <span className="w-24 text-right text-xs text-ink-faint tabular">now {qty(i.stock_qty, i.unit)}</span>
+              <span className="w-24 text-right text-xs text-ink-faint tabular">{t('inv.now', { qty: qty(i.stock_qty, i.unit) })}</span>
               <Input
                 value={counts[i.id] ?? ''}
                 onChange={(e) => setCounts({ ...counts, [i.id]: e.target.value })}
                 inputMode="decimal"
                 className="h-9 w-28 text-right"
-                aria-label={`Counted ${i.name} in ${i.unit}`}
+                aria-label={t('inv.counted_aria', { name: i.name, unit: i.unit })}
                 placeholder={i.unit}
               />
             </div>
@@ -231,7 +242,7 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
         </div>
       ) : (
         <div className="space-y-3">
-          {type === 'purchase' && <Field label="Supplier (optional)">{(id) => <Input id={id} value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Metro, Amul depot" />}</Field>}
+          {type === 'purchase' && <Field label={t('inv.supplier')}>{(id) => <Input id={id} value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder={t('inv.supplier_hint')} />}</Field>}
           <div className="space-y-2">
             {lines.map((l, idx) => {
               const ing = byId.get(l.ingredient_id);
@@ -240,55 +251,55 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
                   <Select
                     value={l.ingredient_id}
                     onChange={(e) => setLines(lines.map((x, j) => (j === idx ? { ...x, ingredient_id: e.target.value } : x)))}
-                    className="h-10 min-w-0 flex-1 basis-full sm:basis-auto"
-                    aria-label="Ingredient"
+                    className="h-10 min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-auto"
+                    aria-label={t('inv.col_ingredient')}
                   >
-                    <option value="">Pick ingredient…</option>
+                    <option value="">{t('inv.pick')}</option>
                     {ingredients.map((i) => (
                       <option key={i.id} value={i.id} disabled={used.has(i.id) && i.id !== l.ingredient_id}>
                         {i.name} ({i.unit})
                       </option>
                     ))}
                   </Select>
-                  <div className="flex items-center gap-1">
+                  <div className="order-2 flex items-center gap-1 sm:order-none">
                     <Input
                       value={l.qty}
                       onChange={(e) => setLines(lines.map((x, j) => (j === idx ? { ...x, qty: e.target.value } : x)))}
                       inputMode="decimal"
                       className="h-10 w-24 text-right"
-                      aria-label="Quantity"
-                      placeholder={type === 'adjust' ? '±' : 'Qty'}
+                      aria-label={t('inv.quantity')}
+                      placeholder={type === 'adjust' ? '±' : t('inv.qty')}
                     />
                     <span className="w-8 text-xs text-ink-faint">{ing?.unit}</span>
                   </div>
                   {type === 'purchase' && (
-                    <div className="flex items-center gap-1">
+                    <div className="order-2 flex items-center gap-1 sm:order-none">
                       <span className="text-xs text-ink-faint">₹</span>
                       <Input
                         value={l.price}
                         onChange={(e) => setLines(lines.map((x, j) => (j === idx ? { ...x, price: e.target.value } : x)))}
                         inputMode="decimal"
                         className="h-10 w-24 text-right"
-                        aria-label="Price"
-                        placeholder="Price"
+                        aria-label={t('inv.price')}
+                        placeholder={t('inv.price')}
                       />
-                      <span className="w-8 text-xs text-ink-faint">/{ing ? PRICE_UNIT[ing.unit].label : ''}</span>
+                      <span className="w-8 text-xs text-ink-faint">{ing ? `/${PRICE_UNIT[ing.unit].label}` : ''}</span>
                     </div>
                   )}
-                  <IconButton label="Remove line" onClick={() => setLines(lines.filter((_, j) => j !== idx))} disabled={lines.length === 1}>
+                  <IconButton label={t('inv.remove_line')} className="order-1 sm:order-none" onClick={() => setLines(lines.filter((_, j) => j !== idx))} disabled={lines.length === 1}>
                     <X className="size-4" />
                   </IconButton>
                 </div>
               );
             })}
             <Button variant="ghost" size="sm" onClick={() => setLines([...lines, { key: Date.now(), ingredient_id: '', qty: '', price: '' }])}>
-              <Plus className="size-4" /> Add line
+              <Plus className="size-4" /> {t('inv.add_line')}
             </Button>
           </div>
-          <Field label={type === 'adjust' ? 'Reason (required)' : type === 'wastage' ? 'Reason' : 'Note'} hint={type === 'wastage' ? 'Spoiled, dropped, cooked then cancelled…' : undefined}>
+          <Field label={type === 'adjust' ? t('inv.reason_required') : type === 'wastage' ? t('inv.reason') : t('inv.note')} hint={type === 'wastage' ? t('inv.wastage_hint') : undefined}>
             {(id) => <Input id={id} value={note} onChange={(e) => setNote(e.target.value)} />}
           </Field>
-          {type === 'purchase' && <p className="text-xs text-ink-faint">The cost per unit becomes a running average of what you paid, which the food-cost report uses.</p>}
+          {type === 'purchase' && <p className="text-xs text-ink-faint">{t('inv.avg_cost_hint')}</p>}
         </div>
       )}
     </Sheet>
@@ -297,6 +308,7 @@ function EntrySheet({ type, ingredients, onClose }: { type: EntryType; ingredien
 
 function IngredientSheet({ ingredient, onClose }: { ingredient: IngredientDTO | null; onClose: () => void }) {
   const { api, outletId, can } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const manage = can('inventory.manage');
@@ -326,7 +338,7 @@ function IngredientSheet({ ingredient, onClose }: { ingredient: IngredientDTO | 
       if (ingredient) await api(`/inventory/ingredients/${ingredient.id}`, { method: 'PATCH', body: { ...body, is_active: active } });
       else await api('/inventory/ingredients', { method: 'POST', body: { outlet_id: outletId, ...body, ...(Number(opening) > 0 ? { opening_qty: Number(opening) } : {}) } });
       await qc.invalidateQueries({ queryKey: ['inventory'] });
-      toast(ingredient ? 'Saved' : `${body.name} added`);
+      toast(ingredient ? t('inv.saved') : t('inv.added', { name: body.name }));
       onClose();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -339,14 +351,14 @@ function IngredientSheet({ ingredient, onClose }: { ingredient: IngredientDTO | 
     <Sheet
       open
       onClose={onClose}
-      title={ingredient ? ingredient.name : 'New ingredient'}
+      title={ingredient ? ingredient.name : t('inv.new_ingredient')}
       wide={!!ingredient}
-      footer={manage ? <Button block onClick={save} loading={busy} disabled={!name.trim()}>Save</Button> : undefined}
+      footer={manage ? <Button block onClick={save} loading={busy} disabled={!name.trim()}>{t('inv.save')}</Button> : undefined}
     >
       <fieldset disabled={!manage} className="space-y-4">
         <div className="grid grid-cols-[1fr_110px] gap-3">
-          <Field label="Name">{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus={!ingredient} />}</Field>
-          <Field label="Unit">
+          <Field label={t('inv.name')}>{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus={!ingredient} />}</Field>
+          <Field label={t('inv.unit')}>
             {(id) => (
               <Select id={id} value={unit} onChange={(e) => setUnit(e.target.value as IngredientUnit)} disabled={unitLocked}>
                 {INGREDIENT_UNITS.map((u) => (
@@ -359,27 +371,27 @@ function IngredientSheet({ ingredient, onClose }: { ingredient: IngredientDTO | 
           </Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label={`Reorder at (${unit})`} hint="Warns the team at this level">
+          <Field label={t('inv.reorder_label', { unit })} hint={t('inv.reorder_hint')}>
             {(id) => <Input id={id} value={reorder} onChange={(e) => setReorder(e.target.value)} inputMode="decimal" />}
           </Field>
-          <Field label={`Price per ${PRICE_UNIT[unit].label} (₹)`} hint="Updated on each delivery">
+          <Field label={t('inv.price_label', { unit: PRICE_UNIT[unit].label })} hint={t('inv.price_hint')}>
             {(id) => <Input id={id} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />}
           </Field>
           {!ingredient && (
-            <Field label={`Opening stock (${unit})`}>{(id) => <Input id={id} value={opening} onChange={(e) => setOpening(e.target.value)} inputMode="decimal" />}</Field>
+            <Field label={t('inv.opening', { unit })}>{(id) => <Input id={id} value={opening} onChange={(e) => setOpening(e.target.value)} inputMode="decimal" />}</Field>
           )}
         </div>
-        {unitLocked && <p className="text-xs text-ink-faint">The unit is fixed while this ingredient has stock or is used in recipes.</p>}
+        {unitLocked && <p className="text-xs text-ink-faint">{t('inv.unit_locked')}</p>}
         {ingredient && (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm">Active</span>
-            <Switch checked={active} onChange={setActive} label="Active" disabled={!manage} />
+            <span className="text-sm">{t('inv.active')}</span>
+            <Switch checked={active} onChange={setActive} label={t('inv.active')} disabled={!manage} />
           </div>
         )}
       </fieldset>
       {ingredient && (
         <div className="mt-5">
-          <p className="mb-2 text-xs font-medium tracking-wide text-ink-faint uppercase">Recent movements</p>
+          <p className="mb-2 text-xs font-medium tracking-wide text-ink-faint uppercase">{t('inv.recent')}</p>
           <MovementList rows={history.data} loading={history.isLoading} compact />
         </div>
       )}
@@ -602,6 +614,7 @@ function RecipeSheet({
 // ---------------------------------------------------------------- history
 
 function MovementList({ rows, loading, compact }: { rows: StockMovementDTO[] | undefined; loading: boolean; compact?: boolean }) {
+  const { t } = useI18n();
   if (loading) {
     return (
       <div className="grid place-items-center py-10">
@@ -609,7 +622,7 @@ function MovementList({ rows, loading, compact }: { rows: StockMovementDTO[] | u
       </div>
     );
   }
-  if (!rows?.length) return <p className="py-8 text-center text-sm text-ink-faint">Nothing recorded yet.</p>;
+  if (!rows?.length) return <p className="py-8 text-center text-sm text-ink-faint">{t('inv.nothing')}</p>;
   return (
     <ul className={cn('divide-y divide-line', compact && 'rounded-xl border border-line')}>
       {rows.map((m) => (
@@ -617,7 +630,7 @@ function MovementList({ rows, loading, compact }: { rows: StockMovementDTO[] | u
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-2">
               {!compact && <span className="font-medium">{m.ingredient_name}</span>}
-              <Badge tone={TYPE_TONE[m.type]}>{TYPE_LABEL[m.type]}</Badge>
+              <Badge tone={TYPE_TONE[m.type]}>{t(TYPE_LABEL[m.type])}</Badge>
             </p>
             <p className="truncate text-xs text-ink-faint">{[dateTime(m.created_at), m.created_by_name, m.supplier, m.note].filter(Boolean).join(' · ')}</p>
           </div>
@@ -636,6 +649,7 @@ function MovementList({ rows, loading, compact }: { rows: StockMovementDTO[] | u
 
 function HistoryTab() {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
   const [type, setType] = useState<'all' | StockMovementType>('all');
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', outletId, 'movements', 'all', type],
@@ -648,7 +662,7 @@ function HistoryTab() {
         className="mb-3 max-w-full overflow-x-auto"
         value={type}
         onChange={setType}
-        options={[{ value: 'all' as const, label: 'All' }, ...(['purchase', 'sale', 'wastage', 'count', 'adjust', 'return'] as const).map((t) => ({ value: t, label: TYPE_LABEL[t] }))]}
+        options={[{ value: 'all' as const, label: t('inv.all') }, ...(['purchase', 'sale', 'wastage', 'count', 'adjust', 'return'] as const).map((ty) => ({ value: ty, label: t(TYPE_LABEL[ty]) }))]}
       />
       <Card className="overflow-hidden">
         <MovementList rows={data} loading={isLoading} />

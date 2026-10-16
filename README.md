@@ -77,6 +77,9 @@ The acceptance criteria in spec §14 are automated:
 | Richer reports | Comparison with the previous period, sales by category, weekday-by-hour heatmap, team, discounts by reason, table turns and dwell, customers, pilot health (QR share, rejections, time to accept) | `reports.test.ts` |
 | Short-offline hardening | Changes queued on the device replay as the person who made them; refused replays stay visible until dismissed; signing out with unsent changes asks first | `apps/web/lib/outbox.test.ts` |
 | Hybrid offline tier | The outlet hub serves the staff app on the LAN when the internet is down: orders, kitchen display, live updates, bills with their own GST invoice series, payments, local printing; everything syncs back exactly once | `hub.test.ts` (real API, real hub, network cut and restored) |
+| Charge to room | Hotel outlets can put a bill (or part of it) on a guest's room; the front desk sees what to post per room in Reports, exports it as CSV, and managers mark charges posted to the folio. Works offline on the hub | `room-charges.test.ts`, `hub.test.ts` |
+
+Staff screens (floor, POS, bills, kitchen, reservations, stock entry, offline banners) are in English and Hindi. Owner setup and reporting pages are English only.
 
 ### Phase 3: camera table vision
 
@@ -93,7 +96,7 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 - **GST rate** is set per dish with an outlet default; the seed uses 5%. For a hotel restaurant the right rate can depend on room tariffs, so confirm with your accountant before the pilot.
 - **No BullMQ.** Live events and print jobs live in Postgres (a transactional outbox with a per-outlet sequence), so nothing is lost if a process dies; Redis is only used to fan sockets out across API servers.
 - **Staff sessions are database tokens**, not JWTs, so disabling someone signs them out at once.
-- **StayOS bill-to-room** is deferred; record it as payment method "Other" with the room number as the reference.
+- **Charge to room without a hotel-system link.** Room charges are a payment method; the front desk posts them to folios by hand from Reports → Room charges (or its CSV) and marks them posted. A direct StayOS integration is deferred.
 - **Every foreign key between tenant tables also matches `tenant_id`.** Postgres checks foreign keys without row-level security, so this stops one tenant's rows from pointing at another's.
 - **Offline bills use their own invoice series** (`PREFIXH/2627/00001`), so the hub never needs the cloud's counter; GST reports list both series.
 - **Guests joining loyalty see only the last four digits** of the number they typed, and never anyone's name or balance: there is no OTP without an SMS provider.

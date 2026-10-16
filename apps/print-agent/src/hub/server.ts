@@ -199,6 +199,8 @@ export class HubServer {
               amount_paise: z.number().int().min(1).max(100_000_000),
               tendered_paise: z.number().int().min(0).max(100_000_000).nullable().optional(),
               reference: z.string().max(80).nullable().optional(),
+              room_no: z.string().max(10).nullable().optional(),
+              room_guest: z.string().max(80).nullable().optional(),
             })
             .parse(body),
         ),

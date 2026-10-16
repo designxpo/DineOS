@@ -462,6 +462,7 @@ export interface Outlets {
   prices_include_tax: Generated<boolean>;
   reservation_grace_minutes: Generated<number>;
   reservation_minutes: Generated<number>;
+  room_charge_enabled: Generated<boolean>;
   service_charge_bp: Generated<number>;
   service_charge_tax_rate_bp: Generated<number>;
   state_code: string | null;
@@ -486,6 +487,10 @@ export interface Payments {
   outlet_id: string;
   reason: string | null;
   reference: string | null;
+  room_guest: string | null;
+  room_no: string | null;
+  room_posted_at: Timestamp | null;
+  room_posted_by: string | null;
   tenant_id: string;
   tendered_paise: number | null;
   updated_at: Generated<Timestamp>;

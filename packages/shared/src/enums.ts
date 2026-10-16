@@ -39,7 +39,8 @@ export type SessionStatus = (typeof SESSION_STATUSES)[number];
 export const BILL_STATUSES = ['draft', 'finalised', 'paid', 'void'] as const;
 export type BillStatus = (typeof BILL_STATUSES)[number];
 
-export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other'] as const;
+/** `room`: charged to a hotel guest's room, collected by the hotel at checkout. */
+export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const SERVICE_REQUEST_KINDS = ['call_waiter', 'bill'] as const;

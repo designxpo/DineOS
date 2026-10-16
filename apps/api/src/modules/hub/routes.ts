@@ -140,6 +140,8 @@ const bill = z.object({
         reference: text(80),
         confirmed_by: z.uuid().nullable(),
         created_at: ts,
+        room_no: z.string().regex(/^[A-Z0-9][A-Z0-9 -]{0,9}$/).nullable().default(null),
+        room_guest: text(80).default(null),
       }),
     )
     .max(50),

@@ -9,12 +9,12 @@ import { formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { Card, Input, Segmented, Spinner, Stat } from '@/components/ui/primitives';
+import { Badge, Card, Input, Segmented, Spinner, Stat } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'vision';
+type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'vision' | 'room-charges';
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -37,7 +37,7 @@ function presetRange(p: Preset, today: string): { from: string; to: string } {
 }
 
 export default function ReportsPage() {
-  const { api, outletId, can, token } = useStaff();
+  const { api, outletId, can, token, outlet } = useStaff();
   const toast = useToast();
   const today = todayIst();
   const [tab, setTab] = useState<Tab>('sales');
@@ -89,16 +89,18 @@ export default function ReportsPage() {
         }
       />
       <div className="no-print flex flex-wrap items-center gap-3 px-4 pb-4 lg:px-8">
-        <Segmented value={tab} onChange={setTab} options={[
+        <Segmented className="max-w-full overflow-x-auto" value={tab} onChange={setTab} options={[
             { value: 'sales', label: 'Sales' },
             { value: 'insights', label: 'Insights' },
             { value: 'gst', label: 'GST' },
             { value: 'items', label: 'Dishes' },
             { value: 'day-end', label: 'Day end' },
+            ...(outlet?.room_charge_enabled ? [{ value: 'room-charges' as Tab, label: 'Room charges' }] : []),
             ...(hasCameras ? [{ value: 'vision' as Tab, label: 'Camera' }] : []),
           ]}
         />
         <Segmented
+          className="max-w-full overflow-x-auto"
           value={preset}
           onChange={setPreset}
           options={[
@@ -128,6 +130,8 @@ export default function ReportsPage() {
           <Insights data={q.data} />
         ) : tab === 'vision' ? (
           <VisionAudit data={q.data} />
+        ) : tab === 'room-charges' ? (
+          <RoomCharges data={q.data} onChanged={() => void q.refetch()} />
         ) : tab === 'gst' ? (
           <Gst data={q.data} />
         ) : tab === 'items' ? (
@@ -356,6 +360,88 @@ function Insights({ data }: { data: any }) {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function RoomCharges({ data, onChanged }: { data: any; onChanged: () => void }) {
+  const { api, outletId, can } = useStaff();
+  const toast = useToast();
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const canPost = can('payment.reconcile');
+  const mark = async (posted: boolean) => {
+    setBusy(true);
+    try {
+      await api('/payments/room-posted', { method: 'POST', body: { outlet_id: outletId, payment_ids: [...picked], posted } });
+      toast(posted ? 'Marked as posted to the folios' : 'Marked as not posted');
+      setPicked(new Set());
+      onChanged();
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const toggle = (id: string) =>
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const open = data.rows.filter((r: any) => !r.posted_at);
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="To post" value={formatPaise(data.totals.unposted_paise)} sub={`${data.totals.unposted} charge${data.totals.unposted === 1 ? '' : 's'}`} />
+        <Stat label="All room charges" value={formatPaise(data.totals.amount_paise)} sub={`${data.totals.charges} in this period`} />
+      </div>
+      {data.by_room.length > 0 && (
+        <Table title="Still to post, by room" head={['Room', 'Amount']} rows={data.by_room.map((r: any) => [r.room_no, formatPaise(r.amount_paise)])} />
+      )}
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+          <h2 className="flex-1 text-sm font-semibold">Room charges</h2>
+          {canPost && (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setPicked(new Set(open.map((r: any) => r.payment_id)))} disabled={!open.length}>
+                Select all not posted
+              </Button>
+              <Button size="sm" onClick={() => void mark(true)} disabled={!picked.size} loading={busy}>
+                Mark posted ({picked.size})
+              </Button>
+            </>
+          )}
+        </div>
+        {!data.rows.length ? (
+          <p className="px-4 py-6 text-sm text-ink-faint">No room charges in this period.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {data.rows.map((r: any) => (
+              <li key={r.payment_id} className="flex items-start gap-3 px-4 py-3 text-sm">
+                {canPost && <input type="checkbox" checked={picked.has(r.payment_id)} onChange={() => toggle(r.payment_id)} className="mt-1.5 size-4 shrink-0 accent-[var(--brand)]" aria-label={`Select room ${r.room_no}`} />}
+                <span className="w-14 shrink-0 font-display text-lg leading-7 font-semibold">{r.room_no}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">
+                    {r.room_guest ?? 'Guest'} · {r.invoice_no}
+                    {r.table_label ? ` · ${r.table_label}` : ''}
+                  </span>
+                  <span className="block text-xs text-ink-faint">
+                    {new Date(r.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                    {r.confirmed_by_name ? ` · ${r.confirmed_by_name}` : ''}
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <span className={cn('font-semibold tabular', r.amount_paise < 0 && 'text-rose-700')}>{formatPaise(r.amount_paise)}</span>
+                  {r.posted_at ? <Badge tone="green">Posted</Badge> : <Badge tone="amber">Not posted</Badge>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <p className="text-xs text-ink-faint">Refunds appear as negative lines for the same room. Export as CSV for the front desk or the hotel system.</p>
     </div>
   );
 }

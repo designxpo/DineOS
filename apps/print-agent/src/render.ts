@@ -87,7 +87,8 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
   p.line(rule);
   p.bold(true).size(1, 2).line(columns('TOTAL', `Rs. ${money(bill.total_paise)}`, width)).size(1, 1).bold(false);
   for (const pay of bill.payments) {
-    const label = pay.kind === 'refund' ? `Refund (${pay.method})` : `Paid ${pay.method.replace('_', ' ')}`;
+    const how = pay.method === 'room' ? `room ${pay.room_no ?? ''}`.trim() : pay.method.replace('_', ' ');
+    const label = pay.kind === 'refund' ? `Refund (${how})` : pay.method === 'room' ? `Charged to ${how}` : `Paid ${how}`;
     p.line(columns(label, money(pay.amount_paise), width));
   }
   if (bill.balance_paise > 0 && bill.payments.length) p.bold(true).line(columns('Balance due', money(bill.balance_paise), width)).bold(false);

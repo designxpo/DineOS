@@ -62,7 +62,11 @@ export default function PrintBill() {
       <Rule />
       <Line left={<span className="text-[15px]">TOTAL</span>} right={<span className="text-[15px]">Rs. {money(bill.total_paise)}</span>} bold />
       {bill.payments.map((p) => (
-        <Line key={p.id} left={p.kind === 'refund' ? `Refund (${p.method})` : `Paid ${p.method.replace('_', ' ')}`} right={money(p.amount_paise)} />
+        <Line
+          key={p.id}
+          left={p.kind === 'refund' ? `Refund (${p.method === 'room' ? `room ${p.room_no}` : p.method})` : p.method === 'room' ? `Charged to room ${p.room_no}${p.room_guest ? ` (${p.room_guest})` : ''}` : `Paid ${p.method.replace('_', ' ')}`}
+          right={money(p.amount_paise)}
+        />
       ))}
       {bill.balance_paise > 0 && bill.payments.length > 0 && <Line left="Balance due" right={money(bill.balance_paise)} bold />}
       {qr && bill.balance_paise > 0 && (

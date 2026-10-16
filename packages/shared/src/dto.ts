@@ -76,6 +76,8 @@ export interface OutletDTO {
   /** Print-agent device that runs as the outlet hub, and its LAN address for offline mode. */
   hub_device_id: string | null;
   hub_url: string | null;
+  /** Hotel restaurants: bills can be charged to a guest's room. */
+  room_charge_enabled: boolean;
 }
 
 // ---------- Menu ----------
@@ -393,6 +395,10 @@ export interface PaymentDTO {
   reference: string | null;
   confirmed_by_name: string | null;
   created_at: string;
+  /** Room charges: the room and guest, and when the front desk posted it to the folio. */
+  room_no: string | null;
+  room_guest: string | null;
+  room_posted_at: string | null;
 }
 
 export interface BillDTO {

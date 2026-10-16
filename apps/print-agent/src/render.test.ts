@@ -97,6 +97,21 @@ describe('bill', () => {
     expect(text).not.toContain('Points');
   });
 
+  it('prints a room charge with the room, not as a payment taken', () => {
+    const bill = {
+      ...doc.invoice.bill,
+      status: 'paid' as const,
+      paid_paise: 52500,
+      balance_paise: 0,
+      payments: [
+        { id: 'p', bill_id: 'b', kind: 'payment' as const, method: 'room' as const, amount_paise: 52500, tendered_paise: null, change_paise: null, reference: null, confirmed_by_name: null, created_at: '2026-10-15T08:00:00Z', room_no: '204', room_guest: 'Mr. Rao', room_posted_at: null },
+      ],
+    };
+    const text = renderBill({ ...doc, upi_uri: null, invoice: { ...doc.invoice, bill } }, 42).preview.join('\n');
+    expect(text).toMatch(/Charged to room 204\s+525\.00/);
+    expect(text).not.toContain('Paid room');
+  });
+
   it('shows redeemed and earned loyalty points and the member name', () => {
     const bill = {
       ...doc.invoice.bill,

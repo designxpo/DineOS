@@ -5,6 +5,7 @@ import { Armchair, CalendarClock, ChevronLeft, ChevronRight, Hourglass, Pencil, 
 import { useMemo, useState } from 'react';
 import type { ReservationDTO, TableDTO, WaitlistEntryDTO } from '@dineos/shared/dto';
 import { errorMessage } from '@/lib/api';
+import { useI18n, type I18nKey, type Lang } from '@/lib/i18n';
 import { minutesSince, time, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
@@ -21,30 +22,33 @@ const STATUS_TONE: Record<ReservationDTO['status'], 'blue' | 'green' | 'neutral'
   cancelled: 'neutral',
   no_show: 'rose',
 };
-const STATUS_LABEL: Record<ReservationDTO['status'], string> = {
-  booked: 'Booked',
-  seated: 'Seated',
-  completed: 'Done',
-  cancelled: 'Cancelled',
-  no_show: 'No-show',
+const STATUS_LABEL: Record<ReservationDTO['status'], I18nKey> = {
+  booked: 'res.status_booked',
+  seated: 'res.status_seated',
+  completed: 'res.status_completed',
+  cancelled: 'res.status_cancelled',
+  no_show: 'res.status_no_show',
 };
+const SOURCE_LABEL: Partial<Record<ReservationDTO['source'], I18nKey>> = { phone: 'res.src_phone', walk_in: 'res.src_walk_in', online: 'res.src_online' };
+type T = ReturnType<typeof useI18n>['t'];
 
 const shiftDay = (date: string, days: number) => {
   const d = new Date(`${date}T12:00:00+05:30`);
   d.setUTCDate(d.getUTCDate() + days);
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
 };
-const dayLabel = (date: string) => {
+const dayLabel = (date: string, t: T, lang: Lang) => {
   const today = todayIst();
-  if (date === today) return 'Today';
-  if (date === shiftDay(today, 1)) return 'Tomorrow';
-  if (date === shiftDay(today, -1)) return 'Yesterday';
-  return new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(`${date}T12:00:00+05:30`));
+  if (date === today) return t('res.today');
+  if (date === shiftDay(today, 1)) return t('res.tomorrow');
+  if (date === shiftDay(today, -1)) return t('res.yesterday');
+  return new Intl.DateTimeFormat(lang === 'hi' ? 'hi-IN' : 'en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(`${date}T12:00:00+05:30`));
 };
 const istTime = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }).format(new Date(iso));
 
 export default function ReservationsPage() {
   const { api, outletId, can } = useStaff();
+  const { t, lang } = useI18n();
   const toast = useToast();
   const qc = useQueryClient();
   const [date, setDate] = useState(todayIst);
@@ -82,18 +86,18 @@ export default function ReservationsPage() {
   return (
     <div className="pb-12">
       <PageHeader
-        title="Reservations"
+        title={t('nav.reservations')}
         subtitle={(() => {
           const n = (bookings.data ?? []).filter((r) => r.status !== 'cancelled').length;
-          return `${n} booking${n === 1 ? '' : 's'} · ${covers} guest${covers === 1 ? '' : 's'}`;
+          return `${n === 1 ? t('res.bookings_one') : t('res.bookings', { n })} · ${covers === 1 ? t('res.guests_one') : t('res.guests_n', { n: covers })}`;
         })()}
         actions={
           <>
             <Button variant="outline" onClick={() => setQueueing(true)}>
-              <Hourglass className="size-4" /> Add to waitlist
+              <Hourglass className="size-4" /> {t('res.add_waitlist')}
             </Button>
             <Button onClick={() => setEditing('new')}>
-              <Plus className="size-4" /> New booking
+              <Plus className="size-4" /> {t('res.new_booking')}
             </Button>
           </>
         }
@@ -102,20 +106,20 @@ export default function ReservationsPage() {
         <section>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-xl border border-line bg-surface">
-              <IconButton label="Previous day" onClick={() => setDate((d) => shiftDay(d, -1))}>
+              <IconButton label={t('res.prev_day')} onClick={() => setDate((d) => shiftDay(d, -1))}>
                 <ChevronLeft className="size-4" />
               </IconButton>
               <label className="relative px-1 text-sm font-medium">
-                <span>{dayLabel(date)}</span>
-                <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Pick a date" />
+                <span>{dayLabel(date, t, lang)}</span>
+                <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label={t('res.pick_date')} />
               </label>
-              <IconButton label="Next day" onClick={() => setDate((d) => shiftDay(d, 1))}>
+              <IconButton label={t('res.next_day')} onClick={() => setDate((d) => shiftDay(d, 1))}>
                 <ChevronRight className="size-4" />
               </IconButton>
             </div>
             {!isToday && (
               <Button variant="ghost" size="sm" onClick={() => setDate(todayIst())}>
-                Today
+                {t('res.today')}
               </Button>
             )}
             <Segmented
@@ -124,8 +128,8 @@ export default function ReservationsPage() {
               value={filter}
               onChange={setFilter}
               options={[
-                { value: 'upcoming', label: 'Active' },
-                { value: 'all', label: 'All' },
+                { value: 'upcoming', label: t('res.active') },
+                { value: 'all', label: t('res.all') },
               ]}
             />
           </div>
@@ -135,7 +139,7 @@ export default function ReservationsPage() {
                 <Spinner />
               </div>
             ) : !list.length ? (
-              <EmptyState icon={<CalendarClock className="size-5" />} title={`No bookings ${dayLabel(date).toLowerCase() === 'today' ? 'today' : 'on this day'}`} hint="Phone and walk-in bookings show up on the floor map as the time gets close." />
+              <EmptyState icon={<CalendarClock className="size-5" />} title={isToday ? t('res.none_today') : t('res.none_day')} hint={t('res.none_hint')} />
             ) : (
               <ul className="divide-y divide-line">
                 {list.map((r) => {
@@ -144,7 +148,7 @@ export default function ReservationsPage() {
                     <li key={r.id} className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3', ['cancelled', 'no_show', 'completed'].includes(r.status) && 'opacity-60')}>
                       <div className="w-[5.5rem] shrink-0">
                         <p className="font-display text-lg font-semibold whitespace-nowrap tabular">{time(r.slot_start)}</p>
-                        {late && <p className="text-xs font-medium text-rose-700">{minutesSince(r.slot_start)}m late</p>}
+                        {late && <p className="text-xs font-medium text-rose-700">{t('res.late', { n: minutesSince(r.slot_start) })}</p>}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-2 font-medium">
@@ -152,22 +156,22 @@ export default function ReservationsPage() {
                           <span className="inline-flex items-center gap-0.5 text-sm text-ink-soft">
                             <Users className="size-3.5" /> {r.party_size}
                           </span>
-                          <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-                          {r.table_label && <Badge>Table {r.table_label}</Badge>}
+                          <Badge tone={STATUS_TONE[r.status]}>{t(STATUS_LABEL[r.status])}</Badge>
+                          {r.table_label && <Badge>{t('res.table', { label: r.table_label })}</Badge>}
                         </p>
                         <p className="truncate text-xs text-ink-faint">
-                          {[r.guest_phone, r.source === 'phone' ? 'Phone' : r.source === 'walk_in' ? 'Walk-in' : r.source === 'online' ? 'Online' : null, r.notes].filter(Boolean).join(' · ')}
+                          {[r.guest_phone, SOURCE_LABEL[r.source] ? t(SOURCE_LABEL[r.source]!) : null, r.notes].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       {r.status === 'booked' && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex basis-full items-center gap-1.5 sm:basis-auto">
                           <Button size="sm" variant="success" onClick={() => setSeating({ kind: 'reservation', item: r })}>
-                            <Armchair className="size-4" /> Seat
+                            <Armchair className="size-4" /> {t('res.seat')}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => act(() => api(`/reservations/${r.id}`, { method: 'PATCH', body: { status: 'no_show' } }), 'Marked as no-show')}>
-                            No-show
+                          <Button size="sm" variant="ghost" onClick={() => act(() => api(`/reservations/${r.id}`, { method: 'PATCH', body: { status: 'no_show' } }), t('res.marked_no_show'))}>
+                            {t('res.no_show')}
                           </Button>
-                          <IconButton label={`Edit booking for ${r.guest_name}`} onClick={() => setEditing(r)}>
+                          <IconButton label={t('res.edit_for', { name: r.guest_name })} onClick={() => setEditing(r)}>
                             <Pencil className="size-4" />
                           </IconButton>
                         </div>
@@ -182,11 +186,11 @@ export default function ReservationsPage() {
 
         <section>
           <h2 className="mb-3 flex h-11 items-center gap-2 text-sm font-semibold tracking-wide text-ink-faint uppercase">
-            Waitlist <span className="rounded-full bg-stone-200 px-2 text-xs text-ink-soft tabular">{waitlist.data?.length ?? 0}</span>
+            {t('res.waitlist')} <span className="rounded-full bg-stone-200 px-2 text-xs text-ink-soft tabular">{waitlist.data?.length ?? 0}</span>
           </h2>
           <Card className="overflow-hidden">
             {!waitlist.data?.length ? (
-              <EmptyState icon={<Hourglass className="size-5" />} title="Nobody waiting" hint="Add walk-ins here when every table is full." />
+              <EmptyState icon={<Hourglass className="size-5" />} title={t('res.nobody_waiting')} hint={t('res.waitlist_hint')} />
             ) : (
               <ul className="divide-y divide-line">
                 {waitlist.data.map((w, i) => {
@@ -202,25 +206,26 @@ export default function ReservationsPage() {
                             <span className="inline-flex items-center gap-0.5 text-sm text-ink-soft">
                               <Users className="size-3.5" /> {w.party_size}
                             </span>
-                            {w.status === 'notified' && <Badge tone="amber">Called</Badge>}
+                            {w.status === 'notified' && <Badge tone="amber">{t('res.called')}</Badge>}
                           </p>
                           <p className={cn('text-xs', over ? 'font-medium text-rose-700' : 'text-ink-faint')}>
-                            Waiting {waited} min{w.quoted_minutes != null && ` · quoted ${w.quoted_minutes}`}
+                            {t('res.waiting', { n: waited })}
+                            {w.quoted_minutes != null && ` · ${t('res.quoted', { n: w.quoted_minutes })}`}
                             {w.guest_phone && ` · ${w.guest_phone}`}
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-1.5 pl-10">
                         <Button size="sm" variant="success" onClick={() => setSeating({ kind: 'waitlist', item: w })}>
-                          <Armchair className="size-4" /> Seat
+                          <Armchair className="size-4" /> {t('res.seat')}
                         </Button>
                         {w.status === 'waiting' && (
-                          <Button size="sm" variant="outline" onClick={() => act(() => api(`/waitlist/${w.id}/notify`, { method: 'POST', body: {} }), `${w.guest_name} called`)}>
-                            <PhoneCall className="size-4" /> Called
+                          <Button size="sm" variant="outline" onClick={() => act(() => api(`/waitlist/${w.id}/notify`, { method: 'POST', body: {} }), t('res.called_toast', { name: w.guest_name }))}>
+                            <PhoneCall className="size-4" /> {t('res.called')}
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => act(() => api(`/waitlist/${w.id}/leave`, { method: 'POST', body: {} }), 'Removed from the waitlist')}>
-                          Left
+                        <Button size="sm" variant="ghost" onClick={() => act(() => api(`/waitlist/${w.id}/leave`, { method: 'POST', body: {} }), t('res.removed'))}>
+                          {t('res.left')}
                         </Button>
                       </div>
                     </li>
@@ -236,7 +241,7 @@ export default function ReservationsPage() {
       {queueing && <WaitlistSheet onClose={() => setQueueing(false)} onSaved={refresh} />}
       {seating && (
         <SeatSheet
-          title={`Seat ${seating.item.guest_name} (${seating.item.party_size})`}
+          title={t('res.seat_title', { name: seating.item.guest_name, n: seating.item.party_size })}
           partySize={seating.item.party_size}
           preferred={seating.kind === 'reservation' ? seating.item.table_id : null}
           onClose={() => setSeating(null)}
@@ -246,7 +251,7 @@ export default function ReservationsPage() {
                 seating.kind === 'reservation'
                   ? api(`/reservations/${seating.item.id}/seat`, { method: 'POST', body: tableId ? { table_id: tableId } : {} })
                   : api(`/waitlist/${seating.item.id}/seat`, { method: 'POST', body: { table_id: tableId } }),
-              `${seating.item.guest_name} seated`,
+              t('res.seated_toast', { name: seating.item.guest_name }),
             ).then(() => setSeating(null))
           }
         />
@@ -257,6 +262,7 @@ export default function ReservationsPage() {
 
 function BookingSheet({ booking, date, onClose, onSaved }: { booking: ReservationDTO | null; date: string; onClose: () => void; onSaved: () => void }) {
   const { api, outletId, outlet } = useStaff();
+  const { t } = useI18n();
   const toast = useToast();
   const [name, setName] = useState(booking?.guest_name ?? '');
   const [phone, setPhone] = useState(booking?.guest_phone ?? '');
@@ -282,9 +288,9 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
   const options = useMemo(() => {
     const list = free.data ?? [];
     // Keep the booking's own table selectable while editing.
-    if (booking?.table_id && !list.some((t) => t.id === booking.table_id)) return [{ id: booking.table_id, label: booking.table_label ?? 'Current', seats: 0, zone: null }, ...list];
+    if (booking?.table_id && !list.some((tb) => tb.id === booking.table_id)) return [{ id: booking.table_id, label: booking.table_label ?? t('res.current'), seats: 0, zone: null }, ...list];
     return list;
-  }, [free.data, booking]);
+  }, [free.data, booking, t]);
 
   const save = async () => {
     setBusy(true);
@@ -303,7 +309,7 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
       if (booking) await api(`/reservations/${booking.id}`, { method: 'PATCH', body });
       else await api('/reservations', { method: 'POST', body: { outlet_id: outletId, ...body } });
       onSaved();
-      toast(booking ? 'Booking updated' : `Booked for ${name}`);
+      toast(booking ? t('res.updated') : t('res.booked_for', { name }));
       onClose();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -318,7 +324,7 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
     try {
       await api(`/reservations/${booking.id}`, { method: 'PATCH', body: { status: 'cancelled' } });
       onSaved();
-      toast('Booking cancelled');
+      toast(t('res.cancelled_toast'));
       onClose();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -331,75 +337,75 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
     <Sheet
       open
       onClose={onClose}
-      title={booking ? `Booking: ${booking.guest_name}` : 'New booking'}
+      title={booking ? t('res.booking_of', { name: booking.guest_name }) : t('res.new_booking')}
       footer={
         <div className="flex gap-2">
           {booking && (
             <Button variant="ghost" className="text-rose-700" onClick={cancel} disabled={busy}>
-              Cancel booking
+              {t('res.cancel_booking')}
             </Button>
           )}
           <Button className="ml-auto" onClick={save} loading={busy} disabled={!name.trim() || party < 1}>
-            {booking ? 'Save' : 'Book'}
+            {booking ? t('res.save') : t('res.book')}
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-[1fr_96px] gap-3">
-          <Field label="Guest name">{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
-          <Field label="Guests">{(id) => <Input id={id} type="number" min={1} max={200} value={party} onChange={(e) => setParty(Number(e.target.value))} />}</Field>
+          <Field label={t('res.guest_name')}>{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
+          <Field label={t('res.guests')}>{(id) => <Input id={id} type="number" min={1} max={200} value={party} onChange={(e) => setParty(Number(e.target.value))} />}</Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Date">{(id) => <Input id={id} type="date" value={day} onChange={(e) => setDay(e.target.value)} />}</Field>
-          <Field label="Time">{(id) => <Input id={id} type="time" step={900} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>
-          <Field label="For">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Field label={t('res.date')} className="col-span-2 sm:col-span-1">{(id) => <Input id={id} type="date" value={day} onChange={(e) => setDay(e.target.value)} />}</Field>
+          <Field label={t('res.time')}>{(id) => <Input id={id} type="time" step={900} value={at} onChange={(e) => setAt(e.target.value)} />}</Field>
+          <Field label={t('res.for')}>
             {(id) => (
               <Select id={id} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
                 {[45, 60, 90, 120, 150, 180, 240].map((m) => (
                   <option key={m} value={m}>
-                    {m < 60 ? `${m} min` : `${m / 60} h`.replace('.5 h', '½ h')}
+                    {m < 60 ? t('res.minutes', { n: m }) : t('res.hours', { n: String(m / 60).replace('.5', '½') })}
                   </option>
                 ))}
               </Select>
             )}
           </Field>
         </div>
-        <Field label="Table" hint={free.isFetching ? 'Checking free tables…' : options.length ? 'Smallest suitable tables first' : 'No free table fits this party at that time. You can book without a table.'}>
+        <Field label={t('res.table_label')} hint={free.isFetching ? t('res.checking') : options.length ? t('res.smallest_first') : t('res.no_fit')}>
           {(id) => (
             <Select id={id} value={tableId} onChange={(e) => setTableId(e.target.value)}>
-              <option value="">Decide on arrival</option>
-              {options.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                  {t.seats ? ` · ${t.seats} seats` : ''}
-                  {t.zone ? ` · ${t.zone}` : ''}
+              <option value="">{t('res.on_arrival')}</option>
+              {options.map((tb) => (
+                <option key={tb.id} value={tb.id}>
+                  {tb.label}
+                  {tb.seats ? ` · ${t('res.seats', { n: tb.seats })}` : ''}
+                  {tb.zone ? ` · ${tb.zone}` : ''}
                 </option>
               ))}
             </Select>
           )}
         </Field>
-        <Field label="Phone (optional)">{(id) => <Input id={id} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="98765 43210" />}</Field>
+        <Field label={t('res.phone_optional')}>{(id) => <Input id={id} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="98765 43210" />}</Field>
         {phone.trim() && (
           <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-stone-50 p-3 text-sm">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-4 accent-[var(--brand)]" />
             <span>
-              The guest agreed to us keeping their number.
-              <span className="block text-xs text-ink-faint">Without this the number is not saved, only the name.</span>
+              {t('res.consent')}
+              <span className="block text-xs text-ink-faint">{t('res.consent_hint')}</span>
             </span>
           </label>
         )}
-        <Field label="Booked by">
+        <Field label={t('res.booked_by')}>
           {(id) => (
             <Select id={id} value={source} onChange={(e) => setSource(e.target.value as ReservationDTO['source'])}>
-              <option value="phone">Phone call</option>
-              <option value="walk_in">Walk-in</option>
-              <option value="online">Online / message</option>
-              <option value="other">Other</option>
+              <option value="phone">{t('res.by_phone')}</option>
+              <option value="walk_in">{t('res.by_walk_in')}</option>
+              <option value="online">{t('res.by_online')}</option>
+              <option value="other">{t('res.by_other')}</option>
             </Select>
           )}
         </Field>
-        <Field label="Notes">{(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Birthday, high chair, window seat…" maxLength={500} />}</Field>
+        <Field label={t('res.notes')}>{(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('res.notes_hint')} maxLength={500} />}</Field>
       </div>
     </Sheet>
   );
@@ -407,6 +413,7 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
 
 function WaitlistSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
   const toast = useToast();
   const [name, setName] = useState('');
   const [party, setParty] = useState(2);
@@ -422,7 +429,7 @@ function WaitlistSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         body: { outlet_id: outletId, guest_name: name, party_size: party, quoted_minutes: quoted, guest_phone: phone.trim() || null, contact_consent: consent && !!phone.trim() },
       });
       onSaved();
-      toast(`${name} added to the waitlist`);
+      toast(t('res.added_waitlist', { name }));
       onClose();
     } catch (err) {
       toast(errorMessage(err), 'error');
@@ -431,26 +438,26 @@ function WaitlistSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     }
   };
   return (
-    <Sheet open onClose={onClose} title="Add to waitlist" footer={<Button block onClick={save} loading={busy} disabled={!name.trim()}>Add</Button>}>
+    <Sheet open onClose={onClose} title={t('res.add_waitlist')} footer={<Button block onClick={save} loading={busy} disabled={!name.trim()}>{t('res.add')}</Button>}>
       <div className="space-y-4">
         <div className="grid grid-cols-[1fr_96px] gap-3">
-          <Field label="Name">{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
-          <Field label="Guests">{(id) => <Input id={id} type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} />}</Field>
+          <Field label={t('res.name')}>{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}</Field>
+          <Field label={t('res.guests')}>{(id) => <Input id={id} type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} />}</Field>
         </div>
-        <Field label="Quoted wait">
+        <Field label={t('res.quoted_wait')}>
           {() => (
             <Segmented
               value={String(quoted)}
               onChange={(v) => setQuoted(Number(v))}
-              options={[5, 10, 15, 20, 30, 45].map((m) => ({ value: String(m), label: `${m}m` }))}
+              options={[5, 10, 15, 20, 30, 45].map((m) => ({ value: String(m), label: String(m) }))}
             />
           )}
         </Field>
-        <Field label="Phone (optional, to call them back)">{(id) => <Input id={id} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />}</Field>
+        <Field label={t('res.phone_callback')}>{(id) => <Input id={id} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />}</Field>
         {phone.trim() && (
           <label className="flex cursor-pointer items-center gap-3 text-sm">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="size-4 accent-[var(--brand)]" />
-            The guest agreed to us noting their number
+            {t('res.consent_note')}
           </label>
         )}
       </div>
@@ -460,39 +467,41 @@ function WaitlistSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
 function SeatSheet({ title, partySize, preferred, onClose, onSeat }: { title: string; partySize: number; preferred: string | null; onClose: () => void; onSeat: (tableId: string | null) => void }) {
   const { api, outletId } = useStaff();
+  const { t } = useI18n();
   const { data: tables } = useQuery({ queryKey: ['tables', outletId], queryFn: () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`) });
   const [picked, setPicked] = useState<string | null>(preferred);
-  const free = (tables ?? []).filter((t) => t.is_active && (t.state === 'vacant' || t.state === 'needs_cleaning' || t.id === preferred));
-  const fits = free.filter((t) => t.seats >= partySize).sort((a, b) => a.seats - b.seats);
-  const small = free.filter((t) => t.seats < partySize);
+  const free = (tables ?? []).filter((tb) => tb.is_active && (tb.state === 'vacant' || tb.state === 'needs_cleaning' || tb.id === preferred));
+  const fits = free.filter((tb) => tb.seats >= partySize).sort((a, b) => a.seats - b.seats);
+  const small = free.filter((tb) => tb.seats < partySize);
   return (
-    <Sheet open onClose={onClose} title={title} footer={<Button block variant="success" onClick={() => onSeat(picked)} disabled={!picked}>Seat here</Button>}>
+    <Sheet open onClose={onClose} title={title} footer={<Button block variant="success" onClick={() => onSeat(picked)} disabled={!picked}>{t('res.seat_here')}</Button>}>
       {!free.length ? (
-        <p className="py-8 text-center text-sm text-ink-faint">No free tables right now.</p>
+        <p className="py-8 text-center text-sm text-ink-faint">{t('res.no_free')}</p>
       ) : (
         <div className="space-y-4">
           {[
-            { label: 'Fits the party', list: fits },
-            { label: 'Too small (join tables from the floor)', list: small },
+            { label: t('res.fits'), list: fits },
+            { label: t('res.too_small'), list: small },
           ]
             .filter((g) => g.list.length)
             .map((g) => (
               <div key={g.label}>
                 <p className="mb-2 text-xs font-medium tracking-wide text-ink-faint uppercase">{g.label}</p>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-2">
-                  {g.list.map((t) => (
+                  {g.list.map((tb) => (
                     <button
-                      key={t.id}
-                      onClick={() => setPicked(t.id)}
-                      aria-pressed={picked === t.id}
+                      key={tb.id}
+                      onClick={() => setPicked(tb.id)}
+                      aria-pressed={picked === tb.id}
                       className={cn(
                         'flex cursor-pointer flex-col items-start rounded-xl border-2 px-3 py-2 text-left transition',
-                        picked === t.id ? 'border-[var(--brand)] bg-brand-50' : 'border-line hover:border-stone-300',
+                        picked === tb.id ? 'border-[var(--brand)] bg-brand-50' : 'border-line hover:border-stone-300',
                       )}
                     >
-                      <span className="font-display text-lg font-semibold">{t.label}</span>
+                      <span className="font-display text-lg font-semibold">{tb.label}</span>
                       <span className="text-xs text-ink-faint">
-                        {t.seats} seats{t.state === 'needs_cleaning' ? ' · to clean' : ''}
+                        {t('res.seats', { n: tb.seats })}
+                        {tb.state === 'needs_cleaning' ? ` · ${t('res.to_clean')}` : ''}
                       </span>
                     </button>
                   ))}

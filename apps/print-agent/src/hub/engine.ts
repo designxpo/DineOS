@@ -901,6 +901,9 @@ export class HubEngine {
       reference: p.reference,
       confirmed_by_name: this.staffName(p.confirmed_by),
       created_at: p.created_at,
+      room_no: p.room_no,
+      room_guest: p.room_guest,
+      room_posted_at: null,
     }));
     return {
       id: b.id,
@@ -1111,7 +1114,11 @@ export class HubEngine {
     }
   }
 
-  recordPayment(user: HubUser, id: string, input: { method: PaymentMethod; amount_paise: number; tendered_paise?: number | null; reference?: string | null }): BillDTO {
+  recordPayment(
+    user: HubUser,
+    id: string,
+    input: { method: PaymentMethod; amount_paise: number; tendered_paise?: number | null; reference?: string | null; room_no?: string | null; room_guest?: string | null },
+  ): BillDTO {
     this.assertWritable();
     this.assertCan(user, 'payment.record');
     const b = this.bill(id);
@@ -1124,6 +1131,13 @@ export class HubEngine {
       if (input.tendered_paise < input.amount_paise) throw badRequest('tendered_short', 'Cash tendered is less than the amount');
       change = input.tendered_paise - input.amount_paise;
     }
+    // Same rule as the cloud: room charges only where the outlet allows them, with a room number.
+    let room: string | null = null;
+    if (input.method === 'room') {
+      if (!this.snap.outlet.room_charge_enabled) throw badRequest('room_charge_disabled', 'This outlet does not charge bills to rooms');
+      room = input.room_no?.trim().toUpperCase() ?? '';
+      if (!/^[A-Z0-9][A-Z0-9 -]{0,9}$/.test(room)) throw badRequest('room_required', 'Enter the room number');
+    }
     const now = this.now().toISOString();
     b.payments.push({
       id: randomUUID(),
@@ -1134,6 +1148,8 @@ export class HubEngine {
       reference: input.reference?.trim() || null,
       confirmed_by: user.id,
       created_at: now,
+      room_no: room,
+      room_guest: room ? input.room_guest?.trim().slice(0, 80) || null : null,
     });
     b.paid_paise += input.amount_paise;
     if (b.paid_paise >= b.total_paise) {

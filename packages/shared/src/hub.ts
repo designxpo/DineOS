@@ -115,6 +115,8 @@ export interface HubPayment {
   reference: string | null;
   confirmed_by: string | null;
   created_at: string;
+  room_no: string | null;
+  room_guest: string | null;
 }
 
 export interface HubBill {

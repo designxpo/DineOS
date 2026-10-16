@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CloudOff, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ago } from '@/lib/format';
+import { useI18n } from '@/lib/i18n';
 import { discard, dismissRejected, flush, listQueued, listRejected, onOutboxChange, type OutboxState, type QueuedRequest, type RejectedRequest } from '@/lib/outbox';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
@@ -20,25 +21,26 @@ export function useOutboxState(): OutboxState {
 /** Header badge for changes saved on this device: waiting to sync, or refused by the server. */
 export function OutboxBadge({ className }: { className?: string }) {
   const { pending, rejected } = useOutboxState();
+  const { t } = useI18n();
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(rejected);
   useEffect(() => {
-    if (rejected > seen) toast(`${rejected - seen} offline change${rejected - seen === 1 ? ' was' : 's were'} refused by the server. Tap the red badge to see why.`, 'error');
+    if (rejected > seen) toast(rejected - seen === 1 ? t('outbox.refused_one') : t('outbox.refused', { n: rejected - seen }), 'error');
     setSeen(rejected);
-  }, [rejected, seen, toast]);
+  }, [rejected, seen, toast, t]);
   if (!pending && !rejected) return null;
   return (
     <>
-      <button onClick={() => setOpen(true)} className={cn('flex cursor-pointer items-center gap-1.5', className)} aria-label="Changes waiting to sync">
+      <button onClick={() => setOpen(true)} className={cn('flex cursor-pointer items-center gap-1.5', className)} aria-label={t('outbox.aria')}>
         {pending > 0 && (
           <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
-            <CloudOff className="size-3.5" /> {pending} waiting to sync
+            <CloudOff className="size-3.5" /> {t('outbox.waiting', { n: pending })}
           </span>
         )}
         {rejected > 0 && (
           <span className="flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-xs font-medium text-rose-800">
-            <AlertTriangle className="size-3.5" /> {rejected} not saved
+            <AlertTriangle className="size-3.5" /> {t('outbox.not_saved', { n: rejected })}
           </span>
         )}
       </button>
@@ -49,6 +51,7 @@ export function OutboxBadge({ className }: { className?: string }) {
 
 export function OutboxSheet({ onClose }: { onClose: () => void }) {
   const { token } = useStaff();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
   const [queued, setQueued] = useState<QueuedRequest[]>([]);
@@ -66,9 +69,9 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
     setBusy(false);
     if (r.sent) {
       void qc.invalidateQueries();
-      toast(`${r.sent} change${r.sent === 1 ? '' : 's'} sent`);
+      toast(r.sent === 1 ? t('outbox.sent_one') : t('outbox.sent', { n: r.sent }));
     } else if (!r.failed.length) {
-      toast('Still offline. Changes stay on this device and send automatically.', 'error');
+      toast(t('outbox.still_offline'), 'error');
     }
   };
 
@@ -76,11 +79,11 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
     <Sheet
       open
       onClose={onClose}
-      title="Changes on this device"
+      title={t('outbox.title')}
       footer={
         queued.length > 0 && (
           <Button block onClick={() => void retry()} loading={busy}>
-            <RefreshCw className="size-4" /> Send now
+            <RefreshCw className="size-4" /> {t('outbox.send_now')}
           </Button>
         )
       }
@@ -88,7 +91,7 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
       <div className="space-y-5">
         {queued.length > 0 && (
           <section>
-            <p className="mb-2 text-sm text-ink-soft">Made while the internet was down. They send by themselves when the connection is back, in the order they were made.</p>
+            <p className="mb-2 text-sm text-ink-soft">{t('outbox.queued_hint')}</p>
             <ul className="divide-y divide-line rounded-xl border border-line">
               {queued.map((q) => (
                 <li key={q.key} className="flex items-center gap-3 px-3 py-2.5 text-sm">
@@ -98,9 +101,9 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
                     <p className="text-xs text-ink-faint">{ago(new Date(q.queuedAt).toISOString())}</p>
                   </div>
                   <IconButton
-                    label={`Discard ${q.label}`}
+                    label={t('outbox.discard', { label: q.label })}
                     onClick={() => {
-                      if (window.confirm(`Discard "${q.label}"? It will not be sent.`)) void discard(q.key);
+                      if (window.confirm(t('outbox.discard_confirm', { label: q.label }))) void discard(q.key);
                     }}
                   >
                     <Trash2 className="size-4" />
@@ -113,9 +116,9 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
         {rejected.length > 0 && (
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-rose-800">Refused by the server. Please redo these if they are still needed.</p>
+              <p className="text-sm font-medium text-rose-800">{t('outbox.refused_hint')}</p>
               <Button size="sm" variant="ghost" onClick={() => void dismissRejected()}>
-                Clear all
+                {t('outbox.clear_all')}
               </Button>
             </div>
             <ul className="divide-y divide-line rounded-xl border border-rose-200 bg-rose-50/50">
@@ -127,14 +130,14 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
                     <p className="text-xs text-rose-800">{r.message}</p>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => void dismissRejected(r.key)}>
-                    OK
+                    {t('outbox.ok')}
                   </Button>
                 </li>
               ))}
             </ul>
           </section>
         )}
-        {!queued.length && !rejected.length && <p className="py-8 text-center text-sm text-ink-faint">Everything is synced.</p>}
+        {!queued.length && !rejected.length && <p className="py-8 text-center text-sm text-ink-faint">{t('outbox.synced')}</p>}
       </div>
     </Sheet>
   );

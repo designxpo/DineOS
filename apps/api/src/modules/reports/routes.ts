@@ -6,6 +6,7 @@ import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest } from '../../lib/errors';
 import { parse } from '../../lib/validate';
 import { inventoryReport } from '../inventory/report';
+import { roomCharges } from '../billing/rooms';
 import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
 import { dashboard, dayEnd, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
@@ -84,6 +85,31 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { r } = await range(req, auth.tenantId);
       assertCan(auth, r.outletId, 'report.view');
       return ctx.tx(auth.tenantId, (tx) => insights(tx, r));
+    });
+
+    /** Room charges for the front desk to post to folios; ?unposted=1 for what is still open. */
+    app.get('/reports/room-charges', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { r, format } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      const unposted = ['1', 'true'].includes(String((req.query as Record<string, unknown>).unposted ?? ''));
+      const data = await ctx.tx(auth.tenantId, (tx) => roomCharges(tx, r, { unpostedOnly: unposted }));
+      if (format !== 'csv') return data;
+      return sendCsv(
+        reply,
+        `room-charges-${r.from}-${r.to}`,
+        data.rows.map((x) => ({
+          date: new Intl.DateTimeFormat('en-CA', { timeZone: r.timezone }).format(new Date(x.at)),
+          time: new Date(x.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: r.timezone }),
+          room: x.room_no,
+          guest: x.room_guest ?? '',
+          invoice: x.invoice_no ?? '',
+          table: x.table_label ?? '',
+          type: x.kind,
+          amount_paise: x.amount_paise,
+          posted: x.posted_at ? 'yes' : 'no',
+        })),
+      );
     });
 
     app.get('/reports/vision', async (req) => {

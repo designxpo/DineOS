@@ -570,6 +570,19 @@ export interface PaymentInput {
   amount_paise: number;
   tendered_paise?: number | null;
   reference?: string | null;
+  /** Charge to room: the room, and the guest's name if known. */
+  room_no?: string | null;
+  room_guest?: string | null;
+}
+
+/** Room charges need the outlet to allow them and a room number; returns the cleaned fields. */
+export async function roomFields(tx: Tx, outletId: string, input: PaymentInput): Promise<{ room_no: string | null; room_guest: string | null }> {
+  if (input.method !== 'room') return { room_no: null, room_guest: null };
+  const outlet = await tx.db.selectFrom('outlets').select('room_charge_enabled').where('id', '=', outletId).executeTakeFirstOrThrow();
+  if (!outlet.room_charge_enabled) throw badRequest('room_charge_disabled', 'This outlet does not charge bills to rooms');
+  const room = input.room_no?.trim().toUpperCase() ?? '';
+  if (!/^[A-Z0-9][A-Z0-9 -]{0,9}$/.test(room)) throw badRequest('room_required', 'Enter the room number');
+  return { room_no: room, room_guest: input.room_guest?.trim().slice(0, 80) || null };
 }
 
 /** Records cash, UPI (to the outlet's own QR, confirmed by staff), card slip or other payment. */
@@ -592,6 +605,7 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
   if (confirmation.status !== 'confirmed') {
     throw conflict('payment_not_confirmed', confirmation.status === 'failed' ? confirmation.reason : 'Payment is still pending');
   }
+  const room = await roomFields(tx, bill.outlet_id, input);
   let change: number | null = null;
   if (input.method === 'cash' && input.tendered_paise != null) {
     if (input.tendered_paise < input.amount_paise) throw badRequest('tendered_short', 'Cash tendered is less than the amount');
@@ -609,6 +623,7 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
       change_paise: change,
       reference: confirmation.reference,
       confirmed_by: auth.userId,
+      ...room,
     })
     .execute();
   const paid = bill.paid_paise + input.amount_paise;
@@ -707,6 +722,9 @@ export async function refundPayment(
       confirmed_by: auth.userId,
       approved_by: approvedBy,
       reason: input.reason.trim(),
+      // A refunded room charge comes off the same folio.
+      room_no: payment.room_no,
+      room_guest: payment.room_guest,
     })
     .execute();
   const paid = bill.paid_paise - input.amount_paise;

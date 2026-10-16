@@ -89,6 +89,10 @@ See `edge/vision-worker/README.md` for hardware, installing the model and runnin
 
 Managers download the account statement from net banking (CSV or Excel) and import it in **UPI check**, weekly or at month end. Act on two lists: UPI payments the bank never received (ask the cashier for the guest's UTR or payment screen), and UPI credits with no bill (match them, or set aside money that is not a sale). Re-importing an overlapping statement is safe.
 
+## Charge to room (hotel outlets)
+
+Turn on **Settings → Billing & UPI → Charge bills to hotel rooms**. Cashiers then get a **Room** payment method that asks for the room number (and optionally the guest's name); a bill can be split between cash and a room. The front desk opens **Reports → Room charges**, posts the per-room totals to the guests' folios (or imports the CSV into the hotel system), ticks the charges and presses **Mark posted**; only managers and owners can. Refunds of a room charge show as negative lines for the same room. Do this at least daily, before guests check out.
+
 ## Maintenance job
 
 Runs hourly on one API server (advisory lock) and can be run by hand with `node apps/api/dist/maintenance.js`: prunes old events, idempotency keys, sessions and print jobs; releases tables where guests browsed but never ordered; marks reservations as no-shows after the grace period; closes stale waitlist entries; deletes camera stills older than a day.

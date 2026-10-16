@@ -127,6 +127,8 @@ export async function loadHubBills(tx: Tx, ids: readonly string[]): Promise<HubB
         reference: p.reference,
         confirmed_by: p.confirmed_by,
         created_at: p.created_at.toISOString(),
+        room_no: p.room_no,
+        room_guest: p.room_guest,
       })),
   }));
 }

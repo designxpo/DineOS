@@ -170,6 +170,9 @@ function BillingForm() {
             ))}
           </Select>
         </Row>
+        <Row title="Charge bills to hotel rooms" hint="For restaurants inside a hotel: cashiers can put a bill on a guest's room. The front desk sees them under Reports → Room charges.">
+          <Switch label="Charge bills to hotel rooms" checked={outlet.room_charge_enabled} onChange={(v) => void save({ room_charge_enabled: v })} />
+        </Row>
         <Row title="Service charge (%)" hint="Optional. Staff can remove it from any bill; it can't be compulsory for guests.">
           <div className="flex gap-2">
             <Input value={sc} onChange={(e) => setSc(e.target.value)} className="w-20" inputMode="decimal" aria-label="Service charge percent" />
