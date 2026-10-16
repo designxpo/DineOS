@@ -71,8 +71,10 @@ export function useGuest(qr: string) {
         firstLoad.current = false;
         return s;
       } catch (err) {
-        // A token from an earlier visit: start a fresh visit silently on first load.
-        if (err instanceof ApiError && (err.status === 410 || err.status === 401) && firstLoad.current) {
+        // A token that no longer verifies: get a new one quietly on first load. A visit that has
+        // ended is different: the guest confirms, so a phone that paid and left does not slip
+        // into the next guests' table just by reopening the page.
+        if (err instanceof ApiError && err.status === 401 && firstLoad.current) {
           firstLoad.current = false;
           const fresh = await join();
           return apiFetch<GuestSessionDTO>('/guest/session', { token: fresh });

@@ -137,7 +137,7 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
 
       {order.flagged && order.status === 'placed' && (
         <p className="mx-4 mb-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900">
-          <ShieldAlert className="size-3.5" /> {t('order.new_device')}
+          <ShieldAlert className="size-3.5" /> {t(order.flag_reason === 'returning_device' ? 'order.returning_device' : 'order.new_device')}
         </p>
       )}
 

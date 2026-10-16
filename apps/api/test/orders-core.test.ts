@@ -118,6 +118,38 @@ describe('guest order to staff', () => {
     expect(second.flagged).toBe(false);
     await setOutlet(t, tenant.outletId, { auto_accept: false });
   });
+
+  it('holds an order from a phone that was at the table in an earlier visit, even when everything is automatic', async () => {
+    await setOutlet(t, tenant.outletId, { auto_accept: true, approve_flagged_orders: false });
+    const { tableId, sessionId: earlierVisit } = await seatGuests('A4');
+    const leftPhone = randomUUID();
+    expect((await guestOrder(earlierVisit, leftPhone)).status).toBe('accepted');
+    await t.ctx.tx(tenant.tenantId, (tx) => closeSession(tx, earlierVisit, 'staff'));
+
+    const nextVisit = await t.ctx.tx(tenant.tenantId, (tx) => getOrCreateSession(tx, tableId));
+    const newGuests = await guestOrder(nextVisit.id);
+    expect(newGuests.status).toBe('accepted');
+    const prank = await guestOrder(nextVisit.id, leftPhone);
+    expect(prank).toMatchObject({ status: 'placed', flagged: true, flag_reason: 'returning_device' });
+
+    // Once staff accept it (a guest who really came back), that phone orders normally again.
+    await t.ctx.tx(tenant.tenantId, (tx) => transitionOrder(tx, owner, prank.id, 'accepted'));
+    expect((await guestOrder(nextVisit.id, leftPhone)).status).toBe('accepted');
+    await setOutlet(t, tenant.outletId, { auto_accept: false, approve_flagged_orders: true });
+  });
+
+  it('treats a phone from a visit that ended over 12 hours ago like any new phone', async () => {
+    await setOutlet(t, tenant.outletId, { auto_accept: true, approve_flagged_orders: false });
+    const { tableId, sessionId: yesterday } = await seatGuests('A5');
+    const phone = randomUUID();
+    await guestOrder(yesterday, phone);
+    await t.ctx.tx(tenant.tenantId, (tx) => closeSession(tx, yesterday, 'staff'));
+    await t.ctx.adminDb.updateTable('table_sessions').set({ closed_at: new Date(Date.now() - 13 * 3_600_000) }).where('id', '=', yesterday).execute();
+
+    const today = await t.ctx.tx(tenant.tenantId, (tx) => getOrCreateSession(tx, tableId));
+    expect(await guestOrder(today.id, phone)).toMatchObject({ status: 'accepted', flag_reason: 'first_order_from_device' });
+    await setOutlet(t, tenant.outletId, { auto_accept: false, approve_flagged_orders: true });
+  });
 });
 
 describe('order lifecycle and table state', () => {

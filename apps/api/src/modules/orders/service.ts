@@ -216,6 +216,9 @@ export async function loadOutlet(tx: Tx, outletId: string) {
   return outlet;
 }
 
+/** How long after a visit closes a phone from it counts as "was at this table earlier". */
+const RETURNING_DEVICE_WINDOW_MS = 12 * 3_600_000;
+
 export interface CreateOrderInput {
   outletId: string;
   type: OrderType;
@@ -245,6 +248,7 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
 
   let flagged = false;
   let flagReason: string | null = null;
+  let mustWait = false;
   if (input.source === 'guest_qr' && session) {
     const prior = input.deviceId
       ? await tx.db
@@ -258,13 +262,30 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
     if (!prior) {
       flagged = true;
       flagReason = 'first_order_from_device';
+      // A phone that ordered in an earlier visit at this table, now closed (a guest who paid and
+      // left, still holding the page), waits for staff whatever the outlet's settings.
+      const earlier = input.deviceId
+        ? await tx.db
+            .selectFrom('orders')
+            .innerJoin('table_sessions', 'table_sessions.id', 'orders.table_session_id')
+            .select('orders.id')
+            .where('table_sessions.table_id', '=', session.table_id)
+            .where('table_sessions.id', '!=', session.id)
+            .where('table_sessions.closed_at', '>', new Date(now.getTime() - RETURNING_DEVICE_WINDOW_MS))
+            .where('orders.device_id', '=', input.deviceId)
+            .executeTakeFirst()
+        : undefined;
+      if (earlier) {
+        flagReason = 'returning_device';
+        mustWait = true;
+      }
     }
   }
 
   // Staff-entered orders go straight to the kitchen. Guest orders wait for a manager unless the
   // outlet auto-accepts, and flagged ones still wait when approval of flagged orders is on.
   const accepted =
-    input.source !== 'guest_qr' || (outlet.auto_accept && !(flagged && outlet.approve_flagged_orders));
+    input.source !== 'guest_qr' || (!mustWait && outlet.auto_accept && !(flagged && outlet.approve_flagged_orders));
   const status: OrderStatus = accepted ? 'accepted' : 'placed';
   const day = businessDate(now, outlet.timezone);
 
