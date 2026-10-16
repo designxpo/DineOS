@@ -37,4 +37,9 @@ const shutdown = async (signal: string) => {
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
-await app.listen({ port: ctx.config.PORT, host: '0.0.0.0' });
+// Not awaited: Vercel's runtime stubs listen() to take the server and never resolves it, so
+// awaiting here would keep this module from ever finishing loading.
+app.listen({ port: ctx.config.PORT, host: '0.0.0.0' }).catch((err) => {
+  app.log.error({ err }, 'could not start listening');
+  process.exit(1);
+});
