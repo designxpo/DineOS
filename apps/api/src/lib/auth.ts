@@ -48,6 +48,17 @@ declare module 'fastify' {
 // nodes notice within the TTL.
 const CACHE_TTL_MS = 15_000;
 const cache = new Map<string, { auth: Auth; at: number }>();
+let lastSweep = 0;
+
+function remember(hash: string, auth: Auth): void {
+  const now = Date.now();
+  // Drop expired entries now and then, or every token ever seen would stay in memory.
+  if (now - lastSweep > CACHE_TTL_MS) {
+    lastSweep = now;
+    for (const [key, entry] of cache) if (now - entry.at >= CACHE_TTL_MS) cache.delete(key);
+  }
+  cache.set(hash, { auth, at: now });
+}
 
 export function evictCachedAuth(token: string): void {
   cache.delete(sha256(token));
@@ -147,7 +158,7 @@ export async function authenticate(ctx: AppContext, token: string): Promise<Auth
     auth = { kind: 'admin', adminId: row.admin_id, sessionId: row.id };
   }
 
-  if (auth) cache.set(hash, { auth, at: Date.now() });
+  if (auth) remember(hash, auth);
   return auth;
 }
 

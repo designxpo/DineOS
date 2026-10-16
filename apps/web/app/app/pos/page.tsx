@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import type { BillDTO, MenuItemDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import type { OrderType } from '@dineos/shared/enums';
 import { isScheduleOpen } from '@dineos/shared/menu';
-import { ApiError, errorMessage } from '@/lib/api';
+import { ApiError, errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
 import { useStaffMenu } from '@/lib/menu-cache';
 import { send } from '@/lib/outbox';
@@ -86,7 +86,7 @@ function Pos() {
     setLines((cur) => {
       const same = cur.find((l) => l.item.id === item.id && l.modifierIds.join() === modifierIds.join() && !l.note && l.seat === null);
       if (same) return cur.map((l) => (l === same ? { ...l, qty: l.qty + 1 } : l));
-      return [...cur, { key: crypto.randomUUID(), item, qty: 1, modifierIds, note: '', seat: null }];
+      return [...cur, { key: newKey(), item, qty: 1, modifierIds, note: '', seat: null }];
     });
   };
   const tap = (item: MenuItemDTO) => (item.modifier_group_ids.length ? setPicking(item) : add(item));

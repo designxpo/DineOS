@@ -13,7 +13,7 @@ export type GuestPhase = 'loading' | 'invalid' | 'unavailable' | 'ready' | 'ende
 function deviceId(): string {
   let id = readLocal<string | null>('dineos.device', null);
   if (!id) {
-    id = crypto.randomUUID();
+    id = newKey();
     writeLocal('dineos.device', id);
   }
   return id;

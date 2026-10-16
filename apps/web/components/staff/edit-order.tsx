@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, Undo2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { MenuItemDTO, OrderDTO } from '@dineos/shared/dto';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
 import { useStaffMenu } from '@/lib/menu-cache';
 import { useStaff } from '@/lib/staff';
@@ -67,7 +67,7 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
     setAdds((cur) => {
       const same = cur.find((l) => l.item.id === item.id && l.modifierIds.join() === modifierIds.join());
       if (same) return cur.map((l) => (l === same ? { ...l, qty: l.qty + 1 } : l));
-      return [...cur, { key: crypto.randomUUID(), item, qty: 1, modifierIds }];
+      return [...cur, { key: newKey(), item, qty: 1, modifierIds }];
     });
     setSearch('');
   };

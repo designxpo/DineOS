@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/.next/**', '**/next-env.d.ts', 'apps/api/src/db/schema.ts'],
+    ignores: ['**/node_modules/**', '**/dist/**', '**/.next/**', '**/.vercel/**', '**/next-env.d.ts', 'apps/api/src/db/schema.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
