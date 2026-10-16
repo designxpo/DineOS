@@ -312,6 +312,12 @@ export class HubEngine {
       const session = this.liveSession(t.id);
       const orders = session ? this.sessionOrders(session.id) : [];
       const counted = orders.filter((o) => o.status !== 'rejected' && o.status !== 'cancelled');
+      const served = orders.flatMap((o) => (o.status === 'served' && o.served_at ? [o.served_at] : [])).sort();
+      const unpaid = session
+        ? Object.values(this.state.bills)
+            .flatMap((b) => (b.table_session_id === session.id && b.status === 'finalised' && b.finalised_at ? [b.finalised_at] : []))
+            .sort()
+        : [];
       return {
         id: t.id,
         outlet_id: this.outletId,
@@ -334,6 +340,8 @@ export class HubEngine {
         merged_with: [],
         open_orders: orders.filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status)).length,
         running_total_paise: counted.reduce((a, o) => a + this.orderSubtotal(o), 0),
+        last_served_at: served.at(-1) ?? null,
+        unpaid_bill_since: unpaid[0] ?? null,
         open_requests: [],
         is_active: t.is_active,
         next_reservation: null,

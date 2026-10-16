@@ -224,6 +224,32 @@ describe('guest ordering', () => {
     expect(codes).toEqual([201, 201, 201, 429]);
   });
 
+  async function ordersFromPhones(qr: string, phones: number, perPhone: number): Promise<number[]> {
+    const codes: number[] = [];
+    for (let p = 0; p < phones; p++) {
+      const guest = api(t, (await join(qr)).guest_token);
+      for (let i = 0; i < perPhone; i++) {
+        await guest({ method: 'POST', url: '/v1/guest/cart/lines', payload: threeItems(menu)[0] });
+        codes.push((await guest({ method: 'POST', url: '/v1/guest/orders', payload: {} })).statusCode);
+      }
+    }
+    return codes;
+  }
+
+  it('caps how many orders one small table can send in ten minutes', async () => {
+    const codes = await ordersFromPhones(await qrFor(await createTable(t, tenant, 'G20')), 5, 2);
+    expect(codes.filter((c) => c === 201)).toHaveLength(8);
+    expect(codes.slice(8)).toEqual([429, 429]);
+  });
+
+  it('lets a big party at joined tables order more', async () => {
+    const tableIds = [await createTable(t, tenant, 'G21'), await createTable(t, tenant, 'G22'), await createTable(t, tenant, 'G23')];
+    expect((await owner({ method: 'POST', url: '/v1/tables/merge', payload: { table_ids: tableIds } })).statusCode).toBe(200);
+    // Twelve seats: room for 24 orders in ten minutes, not 8.
+    const codes = await ordersFromPhones(await qrFor(tableIds[0]!), 6, 2);
+    expect(codes.every((c) => c === 201)).toBe(true);
+  });
+
   it('calls a waiter and requests the bill, which shows on the floor map', async () => {
     const tableId = await createTable(t, tenant, 'G12');
     const { guest_token } = await join(await qrFor(tableId));

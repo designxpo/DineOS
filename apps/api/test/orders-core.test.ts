@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OrderDTO } from '@dineos/shared/dto';
 import { authenticate, type StaffAuth } from '../src/lib/auth';
 import { createOrder, setItemStatus, transitionOrder } from '../src/modules/orders/service';
+import { seatTable } from '../src/modules/tables/floor';
 import { closeSession, getOrCreateSession } from '../src/modules/tables/sessions';
 import {
   addStaff,
@@ -136,6 +137,25 @@ describe('guest order to staff', () => {
     await t.ctx.tx(tenant.tenantId, (tx) => transitionOrder(tx, owner, prank.id, 'accepted'));
     expect((await guestOrder(nextVisit.id, leftPhone)).status).toBe('accepted');
     await setOutlet(t, tenant.outletId, { auto_accept: false, approve_flagged_orders: true });
+  });
+
+  it('checks the first order at a table once: after staff accept it, the other phones at that table go straight through', async () => {
+    await setOutlet(t, tenant.outletId, { auto_accept: true, approve_flagged_orders: true });
+    const { sessionId } = await seatGuests('A6');
+    const first = await guestOrder(sessionId);
+    expect(first).toMatchObject({ status: 'placed', flagged: true, flag_reason: 'first_order_from_device' });
+    await t.ctx.tx(tenant.tenantId, (tx) => transitionOrder(tx, owner, first.id, 'accepted'));
+    // A big party: everyone else orders from their own phone without staff tapping approve again.
+    for (let i = 0; i < 3; i++) expect(await guestOrder(sessionId)).toMatchObject({ status: 'accepted', flagged: false });
+    await setOutlet(t, tenant.outletId, { auto_accept: false });
+  });
+
+  it('skips the first-order check at a table a waiter seated', async () => {
+    await setOutlet(t, tenant.outletId, { auto_accept: true, approve_flagged_orders: true });
+    const tableId = await createTable(t, tenant, 'A7');
+    const sessionId = await t.ctx.tx(tenant.tenantId, (tx) => seatTable(tx, tableId, { guestCount: 6, waiterId: null }));
+    expect(await guestOrder(sessionId)).toMatchObject({ status: 'accepted', flagged: false });
+    await setOutlet(t, tenant.outletId, { auto_accept: false });
   });
 
   it('treats a phone from a visit that ended over 12 hours ago like any new phone', async () => {

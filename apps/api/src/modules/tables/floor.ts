@@ -82,6 +82,26 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
         .groupBy('table_session_id')
         .execute()
     : [];
+  // Walkout watch: served food nobody has billed yet, and printed bills nobody has paid.
+  const lastServed = sessionIds.length
+    ? await tx.db
+        .selectFrom('orders')
+        .select((eb) => ['table_session_id', eb.fn.max('served_at').as('at')])
+        .where('table_session_id', 'in', sessionIds)
+        .where('status', '=', 'served')
+        .groupBy('table_session_id')
+        .execute()
+    : [];
+  const unpaidBills = sessionIds.length
+    ? await tx.db
+        .selectFrom('bills')
+        .select((eb) => ['table_session_id', eb.fn.min('finalised_at').as('at')])
+        .where('table_session_id', 'in', sessionIds)
+        .where('status', '=', 'finalised')
+        .groupBy('table_session_id')
+        .execute()
+    : [];
+  const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
   const requests = await loadServiceRequests(tx, outletId, rows.map((r) => r.id));
   // The next booking per table, from slightly in the past (late arrivals) to a few hours ahead.
   const upcoming = await tx.db
@@ -123,6 +143,8 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       merged_with: sid ? rows.filter((o) => o.current_session_id === sid && o.id !== r.id).map((o) => o.label) : [],
       open_orders: openCounts.find((c) => c.table_session_id === sid)?.n ?? 0,
       running_total_paise: Number(totals.find((t) => t.table_session_id === sid)?.total ?? 0),
+      last_served_at: live ? iso(lastServed.find((x) => x.table_session_id === sid)?.at) : null,
+      unpaid_bill_since: live ? iso(unpaidBills.find((x) => x.table_session_id === sid)?.at) : null,
       open_requests: requests.filter((q) => q.table_id === r.id),
       is_active: r.is_active,
       camera:

@@ -34,3 +34,35 @@ export function deriveTableState({ needsCleaning, session, orderStatuses, camera
   if (orderStatuses.some((s) => s === 'served' || s === 'billed')) return 'served';
   return 'occupied';
 }
+
+/** Food served this long ago with no bill asked for or printed is flagged on the floor. */
+export const NOT_BILLED_ALERT_MINUTES = 30;
+/** A bill asked for or printed this long ago and still unpaid is flagged on the floor. */
+export const NOT_PAID_ALERT_MINUTES = 20;
+
+export interface PaymentAlertInput {
+  /** When the last served-but-unbilled order on the table was served. */
+  lastServedAt: string | Date | null;
+  billRequestedAt: string | Date | null;
+  /** When the oldest printed, unpaid bill on the table was printed. */
+  unpaidBillSince: string | Date | null;
+  now?: Date;
+}
+
+/**
+ * Where money can walk out of the door: guests served a while ago that nobody has billed, or a
+ * bill that was asked for or printed and is still unpaid.
+ */
+export function paymentAlert({ lastServedAt, billRequestedAt, unpaidBillSince, now = new Date() }: PaymentAlertInput): { kind: 'not_billed' | 'not_paid'; minutes: number } | null {
+  const minutesSince = (t: string | Date) => Math.floor((now.getTime() - new Date(t).getTime()) / 60_000);
+  const pending = [billRequestedAt, unpaidBillSince].filter((t): t is string | Date => t != null).map(minutesSince);
+  if (pending.length > 0) {
+    const minutes = Math.max(...pending);
+    return minutes >= NOT_PAID_ALERT_MINUTES ? { kind: 'not_paid', minutes } : null;
+  }
+  if (lastServedAt) {
+    const minutes = minutesSince(lastServedAt);
+    if (minutes >= NOT_BILLED_ALERT_MINUTES) return { kind: 'not_billed', minutes };
+  }
+  return null;
+}

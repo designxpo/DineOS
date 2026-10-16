@@ -219,6 +219,18 @@ export async function loadOutlet(tx: Tx, outletId: string) {
 /** How long after a visit closes a phone from it counts as "was at this table earlier". */
 const RETURNING_DEVICE_WINDOW_MS = 12 * 3_600_000;
 
+/** Staff know these guests are really at the table: a waiter seated them, or an order was accepted. */
+async function visitVouchedFor(tx: Tx, session: { id: string; waiter_id: string | null; guest_count: number | null }): Promise<boolean> {
+  if (session.waiter_id || session.guest_count != null) return true;
+  const accepted = await tx.db
+    .selectFrom('orders')
+    .select('id')
+    .where('table_session_id', '=', session.id)
+    .where('status', 'not in', ['placed', 'rejected', 'cancelled'])
+    .executeTakeFirst();
+  return !!accepted;
+}
+
 export interface CreateOrderInput {
   outletId: string;
   type: OrderType;
@@ -260,8 +272,6 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
           .executeTakeFirst()
       : undefined;
     if (!prior) {
-      flagged = true;
-      flagReason = 'first_order_from_device';
       // A phone that ordered in an earlier visit at this table, now closed (a guest who paid and
       // left, still holding the page), waits for staff whatever the outlet's settings.
       const earlier = input.deviceId
@@ -276,8 +286,14 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
             .executeTakeFirst()
         : undefined;
       if (earlier) {
+        flagged = true;
         flagReason = 'returning_device';
         mustWait = true;
+      } else if (!(await visitVouchedFor(tx, session))) {
+        // Checked once per visit, not once per phone: a party of fifteen should not need fifteen
+        // approvals once staff know the table is real.
+        flagged = true;
+        flagReason = 'first_order_from_device';
       }
     }
   }

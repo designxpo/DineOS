@@ -115,8 +115,11 @@ function OrderingForm() {
         <Row title="Accept QR orders automatically" hint="Off: every guest order waits in the inbox for staff to accept. On: orders go straight to the kitchen.">
           <Switch label="Accept QR orders automatically" checked={outlet.auto_accept} onChange={(v) => void save({ auto_accept: v })} />
         </Row>
-        <Row title="Still check the first order from each new phone" hint="Stops prank orders while auto-accept is on. The order is flagged in the inbox.">
-          <Switch label="Check first order from new phones" checked={outlet.approve_flagged_orders} onChange={(v) => void save({ approve_flagged_orders: v })} />
+        <Row
+          title="Still check the first order at each table"
+          hint="Stops prank orders while auto-accept is on. Once staff accept one order at a table, or a waiter seats it, the other phones there go straight through. A phone that was at the table in an earlier visit is always checked."
+        >
+          <Switch label="Check the first order at each table" checked={outlet.approve_flagged_orders} onChange={(v) => void save({ approve_flagged_orders: v })} />
         </Row>
       </Card>
       <Card className="space-y-3 p-5">

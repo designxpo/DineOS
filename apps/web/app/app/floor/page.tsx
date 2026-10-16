@@ -5,6 +5,7 @@ import { BellRing, CalendarClock, Cctv, Link2, ReceiptIndianRupee, Users } from 
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
+import { paymentAlert } from '@dineos/shared/table-state';
 import { ago, formatPaise, minutesSince, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -79,13 +80,18 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
   const billAsked = table.open_requests.some((r) => r.kind === 'bill');
   // The camera sees people at a table nobody has opened yet.
   const waiting = !table.session && table.camera?.state === 'occupied' && table.camera.occupied_since ? minutesSince(table.camera.occupied_since) : null;
+  // Money that could walk out: served with no bill, or a bill left unpaid.
+  const money =
+    table.session?.status === 'open'
+      ? paymentAlert({ lastServedAt: table.last_served_at, billRequestedAt: table.session.bill_requested_at, unpaidBillSince: table.unpaid_bill_since })
+      : null;
   return (
     <button
       onClick={onOpen}
       className={cn(
         'relative flex min-h-32 cursor-pointer flex-col rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)]',
         style.tile,
-        (calling || (waiting !== null && waiting >= 3)) && 'animate-pulse-ring',
+        (calling || money || (waiting !== null && waiting >= 3)) && 'animate-pulse-ring',
       )}
       aria-label={`Table ${table.label}, ${style.label}`}
     >
@@ -125,6 +131,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}
         {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { n: Math.max(1, waiting) })}</p>}
+        {money && <p className="mt-1 font-semibold text-rose-700">{t(money.kind === 'not_billed' ? 'floor.not_billed' : 'floor.not_paid', { n: money.minutes })}</p>}
         {table.next_reservation && table.session?.status !== 'open' && (
           <div className="mt-1 text-sky-800">
             <p className="flex items-center gap-1 font-medium">

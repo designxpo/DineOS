@@ -190,6 +190,10 @@ export interface TableDTO {
   merged_with: string[];
   open_orders: number;
   running_total_paise: number;
+  /** When the last served order not yet on a bill was served (walkout watch). */
+  last_served_at: string | null;
+  /** When the oldest printed, still unpaid bill of this visit was printed (walkout watch). */
+  unpaid_bill_since: string | null;
   open_requests: ServiceRequestDTO[];
   is_active: boolean;
   /** Next booked reservation on this table today, within the next few hours. */

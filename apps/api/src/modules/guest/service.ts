@@ -12,7 +12,20 @@ import { lockLiveSession } from '../tables/sessions';
 
 export const MAX_CART_LINES = 50;
 /** Spec §6: rate-limit orders per table. */
-export const ORDER_LIMITS = { perSession10Min: 8, perDevicePerMinute: 3 };
+export const ORDER_LIMITS = { perSession10Min: 8, perGuest10Min: 2, perDevicePerMinute: 3 };
+
+/** Orders one table visit may send in ten minutes: 8, or two per guest for bigger parties. */
+async function visitOrderLimit(tx: Tx, sessionId: string): Promise<number> {
+  const visit = await tx.db.selectFrom('table_sessions').select('guest_count').where('id', '=', sessionId).executeTakeFirst();
+  // Joined tables all point at the party's visit, so their seats add up.
+  const seats = await tx.db
+    .selectFrom('tables')
+    .select((eb) => eb.fn.sum<number>('seats').as('seats'))
+    .where('current_session_id', '=', sessionId)
+    .executeTakeFirst();
+  const party = Math.max(visit?.guest_count ?? 0, Number(seats?.seats ?? 0));
+  return Math.max(ORDER_LIMITS.perSession10Min, ORDER_LIMITS.perGuest10Min * party);
+}
 
 export async function guestContext(tx: Tx, outletId: string, tableId: string): Promise<GuestContextDTO> {
   const row = await tx.db
@@ -224,7 +237,7 @@ export async function placeGuestOrder(tx: Tx, auth: GuestAuth, input: { line_ids
     .where('table_session_id', '=', auth.sessionId)
     .where('placed_at', '>', new Date(now - 10 * 60_000))
     .execute();
-  if (recent.length >= ORDER_LIMITS.perSession10Min) throw tooMany('Too many orders from this table. Please call a waiter.');
+  if (recent.length >= (await visitOrderLimit(tx, auth.sessionId))) throw tooMany('Too many orders from this table. Please call a waiter.');
   const lastMinute = recent.filter((o) => o.device_id === auth.deviceId && o.placed_at.getTime() > now - 60_000);
   if (lastMinute.length >= ORDER_LIMITS.perDevicePerMinute) throw tooMany('Please wait a moment before ordering again.');
 

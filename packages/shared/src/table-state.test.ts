@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveTableState } from './table-state';
+import { deriveTableState, paymentAlert } from './table-state';
 
 const now = new Date('2026-10-15T20:00:00Z');
 const at = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * 60_000).toISOString();
@@ -29,5 +29,24 @@ describe('table state', () => {
     expect(deriveTableState({ needsCleaning: true, session: null, orderStatuses: [], camera: cam('vacant'), now })).toBe('needs_cleaning');
     // Old readings are ignored.
     expect(deriveTableState({ needsCleaning: false, session: null, orderStatuses: [], camera: cam('occupied', 20), now })).toBe('vacant');
+  });
+});
+
+describe('payment alerts (walkouts)', () => {
+  const alert = (lastServedAt: string | null, billRequestedAt: string | null = null, unpaidBillSince: string | null = null) =>
+    paymentAlert({ lastServedAt, billRequestedAt, unpaidBillSince, now });
+
+  it('flags food served a while ago that nobody has billed', () => {
+    expect(alert(at(10))).toBeNull();
+    expect(alert(at(35))).toEqual({ kind: 'not_billed', minutes: 35 });
+    expect(alert(null)).toBeNull();
+  });
+
+  it('flags a bill asked for or printed that stays unpaid, and stays quiet while the cashier is on it', () => {
+    expect(alert(at(50), at(5))).toBeNull();
+    expect(alert(at(50), at(25))).toEqual({ kind: 'not_paid', minutes: 25 });
+    expect(alert(null, null, at(22))).toEqual({ kind: 'not_paid', minutes: 22 });
+    // The earlier of the two starts the clock.
+    expect(alert(null, at(5), at(30))).toEqual({ kind: 'not_paid', minutes: 30 });
   });
 });

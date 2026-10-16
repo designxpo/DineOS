@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, InvoiceDTO, OrderDTO } from '@dineos/shared/dto';
+import type { BillDTO, InvoiceDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import { nextCounter } from '../src/lib/counters';
+import { closeSession } from '../src/modules/tables/sessions';
 import {
   addStaff,
   api,
@@ -28,6 +29,8 @@ beforeAll(async () => {
   owner = api(t, tenant.ownerToken);
   cashier = api(t, (await addStaff(t, tenant, 'cashier')).token);
   manager = await addStaff(t, tenant, 'manager', { pin: '1357' });
+  // Some cases need a guest order that staff have not accepted yet.
+  await setOutlet(t, tenant.outletId, { auto_accept: false });
 });
 afterAll(() => t.close());
 
@@ -257,5 +260,44 @@ describe('bills', () => {
     const waiter = api(t, (await addStaff(t, tenant, 'waiter')).token);
     const { sessionId } = await dineIn('B9', lines());
     expect((await waiter({ method: 'POST', url: '/v1/bills', payload: { table_session_id: sessionId } })).statusCode).toBe(403);
+  });
+});
+
+describe('walkout watch', () => {
+  async function floorTable(tableId: string): Promise<TableDTO> {
+    const res = await cashier({ method: 'GET', url: `/v1/tables?outlet_id=${tenant.outletId}` });
+    return res.json().find((x: TableDTO) => x.id === tableId);
+  }
+
+  it('tells the floor when served food has no bill, and since when a printed bill is unpaid', async () => {
+    const { order, tableId, sessionId } = await dineIn('W1', [{ item_id: menu.paneerTikka, qty: 1 }]);
+    expect(await floorTable(tableId)).toMatchObject({ last_served_at: null, unpaid_bill_since: null });
+
+    expect((await cashier({ method: 'PATCH', url: `/v1/orders/${order.id}/status`, payload: { status: 'served' } })).statusCode).toBe(200);
+    const served = await floorTable(tableId);
+    expect(served.last_served_at).not.toBeNull();
+    expect(served.unpaid_bill_since).toBeNull();
+
+    const bill = await openBill(sessionId);
+    expect((await cashier({ method: 'POST', url: `/v1/bills/${bill.id}/finalise` })).statusCode).toBe(200);
+    const printed = await floorTable(tableId);
+    expect(printed.last_served_at).toBeNull(); // everything served is on the bill now
+    expect(printed.unpaid_bill_since).not.toBeNull();
+  });
+
+  it('lists orders that were never billed at day end', async () => {
+    const { order, sessionId } = await dineIn('W2', [{ item_id: menu.paneerTikka, qty: 2 }]);
+    await cashier({ method: 'PATCH', url: `/v1/orders/${order.id}/status`, payload: { status: 'served' } });
+    // The table is cleared without a bill: a walkout, or a bill someone forgot.
+    await t.ctx.tx(tenant.tenantId, (tx) => closeSession(tx, sessionId, 'staff'));
+    const { order: stillEating } = await dineIn('W3', [{ item_id: menu.paneerTikka, qty: 1 }]);
+
+    const d = (await owner({ method: 'GET', url: `/v1/reports/day-end?outlet_id=${tenant.outletId}` })).json();
+    expect(d.unbilled_orders.find((u: { order_id: string }) => u.order_id === order.id)).toMatchObject({
+      table_label: 'W2',
+      table_open: false,
+      amount_paise: order.subtotal_paise,
+    });
+    expect(d.unbilled_orders.find((u: { order_id: string }) => u.order_id === stillEating.id)).toMatchObject({ table_label: 'W3', table_open: true });
   });
 });

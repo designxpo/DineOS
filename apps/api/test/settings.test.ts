@@ -20,12 +20,13 @@ describe('outlet settings', () => {
     const res = await owner({
       method: 'PATCH',
       url: `/v1/outlets/${tenant.outletId}`,
-      payload: { auto_accept: true, service_charge_bp: 500, upi_vpa: 'courtyard@okhdfc', upi_payee_name: 'The Courtyard', kitchen_stations: ['kitchen', 'bar', 'tandoor'] },
+      payload: { auto_accept: false, service_charge_bp: 500, upi_vpa: 'courtyard@okhdfc', upi_payee_name: 'The Courtyard', kitchen_stations: ['kitchen', 'bar', 'tandoor'] },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ auto_accept: true, service_charge_bp: 500, kitchen_stations: ['kitchen', 'bar', 'tandoor'] });
+    expect(res.json()).toMatchObject({ auto_accept: false, service_charge_bp: 500, kitchen_stations: ['kitchen', 'bar', 'tandoor'] });
     const log = (await owner({ method: 'GET', url: `/v1/audit?outlet_id=${tenant.outletId}&entity=outlet` })).json();
-    expect(log[0].before).toMatchObject({ auto_accept: false, service_charge_bp: 0 });
+    // New outlets accept QR orders automatically.
+    expect(log[0].before).toMatchObject({ auto_accept: true, service_charge_bp: 0 });
   });
 
   it('refuses to remove a station that menu items still use', async () => {

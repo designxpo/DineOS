@@ -21,6 +21,8 @@ beforeAll(async () => {
   kitchen = api(t, (await addStaff(t, tenant, 'kitchen')).token);
   waiter = api(t, (await addStaff(t, tenant, 'waiter')).token);
   manager = await addStaff(t, tenant, 'manager', { pin: '1122' });
+  // Stock follows guest orders through manual acceptance here.
+  await setOutlet(t, tenant.outletId, { auto_accept: false });
 });
 afterAll(() => t.close());
 

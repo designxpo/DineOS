@@ -321,6 +321,29 @@ export async function dayEnd(tx: Tx, r: Range) {
     .where('outlet_id', '=', r.outletId)
     .where('status', '=', 'finalised')
     .executeTakeFirstOrThrow();
+  // Food the kitchen accepted that never reached a bill: a table still eating, a forgotten bill,
+  // or a walkout when the table has already been cleared.
+  const unbilled = await tx.db
+    .selectFrom('orders')
+    .innerJoin('order_items', 'order_items.order_id', 'orders.id')
+    .leftJoin('table_sessions', 'table_sessions.id', 'orders.table_session_id')
+    .leftJoin('tables', 'tables.id', 'table_sessions.table_id')
+    .select((eb) => [
+      'orders.id',
+      'orders.type',
+      'orders.placed_at',
+      'tables.label',
+      'table_sessions.status as session_status',
+      eb.fn.sum<number>(eb('order_items.qty', '*', eb.ref('order_items.unit_price_paise'))).as('amount_paise'),
+    ])
+    .where('orders.outlet_id', '=', r.outletId)
+    .where('orders.business_date', '>=', r.from)
+    .where('orders.business_date', '<=', r.to)
+    .where('orders.status', 'in', ['accepted', 'preparing', 'ready', 'served'])
+    .where('order_items.status', '<>', 'cancelled')
+    .groupBy(['orders.id', 'orders.type', 'orders.placed_at', 'tables.label', 'table_sessions.status'])
+    .orderBy('orders.placed_at')
+    .execute();
   const cash = sales.payments.find((p) => p.method === 'cash');
   return {
     date: r.from === r.to ? r.from : null,
@@ -336,6 +359,14 @@ export async function dayEnd(tx: Tx, r: Range) {
     refunds: refunds.map((x) => ({ invoice_no: x.invoice_no, method: x.method, amount_paise: x.amount_paise, reason: x.reason })),
     orders_by_status: Object.fromEntries(orders.map((o) => [o.status, n(o.count)])),
     open_bills: { count: n(openBills.count), balance_paise: n(openBills.balance_paise) },
+    unbilled_orders: unbilled.map((u) => ({
+      order_id: u.id,
+      type: u.type,
+      placed_at: u.placed_at.toISOString(),
+      table_label: u.label,
+      table_open: u.session_status != null && u.session_status !== 'closed',
+      amount_paise: n(u.amount_paise),
+    })),
     top_items: (await itemSales(tx, r, 10)),
   };
 }

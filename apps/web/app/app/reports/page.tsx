@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight, Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { CameraDTO } from '@dineos/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
-import { formatPaise, formatRate, todayIst } from '@/lib/format';
+import { dateTime, formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -526,6 +526,12 @@ function DayEnd({ data }: { data: any }) {
         <Table title="Discounts" head={['Invoice', 'Amount', 'Reason']} rows={data.discounts.map((d: any) => [d.invoice_no, formatPaise(d.discount_paise), d.reason ?? ''])} empty="No discounts" />
         <Table title="Refunds" head={['Invoice', 'Method', 'Amount', 'Reason']} rows={data.refunds.map((r: any) => [r.invoice_no, r.method, formatPaise(r.amount_paise), r.reason ?? ''])} empty="No refunds" />
         <Table title="Orders" head={['Status', 'Count']} rows={Object.entries(data.orders_by_status).map(([k, v]) => [k, String(v)])} />
+        <Table
+          title="Never billed"
+          head={['Table', 'Ordered', 'Amount', 'Now']}
+          rows={data.unbilled_orders.map((u: any) => [u.table_label ?? u.type, dateTime(u.placed_at), formatPaise(u.amount_paise), u.table_open ? 'Table still open' : 'Table cleared, no bill'])}
+          empty="Everything served was billed"
+        />
       </div>
       <p className="text-sm text-ink-faint">
         Invoices {data.invoices.first ?? '—'} to {data.invoices.last ?? '—'} ({data.invoices.count})
