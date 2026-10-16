@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["syd1"],
+  "services": {
+    "web": {
+      "root": "apps/web",
+      "framework": "nextjs"
+    },
+    "api": {
+      "root": "apps/api",
+      "framework": "fastify",
+      "entrypoint": "src/server.ts"
+    }
+  },
+  "rewrites": [
+    { "source": "/v1/(.*)", "destination": { "service": "api" } },
+    { "source": "/socket.io/(.*)", "destination": { "service": "api" } },
+    { "source": "/healthz", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
+  "crons": [{ "path": "/v1/internal/maintenance", "schedule": "30 21 * * *" }]
+}

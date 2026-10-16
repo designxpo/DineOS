@@ -4,7 +4,7 @@
 
 import { computeBill } from '@dineos/shared/billing';
 import type { ItemStatus, OrderStatus } from '@dineos/shared/enums';
-import type { HubBill, HubOrder, HubSession, HubSyncPayload, HubSyncResult } from '@dineos/shared/hub';
+import { groupSyncPayload, type HubBill, type HubOrder, type HubSession, type HubSyncGroup, type HubSyncPayload, type HubSyncResult } from '@dineos/shared/hub';
 import { canItemTransition, canTransition } from '@dineos/shared/order-state';
 import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
@@ -19,36 +19,6 @@ import { closeSession, refreshTableStates } from '../tables/sessions';
 
 const STATUS_RANK: Record<OrderStatus, number> = { placed: 0, accepted: 1, preparing: 2, ready: 3, served: 4, billed: 5, rejected: 9, cancelled: 9 };
 const HUB_INVOICE = /^[A-Z0-9]{1,4}H\/(\d{4})\/(\d{5})$/;
-
-interface Group {
-  session?: HubSession;
-  orders: HubOrder[];
-  bills: HubBill[];
-}
-
-/** Visits first (session + its orders and bills), then loose orders, then loose bills. */
-export function groupPayload(p: HubSyncPayload): Group[] {
-  const groups: Group[] = [];
-  const usedOrders = new Set<string>();
-  const usedBills = new Set<string>();
-  // Closed visits first: a table the hub cleared and reseated must be released before the new
-  // visit is attached, or the old visit's orders would be folded into the new one.
-  const sessions = [...p.sessions].sort((a, b) => Number(a.status === 'open') - Number(b.status === 'open'));
-  for (const session of sessions) {
-    const orders = p.orders.filter((o) => o.table_session_id === session.id);
-    const bills = p.bills.filter((b) => b.table_session_id === session.id);
-    orders.forEach((o) => usedOrders.add(o.id));
-    bills.forEach((b) => usedBills.add(b.id));
-    groups.push({ session, orders, bills });
-  }
-  for (const order of p.orders.filter((o) => !usedOrders.has(o.id))) {
-    const bills = p.bills.filter((b) => !usedBills.has(b.id) && b.order_id === order.id);
-    bills.forEach((b) => usedBills.add(b.id));
-    groups.push({ orders: [order], bills });
-  }
-  for (const bill of p.bills.filter((b) => !usedBills.has(b.id))) groups.push({ orders: [], bills: [bill] });
-  return groups;
-}
 
 async function upsertSession(tx: Tx, outletId: string, s: HubSession): Promise<void> {
   const table = await tx.db.selectFrom('tables').select(['id']).where('id', '=', s.table_id).where('outlet_id', '=', outletId).executeTakeFirst();
@@ -342,7 +312,7 @@ async function upsertBill(tx: Tx, outlet: { id: string; prices_include_tax: bool
   return { newlyPaid };
 }
 
-async function applyGroup(tx: Tx, outlet: { id: string; prices_include_tax: boolean }, g: Group, userId: string | null): Promise<string[]> {
+async function applyGroup(tx: Tx, outlet: { id: string; prices_include_tax: boolean }, g: HubSyncGroup, userId: string | null): Promise<string[]> {
   const touchedTables = new Set<string>();
   if (g.session) await upsertSession(tx, outlet.id, g.session);
   for (const o of g.orders) await upsertOrder(tx, outlet.id, o);
@@ -386,7 +356,7 @@ export async function ingestHubSync(ctx: AppContext, auth: { tenantId: string; o
   const result: HubSyncResult = { applied: { sessions: [], orders: [], bills: [], tables: [] }, failed: [] };
   const outlet = await ctx.tx(auth.tenantId, (tx) => tx.db.selectFrom('outlets').select(['id', 'prices_include_tax']).where('id', '=', auth.outletId).executeTakeFirstOrThrow());
 
-  for (const g of groupPayload(payload)) {
+  for (const g of groupSyncPayload(payload)) {
     try {
       await ctx.tx(auth.tenantId, (tx) => applyGroup(tx, outlet, g, g.orders[0]?.created_by ?? null));
       if (g.session) result.applied.sessions.push(g.session.id);

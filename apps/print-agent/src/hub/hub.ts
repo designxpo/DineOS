@@ -5,7 +5,7 @@
 //            payments carry on, printed straight to the outlet's printers
 //   back:    sends everything to the cloud (retrying until accepted), then follows the cloud again
 
-import type { HubSnapshot, HubSyncResult } from '@dineos/shared/hub';
+import { batchSyncPayload, type HubSnapshot, type HubSyncResult } from '@dineos/shared/hub';
 import { PrintAgent, type PrinterConfig, type Transport } from '../agent';
 import { emptyState, HubEngine, type HubState } from './engine';
 import { HubServer } from './server';
@@ -149,7 +149,20 @@ export class OutletHub {
   /** Sends what changed offline. Accepted items are marked; refused ones stay listed in status. */
   async sync(): Promise<HubSyncResult> {
     const { payload, revs } = this.engine.buildSyncPayload();
-    const result = await this.cloud<HubSyncResult>('POST', '/v1/device/hub/sync', payload, 60_000);
+    const result: HubSyncResult = { applied: { sessions: [], orders: [], bills: [], tables: [] }, failed: [] };
+    // In batches small enough for hosted platforms' request limits, oldest visits first.
+    for (const batch of batchSyncPayload(payload)) {
+      let part: HubSyncResult;
+      try {
+        part = await this.cloud<HubSyncResult>('POST', '/v1/device/hub/sync', batch, 60_000);
+      } catch (err) {
+        // Keep what already landed; the rest goes on the next attempt.
+        if (result.applied.sessions.length + result.applied.orders.length + result.applied.bills.length) this.engine.markSynced(result, revs);
+        throw err;
+      }
+      for (const key of ['sessions', 'orders', 'bills', 'tables'] as const) result.applied[key].push(...part.applied[key]);
+      result.failed.push(...part.failed);
+    }
     this.engine.markSynced(result, revs);
     const n = result.applied.orders.length + result.applied.bills.length + result.applied.sessions.length;
     this.log(`synced ${n} change(s) to the cloud${result.failed.length ? `; ${result.failed.length} refused: ${result.failed.map((f) => f.message).join('; ')}` : ''}`);

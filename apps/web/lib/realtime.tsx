@@ -50,7 +50,7 @@ export function RealtimeProvider({ token, outletId, children }: { token: string;
 
   useEffect(() => {
     lastSeq.current = null;
-    const socket: Socket = io(`${apiBase()}/staff`, { auth: { token }, transports: ['websocket', 'polling'], reconnectionDelayMax: 5000 });
+    const socket: Socket = io(`${apiBase()}/staff`, { auth: { token }, transports: ['websocket'], reconnectionDelayMax: 5000 });
 
     const deliver = (e: OutletEvent) => {
       if (lastSeq.current !== null && e.seq <= lastSeq.current) return; // duplicate

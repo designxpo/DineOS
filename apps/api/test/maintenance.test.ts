@@ -44,4 +44,19 @@ describe('maintenance', () => {
     const left = await t.ctx.adminDb.selectFrom('outlet_events').select('seq').where('outlet_id', '=', tenant.outletId).where('seq', '>', 900000).execute();
     expect(left.map((r) => r.seq)).toEqual([900002]);
   });
+
+  it('runs from the cron endpoint only when a secret is configured and sent', async () => {
+    expect((await t.app.inject({ method: 'GET', url: '/v1/internal/maintenance' })).statusCode).toBe(404);
+    const cron = await startApp({ CRON_SECRET: 'cron-secret-for-tests-1234' });
+    try {
+      const call = (authorization?: string) => cron.app.inject({ method: 'GET', url: '/v1/internal/maintenance', headers: authorization ? { authorization } : {} });
+      expect((await call()).statusCode).toBe(401);
+      expect((await call('Bearer wrong-secret-for-tests-99')).statusCode).toBe(401);
+      const ok = await call('Bearer cron-secret-for-tests-1234');
+      expect(ok.statusCode).toBe(200);
+      expect(ok.json()).toMatchObject({ ran: expect.any(Boolean) });
+    } finally {
+      await cron.close();
+    }
+  });
 });

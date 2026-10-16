@@ -10,6 +10,7 @@ import events from './events/routes';
 import guest from './guest/routes';
 import hub from './hub/routes';
 import inventory from './inventory/routes';
+import maintenance from './maintenance/routes';
 import menu from './menu/routes';
 import orders from './orders/routes';
 import outlets from './outlets/routes';
@@ -43,4 +44,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   events,
   vision,
   reconciliation,
+  maintenance,
 };

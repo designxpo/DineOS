@@ -51,7 +51,7 @@ class S3Storage implements Storage {
     const c = this.config;
     const client = new S3Client({
       endpoint: c.S3_ENDPOINT,
-      region: 'us-east-1',
+      region: c.S3_REGION,
       forcePathStyle: true,
       credentials: { accessKeyId: c.S3_ACCESS_KEY ?? '', secretAccessKey: c.S3_SECRET_KEY ?? '' },
     });

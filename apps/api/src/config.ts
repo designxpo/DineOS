@@ -26,6 +26,8 @@ const schema = z.object({
   GUEST_URL_TEMPLATE: z.string().default('http://localhost:3000/t/{token}'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   REDIS_URL: z.string().optional(),
+  /** Lets Vercel Cron (or any scheduler) run housekeeping through GET /v1/internal/maintenance. */
+  CRON_SECRET: z.string().min(16).optional(),
   /** Joins per minute per IP (guests on one restaurant Wi-Fi share an IP). Raised for load tests. */
   GUEST_JOIN_RATE_LIMIT: z.coerce.number().int().min(1).default(120),
   /** Requests per minute per token or IP for everything else. */
@@ -34,6 +36,8 @@ const schema = z.object({
   STORAGE_DIR: z.string().default('./storage'),
   PUBLIC_API_URL: z.string().default('http://localhost:4000'),
   S3_ENDPOINT: z.string().optional(),
+  /** Supabase Storage checks it: use the project's region, e.g. ap-southeast-2. */
+  S3_REGION: z.string().default('us-east-1'),
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
@@ -46,6 +50,8 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   loadEnvFile();
   const env = { ...process.env, ...overrides };
   for (const key of Object.keys(env)) if (env[key] === '') delete env[key];
+  // The Vercel Marketplace Redis integration may name its connection string KV_URL.
+  env.REDIS_URL ??= env.KV_URL;
   const parsed = schema.parse(env);
   return {
     ...parsed,

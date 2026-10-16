@@ -27,6 +27,39 @@ The database can be a Supabase project's Postgres; DineOS uses it as plain Postg
 
 Migration 0013 removes every privilege Supabase gives its Data API roles (`anon`, `authenticated`) in schema public, so the publishable key cannot read or call anything; 0014 matches Supabase's automatic RLS on platform tables. In the Supabase dashboard you can also turn the Data API off entirely. Pick the **Mumbai (ap-south-1)** region for real customer data: the spec asks for India-region hosting.
 
+### Vercel (web and API as one project)
+
+`vercel.json` deploys two services on one domain: `web` (Next.js) serves every page, and `api` (Fastify) receives `/v1/*`, `/socket.io/*` and `/healthz`. The database stays on Supabase. The print agent, outlet hub and camera box still run inside the restaurant; point their `DINEOS_API_URL` at the site's address.
+
+1. Import the GitHub repository in Vercel. Keep the project's Root Directory empty: `vercel.json` sits at the repo root.
+2. Add Redis from the Vercel Marketplace (Upstash). Live updates reach screens connected to other instances through it; the API reads `REDIS_URL` (or `KV_URL`).
+3. In Supabase, create a **public** Storage bucket (e.g. `dineos`) for menu photos and logos, and an S3 access key (Storage → S3 Connection).
+4. Set these environment variables in the Vercel project:
+
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL`, `DATABASE_ADMIN_URL` | The transaction-pooler URLs from `.env.supabase.local` |
+   | `TOKEN_SECRET` | The same value as before; it signs printed QR codes |
+   | `GUEST_URL_TEMPLATE` | `https://<your-domain>/t/{token}` |
+   | `CORS_ORIGINS`, `PUBLIC_API_URL` | `https://<your-domain>` |
+   | `CRON_SECRET` | 16+ random characters; Vercel Cron sends it to `/v1/internal/maintenance` |
+   | `STORAGE_DRIVER` | `s3` |
+   | `S3_ENDPOINT` | `https://<project-ref>.storage.supabase.co/storage/v1/s3` |
+   | `S3_REGION` | The Supabase project's region, e.g. `ap-southeast-2` |
+   | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | The bucket and key from step 3 |
+   | `S3_PUBLIC_URL` | `https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>` |
+
+   Leave `NEXT_PUBLIC_API_URL` unset: the web app then calls the API on its own domain (the production domain, or a preview's own address). Scope the database variables to Production unless previews should share live data.
+5. Keep `regions` in `vercel.json` next to the database (`syd1` for a Sydney project, `bom1` for Mumbai): every request makes several queries.
+6. Run migrations from your machine as before (`DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate`); deployments never change the schema.
+
+How the API behaves on Vercel:
+
+- **Live updates** use Vercel's WebSocket support (beta). A connection closes when the function reaches its time limit (5 minutes on Hobby, up to 800 seconds on Pro); screens reconnect and fetch what they missed, so nothing is lost.
+- **Housekeeping** runs at most hourly from normal traffic, plus a daily cron at about 3 am IST (Hobby allows one run a day; on Pro you can change the schedule in `vercel.json` to `0 * * * *`).
+- **Request bodies** are capped at 4.5 MB. Menu photos are resized in the browser; the hub sends offline changes in batches of about 3 MB; bank statements over about 3 MB need splitting.
+- Vercel's Hobby plan is for non-commercial use. Move to Pro before charging restaurants.
+
 ### Scaling
 
 - More API capacity: run several `api` containers (`docker compose up -d --scale api=3`). Redis carries live events between them, and the hourly maintenance job runs on only one, using an advisory lock.

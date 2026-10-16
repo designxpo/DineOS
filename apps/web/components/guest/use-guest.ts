@@ -102,7 +102,7 @@ export function useGuest(qr: string) {
   // 4. Live updates for this table's session.
   useEffect(() => {
     if (!token || phase !== 'ready') return;
-    const socket = io(`${API_URL}/guest`, { auth: { token }, transports: ['websocket', 'polling'], reconnectionDelayMax: 5000 });
+    const socket = io(`${API_URL}/guest`, { auth: { token }, transports: ['websocket'], reconnectionDelayMax: 5000 });
     let wasOffline = false;
     socket.on('connect', () => {
       setOnline(true);

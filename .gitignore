@@ -23,3 +23,5 @@ edge/vision-worker/cameras.json
 edge/vision-worker/models/
 edge/vision-worker/frames/
 __pycache__/
+.vercel
+.env.local

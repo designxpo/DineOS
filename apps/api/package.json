@@ -17,11 +17,13 @@
     "tenant:purge": "tsx src/scripts/purge-tenant.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
     "@dineos/shared": "*",
     "@fastify/cors": "^11.3.1",
     "@fastify/multipart": "^10.1.4",
     "@fastify/rate-limit": "^11.2.1",
     "@socket.io/redis-adapter": "^8.3.0",
+    "@vercel/functions": "^3.10.1",
     "exceljs": "^4.4.0",
     "fastify": "^5.12.7",
     "fastify-plugin": "^6.0.1",

@@ -4,9 +4,13 @@ import type { NextConfig } from 'next';
 // Monorepo root: standalone output must include the hoisted node_modules and @dineos/shared.
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// On Vercel the API shares the site's domain (vercel.json routes /v1 and /socket.io to it), so the
+// default is the production domain, or the preview's own address. Elsewhere, set it explicitly.
+const vercelHost = process.env.VERCEL_ENV === 'production' ? process.env.VERCEL_PROJECT_PRODUCTION_URL : process.env.VERCEL_URL;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || (vercelHost ? `https://${vercelHost}` : 'http://localhost:4000');
 
 const config: NextConfig = {
+  env: { NEXT_PUBLIC_API_URL: apiUrl },
   transpilePackages: ['@dineos/shared'],
   output: 'standalone',
   outputFileTracingRoot: repoRoot,

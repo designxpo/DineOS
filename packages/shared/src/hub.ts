@@ -184,6 +184,63 @@ export interface HubSyncResult {
   failed: { kind: 'session' | 'order' | 'bill' | 'table'; id: string; message: string }[];
 }
 
+/** One table visit, takeaway order or lone bill: the unit the cloud applies in one transaction. */
+export interface HubSyncGroup {
+  session?: HubSession;
+  orders: HubOrder[];
+  bills: HubBill[];
+}
+
+export function groupSyncPayload(p: HubSyncPayload): HubSyncGroup[] {
+  const groups: HubSyncGroup[] = [];
+  const usedOrders = new Set<string>();
+  const usedBills = new Set<string>();
+  // Closed visits first: a table the hub cleared and reseated must be released before the new
+  // visit is attached, or the old visit's orders would be folded into the new one.
+  const sessions = [...p.sessions].sort((a, b) => Number(a.status === 'open') - Number(b.status === 'open'));
+  for (const session of sessions) {
+    const orders = p.orders.filter((o) => o.table_session_id === session.id);
+    const bills = p.bills.filter((b) => b.table_session_id === session.id);
+    orders.forEach((o) => usedOrders.add(o.id));
+    bills.forEach((b) => usedBills.add(b.id));
+    groups.push({ session, orders, bills });
+  }
+  for (const order of p.orders.filter((o) => !usedOrders.has(o.id))) {
+    const bills = p.bills.filter((b) => !usedBills.has(b.id) && b.order_id === order.id);
+    bills.forEach((b) => usedBills.add(b.id));
+    groups.push({ orders: [order], bills });
+  }
+  for (const bill of p.bills.filter((b) => !usedBills.has(b.id))) groups.push({ orders: [], bills: [bill] });
+  return groups;
+}
+
+/**
+ * Splits a sync into requests of at most `maxBytes` of JSON, because hosted platforms cap request
+ * bodies (Vercel at 4.5 MB). Groups stay whole and in order, so the cloud applies them exactly as
+ * it would one big request; table flags travel with the last request.
+ */
+export function batchSyncPayload(p: HubSyncPayload, maxBytes = 3_000_000): HubSyncPayload[] {
+  const encoder = new TextEncoder();
+  const batches: HubSyncPayload[] = [];
+  let current: HubSyncPayload = { sessions: [], orders: [], bills: [], tables: [] };
+  let size = 0;
+  for (const group of groupSyncPayload(p)) {
+    const bytes = encoder.encode(JSON.stringify(group)).length;
+    if (size > 0 && size + bytes > maxBytes) {
+      batches.push(current);
+      current = { sessions: [], orders: [], bills: [], tables: [] };
+      size = 0;
+    }
+    if (group.session) current.sessions.push(group.session);
+    current.orders.push(...group.orders);
+    current.bills.push(...group.bills);
+    size += bytes;
+  }
+  current.tables = p.tables;
+  batches.push(current);
+  return batches;
+}
+
 /** Offline series: PREFIX + H, e.g. AGCH/2627/00012. Still at most 16 characters. */
 export function formatHubInvoiceNo(prefix: string, fyCode: string, seq: number): string {
   return `${prefix}H/${fyCode}/${String(seq).padStart(5, '0')}`;
