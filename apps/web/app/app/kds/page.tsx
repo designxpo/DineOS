@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { usePersistedQuery } from '@/lib/persisted-query';
-import { ArrowLeft, Bell, BellOff, ChefHat, Maximize, StickyNote } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, ChefHat, LogOut, Maximize, StickyNote } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
@@ -20,12 +20,17 @@ import { cn } from '@/components/ui/cn';
 import { VegMark } from '@/components/ui/primitives';
 import { OutboxBadge } from '@/components/staff/outbox-panel';
 import { StaleBanner } from '@/components/staff/stale-banner';
+import { useSignOut } from '@/components/staff/sign-out';
+import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
 
 const NEXT: Partial<Record<ItemStatus, ItemStatus>> = { accepted: 'preparing', preparing: 'ready' };
 
 export default function KdsPage() {
-  const { api, token, outletId, outlet, can } = useStaff();
+  const { api, token, outletId, outlet, can, me } = useStaff();
+  // A wall-mounted screen stops showing orders when signed out, so a stray tap asks first.
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const { signOut, dialog: unsyncedDialog } = useSignOut();
   const { t, lang, setLang } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
@@ -123,8 +128,28 @@ export default function KdsPage() {
           <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="grid size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
             <Maximize className="size-5" />
           </button>
+          <button
+            onClick={() => setConfirmSignOut(true)}
+            aria-label={t('nav.signout')}
+            title={`${t('nav.signout')} · ${me.user.name}`}
+            className="grid size-10 cursor-pointer place-items-center rounded-xl text-stone-300 transition hover:bg-stone-800 active:scale-90"
+          >
+            <LogOut className="size-5" />
+          </button>
         </div>
       </header>
+      <ConfirmDialog
+        open={confirmSignOut}
+        onClose={() => setConfirmSignOut(false)}
+        title={t('kds.signout_title')}
+        description={t('kds.signout_hint', { name: me.user.name })}
+        confirmLabel={t('nav.signout')}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          void signOut();
+        }}
+      />
+      {unsyncedDialog}
 
       <div className="pt-3">
         <StaleBanner show={kds.stale} dark />

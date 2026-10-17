@@ -24,7 +24,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Action } from '@dineos/shared/permissions';
-import { discard, flush, listQueued } from '@/lib/outbox';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -32,9 +31,9 @@ import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
-import { ConfirmDialog } from '@/components/ui/overlay';
 import { HubModeBanner, HubSwitchBanner } from './offline-hub';
-import { OutboxBadge, useOutboxState } from './outbox-panel';
+import { OutboxBadge } from './outbox-panel';
+import { useSignOut } from './sign-out';
 
 interface NavItem {
   href: string;
@@ -80,38 +79,14 @@ export function homeFor(can: (a: Action) => boolean): string {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { me, outletId, outlet, setOutletId, can, logout, token } = useStaff();
+  const { me, outletId, outlet, setOutletId, can } = useStaff();
   const { t, lang, setLang } = useI18n();
   const pathname = usePathname();
   const connection = useConnection();
-  const { pending } = useOutboxState();
   const [open, setOpen] = useState(false);
-  const [unsynced, setUnsynced] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   useLowStockAlerts(can('inventory.record'));
-
-  // Signing out revokes this session, so changes still waiting on this device would be lost.
-  const signOut = async () => {
-    if (pending > 0) {
-      await flush(token);
-      if ((await listQueued()).length > 0) return setUnsynced(true);
-    }
-    await logout();
-  };
-  const signOutAnyway = async () => {
-    for (const q of await listQueued()) await discard(q.key);
-    await logout();
-  };
-  const unsyncedDialog = (
-    <ConfirmDialog
-      open={unsynced}
-      onClose={() => setUnsynced(false)}
-      title="Changes not sent yet"
-      description={`${pending} change${pending === 1 ? ' is' : 's are'} saved on this device but could not reach the server. Stay signed in until the internet is back, or sign out and lose ${pending === 1 ? 'it' : 'them'}.`}
-      confirmLabel="Sign out anyway"
-      onConfirm={() => void signOutAnyway()}
-    />
-  );
+  const { signOut, dialog: unsyncedDialog } = useSignOut();
 
   const items = NAV.filter((n) => can(n.action));
   // Kitchen display is a full-screen tool.
