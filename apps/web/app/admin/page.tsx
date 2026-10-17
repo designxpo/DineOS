@@ -225,6 +225,7 @@ function TenantDetail({ api, id, onClose }: { api: Api; id: string; onClose: () 
             ))}
           </Select>
         </div>
+        <WhiteLabelSwitch tenant={t} plan={(plans.data ?? []).find((p) => p.code === t.plan_code)} onChange={(white_label) => void patch({ white_label }, white_label === null ? 'Brand follows the plan' : white_label ? 'Brand on for this restaurant' : 'Brand off for this restaurant')} />
         <div>
           <p className="mb-1 font-medium">Owners</p>
           {data.owners.map((o: any) => (
@@ -395,12 +396,32 @@ function Plans({ api }: { api: Api }) {
 function PlanCard({ plan, onSave }: { plan: any; onSave: (price: number, features: object) => void }) {
   const [price, setPrice] = useState(rupeesInput(plan.price_paise));
   const [features, setFeatures] = useState(JSON.stringify(plan.features, null, 2));
+  const parsed = (() => {
+    try {
+      return JSON.parse(features) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  })();
   return (
     <Card className="space-y-3 p-4">
       <p className="font-semibold">
         {plan.name} <span className="text-xs text-ink-faint">({plan.code})</span>
       </p>
       <Field label="Price per month (₹)">{(id) => <Input id={id} value={price} onChange={(e) => setPrice(e.target.value)} />}</Field>
+      <label className="flex items-start gap-3 rounded-xl bg-stone-50 p-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-[var(--brand)]"
+          checked={parsed?.white_label === true}
+          disabled={!parsed}
+          onChange={(e) => parsed && setFeatures(JSON.stringify({ ...parsed, white_label: e.target.checked }, null, 2))}
+        />
+        <span>
+          Restaurant&apos;s own brand (white label)
+          <span className="block text-xs text-ink-faint">Their logo and colours on the staff portal, QR menu, order tracking and pickup screen.</span>
+        </span>
+      </label>
       <Field label="Features (JSON)">{(id) => <Textarea id={id} value={features} onChange={(e) => setFeatures(e.target.value)} className="min-h-40 font-mono text-xs" />}</Field>
       <Button
         variant="outline"
@@ -627,5 +648,24 @@ function SupportCase({ api, id, onClose }: { api: Api; id: string; onClose: () =
         )}
       </div>
     </Sheet>
+  );
+}
+
+/** The restaurant's own look: follow its plan, or switch it on or off for this restaurant only. */
+function WhiteLabelSwitch({ tenant, plan, onChange }: { tenant: any; plan: any; onChange: (v: boolean | null) => void }) {
+  const fromPlan = plan?.features?.white_label === true;
+  const value = tenant.white_label === null || tenant.white_label === undefined ? 'plan' : tenant.white_label ? 'on' : 'off';
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-stone-50 p-3">
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">Restaurant&apos;s own brand</p>
+        <p className="text-xs text-ink-faint">Their logo and colours on the portal and the guest screens. {plan ? `${plan.name} ${fromPlan ? 'includes' : 'does not include'} it.` : ''}</p>
+      </div>
+      <Select value={value} onChange={(e) => onChange(e.target.value === 'plan' ? null : e.target.value === 'on')} className="h-10 w-56" aria-label="Restaurant's own brand">
+        <option value="plan">Follow the plan ({fromPlan ? 'on' : 'off'})</option>
+        <option value="on">On for this restaurant</option>
+        <option value="off">Off for this restaurant</option>
+      </Select>
+    </div>
   );
 }

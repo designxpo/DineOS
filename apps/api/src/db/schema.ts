@@ -898,6 +898,7 @@ export interface Tenants {
   slug: string;
   status: Generated<string>;
   updated_at: Generated<Timestamp>;
+  white_label: boolean | null;
 }
 
 export interface UserOutletRoles {

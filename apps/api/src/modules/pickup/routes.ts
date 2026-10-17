@@ -9,6 +9,7 @@ import type { OrderStatus, OrderType } from '@dineos/shared/enums';
 import type { PickupBoardDTO, TrackedOrderDTO } from '@dineos/shared/dto';
 import type { AppContext } from '../../context';
 import { assertCan, requireStaff } from '../../lib/auth';
+import { shownBrand } from '../../lib/branding';
 import { notFound } from '../../lib/errors';
 import { pickupUrl } from '../../lib/links';
 import { verifyPickupToken } from '../../lib/tokens';
@@ -51,8 +52,11 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .limit(200)
           .execute();
         const label = (o: (typeof orders)[number]) => (o.type === 'delivery' && o.channel ? `${CHANNEL[o.channel] ?? o.channel}${o.channel_ref ? ` #${o.channel_ref}` : ''}` : null);
+        const brand = await shownBrand(tx);
         return {
           outlet_name: outlet.name,
+          tenant_name: brand.name,
+          branding: brand.branding,
           preparing: orders.filter((o) => o.status !== 'ready').map((o) => ({ order_no: o.order_no, label: label(o) })),
           ready: orders
             .filter((o) => o.status === 'ready' && (!o.ready_at || now - o.ready_at.getTime() < READY_SHOWN_MS))
@@ -84,8 +88,11 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('status', '<>', 'cancelled')
           .orderBy('position')
           .execute();
+        const brand = await shownBrand(tx);
         return {
           outlet_name: o.outlet_name,
+          tenant_name: brand.name,
+          branding: brand.branding,
           order_no: o.order_no,
           type: o.type as OrderType,
           status: o.status as OrderStatus,

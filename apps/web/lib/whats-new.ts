@@ -14,6 +14,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
     date: '17 Oct 2026',
     items: [
       {
+        en: 'Your own brand: on paid plans, your logo, colours and cover photo appear on every staff screen, the QR menu, order tracking and the pickup screen. Owners set it up in Settings → Brand & plan.',
+        hi: 'आपका अपना ब्रांड: पेड प्लान पर आपका लोगो, रंग और कवर फ़ोटो हर स्टाफ़ स्क्रीन, QR मेन्यू, ऑर्डर ट्रैकिंग और पिकअप स्क्रीन पर दिखते हैं। मालिक इसे सेटिंग्स → Brand & plan में सेट करते हैं।',
+      },
+      {
         en: 'Find dishes faster: type the first letters ("pt" for Paneer Tikka) or a short code, then press Enter to add it. Best sellers come first, and there is a Popular tab on the POS.',
         hi: 'व्यंजन जल्दी खोजें: शुरुआती अक्षर ("pt" यानी पनीर टिक्का) या छोटा कोड लिखें, फिर Enter दबाकर जोड़ें। सबसे ज़्यादा बिकने वाले पहले दिखते हैं, और POS पर "लोकप्रिय" टैब है।',
       },

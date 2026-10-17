@@ -26,6 +26,7 @@ import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
 import { HelpButton } from '@/components/staff/help';
 import { SoundButton } from '@/components/staff/sound-sheet';
+import { BrandMark } from '@/components/brand-mark';
 
 const NEXT: Partial<Record<ItemStatus, ItemStatus>> = { accepted: 'preparing', preparing: 'ready' };
 
@@ -106,7 +107,7 @@ export default function KdsPage() {
             <ArrowLeft className="size-5" />
           </Link>
         ) : null}
-        <ChefHat className="size-6 shrink-0 text-amber-400" />
+        {me.tenant.branding.logo_url ? <BrandMark branding={me.tenant.branding} className="size-9 rounded-lg" /> : <ChefHat className="size-6 shrink-0 text-amber-400" />}
         <h1 className="min-w-0 flex-1 truncate text-lg font-semibold sm:flex-none">{outlet?.name}</h1>
         {/* On a phone the stations get their own row and scroll sideways. */}
         <div className="no-scrollbar order-last flex w-full gap-1 overflow-x-auto rounded-xl bg-stone-800 p-1 sm:order-none sm:w-auto" role="tablist" aria-label="Station">

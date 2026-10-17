@@ -17,6 +17,7 @@ import { PickupScreenSettings, TableSettings } from '@/components/staff/table-se
 import { useSaveOutlet } from '@/components/staff/use-save-outlet';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 import { ScreensPanel, ScreensStatus } from '@/components/staff/screens-status';
+import { BrandKit } from '@/components/staff/brand-kit';
 
 type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
 
@@ -291,25 +292,11 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
 
 function Brand() {
   const { api, token } = useStaff();
-  const toast = useToast();
-  const qc = useQueryClient();
-  const tenant = useQuery({ queryKey: ['tenant'], queryFn: () => api<{ name: string; branding: { primary_color?: string; logo_url?: string }; plan_name: string }>('/tenant') });
   const sub = useQuery({
     queryKey: ['subscription'],
     queryFn: () =>
       api<{ plan: { name: string; price_paise: number }; subscription: { period_start: string; period_end: string; status: string } | null; invoices: { id: string; number: string; amount_paise: number; status: string; period_start: string; period_end: string }[] }>('/subscription'),
   });
-  const [color, setColor] = useState('#a8441a');
-  useEffect(() => setColor(tenant.data?.branding.primary_color ?? '#a8441a'), [tenant.data]);
-
-  const upload = async (file: File) => {
-    const fd = new FormData();
-    fd.append('file', file, file.name);
-    const res = await fetch(`${API_URL}/v1/tenant/logo`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
-    if (!res.ok) return toast('Upload failed', 'error');
-    await qc.invalidateQueries({ queryKey: ['tenant'] });
-    toast('Logo updated');
-  };
   const exportData = async () => {
     const res = await fetch(`${API_URL}/v1/tenant/export`, { headers: { authorization: `Bearer ${token}` } });
     const url = URL.createObjectURL(await res.blob());
@@ -321,22 +308,7 @@ function Brand() {
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-4 p-5">
-        <h2 className="font-semibold">Guest menu look</h2>
-        <div className="flex items-center gap-4">
-          {tenant.data?.branding.logo_url ? <img src={tenant.data.branding.logo_url} alt="Logo" className="size-16 rounded-2xl border border-line object-cover" /> : <div className="size-16 rounded-2xl bg-stone-100" />}
-          <label className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line px-4 text-sm font-medium hover:bg-stone-50">
-            Upload logo
-            <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
-          </label>
-        </div>
-        <div className="flex items-center gap-3">
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="size-11 cursor-pointer rounded-xl border border-line" aria-label="Brand colour" />
-          <Button variant="outline" onClick={() => void api('/tenant', { method: 'PATCH', body: { branding: { primary_color: color } } }).then(() => toast('Colour saved'))}>
-            Save colour
-          </Button>
-        </div>
-      </Card>
+      <BrandKit />
       <Card className="p-5">
         <h2 className="font-semibold">Plan</h2>
         {sub.data ? (

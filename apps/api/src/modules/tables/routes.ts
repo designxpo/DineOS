@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { assertCan, assertOutletAccess, requireAction, requireStaff, type StaffAuth } from '../../lib/auth';
+import { shownBrand } from '../../lib/branding';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
 import {
@@ -55,7 +56,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     const outlet = await tx.db
       .selectFrom('outlets')
       .innerJoin('tenants', 'tenants.id', 'outlets.tenant_id')
-      .select(['outlets.id', 'outlets.name', 'tenants.slug', 'tenants.branding'])
+      .select(['outlets.id', 'outlets.name', 'tenants.slug'])
       .where('outlets.id', '=', outletId)
       .executeTakeFirst();
     if (!outlet) throw notFound('Outlet');
@@ -221,11 +222,11 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (q.table_ids) tq = tq.where('id', 'in', q.table_ids.split(',').filter(Boolean));
         const tables = await tq.orderBy('zone').orderBy('sort').orderBy('label').execute();
         const ids = { tenantId: tx.tenantId, outletId: outlet.id, slug: outlet.slug };
-        const accent = (outlet.branding as { primary_color?: string } | null)?.primary_color;
+        const accent = (await shownBrand(tx)).branding.primary_color;
         return qrSheetPdf(
           outlet.name,
           tables.map((table) => ({ table, url: guestUrl(ctx.config, ids, table) })),
-          accent && /^#[0-9a-f]{6}$/i.test(accent) ? accent : undefined,
+          accent ?? undefined,
         );
       });
       reply.header('content-type', 'application/pdf');

@@ -1,6 +1,7 @@
 // Response shapes of the /v1 API. JSON is snake_case, money is integer paise, rates are basis points,
 // timestamps are ISO strings. The API and every web surface code against these types.
 
+import type { HeadingStyle } from './branding';
 import type {
   BillStatus,
   CompReason,
@@ -30,7 +31,8 @@ export type Translations = { hi?: { name?: string; description?: string } };
 
 export interface MeDTO {
   user: { id: string; name: string; email: string | null; phone: string | null };
-  tenant: { id: string; name: string; slug: string; status: string; branding: BrandingDTO };
+  /** `branding` is empty unless the restaurant's own look is on (see white_label). */
+  tenant: { id: string; name: string; slug: string; status: string; branding: BrandingDTO; white_label: boolean };
   outlets: { id: string; name: string; roles: Role[] }[];
   /** Tenant-wide roles (outlet_id null), e.g. the owner. */
   tenant_roles: Role[];
@@ -46,6 +48,21 @@ export interface LoginResponseDTO {
 export interface BrandingDTO {
   logo_url?: string | null;
   primary_color?: string | null;
+  /** A wide photo across the top of the QR menu. */
+  cover_url?: string | null;
+  /** Headings in a serif (the default) or a plain sans. */
+  heading_style?: HeadingStyle | null;
+}
+
+/** Settings → Brand: what the owner set, whether it is showing, and which plans include it. */
+export interface TenantBrandDTO {
+  name: string;
+  slug: string;
+  branding: BrandingDTO;
+  plan_code: string;
+  plan_name: string;
+  white_label: boolean;
+  white_label_plans: string[];
 }
 
 // ---------- Outlet ----------
@@ -346,6 +363,8 @@ export interface OrderDTO {
 /** A counter or takeaway order as the guest follows it on their phone (no staff details). */
 export interface TrackedOrderDTO {
   outlet_name: string;
+  tenant_name: string;
+  branding: BrandingDTO;
   order_no: number;
   type: OrderType;
   status: OrderStatus;
@@ -357,6 +376,8 @@ export interface TrackedOrderDTO {
 /** The pickup screen by the counter: order numbers being made and ready to collect. */
 export interface PickupBoardDTO {
   outlet_name: string;
+  tenant_name: string;
+  branding: BrandingDTO;
   preparing: { order_no: number; label: string | null }[];
   ready: { order_no: number; label: string | null; ready_at: string | null }[];
 }

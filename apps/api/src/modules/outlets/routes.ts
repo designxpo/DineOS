@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { OutletDTO } from '@dineos/shared/dto';
+import { HEADING_STYLES, whiteLabelOn } from '@dineos/shared/branding';
+import type { OutletDTO, TenantBrandDTO } from '@dineos/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { accessibleOutletIds, assertCan, assertOutletAccess, isTenantWide, requireStaff, type StaffAuth } from '../../lib/auth';
+import { cleanBranding } from '../../lib/branding';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { detectImage } from '../../lib/images';
 import { idParams, parse } from '../../lib/validate';
@@ -188,16 +190,29 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
 
     // ---------------------------------------------------------------- tenant profile
 
-    app.get('/tenant', async (req) => {
+    /** The restaurant's profile and brand as set (even when the plan does not show it yet). */
+    app.get('/tenant', async (req): Promise<TenantBrandDTO & { id: string; status: string; features: unknown }> => {
       const auth = requireStaff(req);
       return ctx.tx(auth.tenantId, async (tx) => {
         const tenant = await tx.db
           .selectFrom('tenants')
           .innerJoin('plans', 'plans.code', 'tenants.plan_code')
-          .select(['tenants.id', 'tenants.name', 'tenants.slug', 'tenants.status', 'tenants.branding', 'tenants.plan_code', 'plans.name as plan_name', 'plans.features'])
+          .select(['tenants.id', 'tenants.name', 'tenants.slug', 'tenants.status', 'tenants.branding', 'tenants.white_label', 'tenants.plan_code', 'plans.name as plan_name', 'plans.features'])
           .where('tenants.id', '=', tx.tenantId)
           .executeTakeFirstOrThrow();
-        return tenant;
+        const plans = await tx.db.selectFrom('plans').select(['name', 'features', 'price_paise']).where('is_active', '=', true).orderBy('price_paise').execute();
+        return {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          status: tenant.status,
+          branding: cleanBranding(tenant.branding),
+          plan_code: tenant.plan_code,
+          plan_name: tenant.plan_name,
+          features: tenant.features,
+          white_label: whiteLabelOn(tenant.features, tenant.white_label),
+          white_label_plans: plans.filter((p) => whiteLabelOn(p.features, null)).map((p) => p.name),
+        };
       });
     });
 
@@ -207,11 +222,15 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const body = parse(
         z.object({
           name: z.string().trim().min(1).max(80).optional(),
+          // Pictures arrive by upload only; here they can only be removed.
           branding: z
             .object({
               primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
-              logo_url: z.string().url().nullable().optional(),
+              heading_style: z.enum(HEADING_STYLES).nullable().optional(),
+              logo_url: z.null().optional(),
+              cover_url: z.null().optional(),
             })
+            .strict()
             .optional(),
         }),
         req.body,
@@ -225,29 +244,34 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('id', '=', tx.tenantId)
           .execute();
         await audit(tx, auth, { action: 'tenant.update', entity: 'tenant', entityId: tx.tenantId, before: current, after: { name: body.name ?? current.name, branding } });
-        return tx.db.selectFrom('tenants').select(['id', 'name', 'slug', 'branding']).where('id', '=', tx.tenantId).executeTakeFirstOrThrow();
+        const after = await tx.db.selectFrom('tenants').select(['id', 'name', 'slug', 'branding']).where('id', '=', tx.tenantId).executeTakeFirstOrThrow();
+        return { ...after, branding: cleanBranding(after.branding) };
       });
     });
 
-    app.post('/tenant/logo', async (req) => {
-      const auth = requireStaff(req);
-      requireOwner(auth);
-      const file = await req.file();
-      if (!file) throw badRequest('file_required', 'Attach an image');
-      const body = await file.toBuffer();
-      const image = detectImage(body);
-      if (!image) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
-      const url = await ctx.storage.put(`${auth.tenantId}/branding/logo-${randomUUID().slice(0, 8)}.${image.ext}`, body, image.contentType);
-      return ctx.tx(auth.tenantId, async (tx) => {
-        const current = await tx.db.selectFrom('tenants').select('branding').where('id', '=', tx.tenantId).executeTakeFirstOrThrow();
-        await tx.db
-          .updateTable('tenants')
-          .set({ branding: JSON.stringify({ ...((current.branding as object) ?? {}), logo_url: url }) })
-          .where('id', '=', tx.tenantId)
-          .execute();
-        return { logo_url: url };
+    /** The logo (square) or the menu's cover photo (wide): JPG, PNG or WebP. */
+    for (const kind of ['logo', 'cover'] as const) {
+      app.post(`/tenant/${kind}`, async (req) => {
+        const auth = requireStaff(req);
+        requireOwner(auth);
+        const file = await req.file();
+        if (!file) throw badRequest('file_required', 'Attach an image');
+        const body = await file.toBuffer();
+        const image = detectImage(body);
+        if (!image) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
+        const url = await ctx.storage.put(`${auth.tenantId}/branding/${kind}-${randomUUID().slice(0, 8)}.${image.ext}`, body, image.contentType);
+        return ctx.tx(auth.tenantId, async (tx) => {
+          const current = await tx.db.selectFrom('tenants').select('branding').where('id', '=', tx.tenantId).executeTakeFirstOrThrow();
+          await tx.db
+            .updateTable('tenants')
+            .set({ branding: JSON.stringify({ ...((current.branding as object) ?? {}), [`${kind}_url`]: url }) })
+            .where('id', '=', tx.tenantId)
+            .execute();
+          await audit(tx, auth, { action: 'tenant.update', entity: 'tenant', entityId: tx.tenantId, after: { [`${kind}_url`]: url } });
+          return { [`${kind}_url`]: url };
+        });
       });
-    });
+    }
 
     app.get('/subscription', async (req) => {
       const auth = requireStaff(req);

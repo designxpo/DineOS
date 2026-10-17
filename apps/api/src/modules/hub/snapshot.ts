@@ -3,6 +3,7 @@ import type { MeDTO, ModifierSnapshot } from '@dineos/shared/dto';
 import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@dineos/shared/enums';
 import type { HubBill, HubOrder, HubSession, HubSnapshot, HubStaff, HubTable } from '@dineos/shared/hub';
 import type { Tx } from '../../context';
+import { shownBrand } from '../../lib/branding';
 import { compQtyByItem } from '../billing/service';
 import { loadMenu } from '../menu/service';
 import { loadOutlet } from '../outlets/routes';
@@ -146,8 +147,9 @@ export async function loadHubBills(tx: Tx, ids: readonly string[]): Promise<HubB
  */
 export async function buildSnapshot(tx: Tx, outletId: string, deviceId: string, webUrl: string | null): Promise<HubSnapshot> {
   const outlet = await loadOutlet(tx, outletId);
-  const tenantRow = await tx.db.selectFrom('tenants').select(['id', 'name', 'slug', 'status', 'branding']).executeTakeFirstOrThrow();
-  const tenant: MeDTO['tenant'] = { ...tenantRow, branding: (tenantRow.branding ?? {}) as MeDTO['tenant']['branding'] };
+  const tenantRow = await tx.db.selectFrom('tenants').select(['id', 'name', 'slug', 'status']).executeTakeFirstOrThrow();
+  const brand = await shownBrand(tx);
+  const tenant: MeDTO['tenant'] = { ...tenantRow, branding: brand.branding, white_label: brand.white_label };
   const menu = await loadMenu(tx, outletId);
 
   const tables: HubTable[] = (

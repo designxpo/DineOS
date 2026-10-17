@@ -3,6 +3,7 @@ import type { Role } from '@dineos/shared/enums';
 import { looksLikeEmail, normalizePhone } from '@dineos/shared/phone';
 import type { Tx } from '../../context';
 import { accessibleOutletIds, rolesAt, type StaffAuth } from '../../lib/auth';
+import { shownBrand } from '../../lib/branding';
 import { randomToken, sha256 } from '../../lib/crypto';
 
 export const STAFF_SESSION_DAYS = 30;
@@ -42,18 +43,15 @@ export async function buildMe(tx: Tx, auth: StaffAuth): Promise<MeDTO> {
     .select(['id', 'name', 'email', 'phone'])
     .where('id', '=', auth.userId)
     .executeTakeFirstOrThrow();
-  const tenant = await tx.db
-    .selectFrom('tenants')
-    .select(['id', 'name', 'slug', 'status', 'branding'])
-    .where('id', '=', auth.tenantId)
-    .executeTakeFirstOrThrow();
+  const tenant = await tx.db.selectFrom('tenants').select(['id', 'name', 'slug', 'status']).where('id', '=', auth.tenantId).executeTakeFirstOrThrow();
+  const brand = await shownBrand(tx);
   const outletIds = await accessibleOutletIds(tx, auth);
   const outlets = outletIds.length
     ? await tx.db.selectFrom('outlets').select(['id', 'name']).where('id', 'in', outletIds).orderBy('name').execute()
     : [];
   return {
     user,
-    tenant: { ...tenant, branding: (tenant.branding ?? {}) as MeDTO['tenant']['branding'] },
+    tenant: { ...tenant, branding: brand.branding, white_label: brand.white_label },
     outlets: outlets.map((o) => ({ id: o.id, name: o.name, roles: [...new Set(rolesAt(auth, o.id))] as Role[] })),
     tenant_roles: auth.roles.filter((r) => r.outletId === null).map((r) => r.role),
     impersonated_by: auth.impersonatedBy,

@@ -5,8 +5,9 @@ import type { LoginResponseDTO } from '@dineos/shared/dto';
 import type { AppContext } from '../../context';
 import { audit } from '../../lib/audit';
 import { authenticate, bearerToken, clearAuthCache, evictCachedAuth, requireStaff, type StaffAuth } from '../../lib/auth';
+import { shownBrand } from '../../lib/branding';
 import { hashSecret, verifySecret } from '../../lib/crypto';
-import { AppError, unauthorized } from '../../lib/errors';
+import { AppError, notFound, unauthorized } from '../../lib/errors';
 import { parse } from '../../lib/validate';
 import { buildMe, createStaffSession, findUserByLogin } from './service';
 
@@ -41,6 +42,19 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const auth = (await authenticate(ctx, session.token)) as StaffAuth;
       const me = await ctx.tx(tenant.id, (tx) => buildMe(tx, auth));
       return { token: session.token, expires_at: session.expiresAt.toISOString(), me };
+    });
+
+    /**
+     * The restaurant's look for its sign-in page (a link with ?r=code), when its plan shows it.
+     * Only what its guests already see: name, logo, colour.
+     */
+    app.get('/public/brand/:slug', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req) => {
+      const { slug } = parse(z.object({ slug: z.string().trim().toLowerCase().min(1).max(60) }), req.params);
+      const { rows } = await sql<{ id: string; status: string }>`select id, status from auth_tenant_by_slug(${slug})`.execute(ctx.db);
+      const tenant = rows[0];
+      if (!tenant || tenant.status !== 'active') throw notFound('Restaurant');
+      const brand = await ctx.tx(tenant.id, (tx) => shownBrand(tx));
+      return { name: brand.name, slug: brand.slug, branding: brand.branding };
     });
 
     app.post('/auth/logout', async (req, reply) => {

@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { BrandingDTO, CartDTO, CartLineDTO, GuestContextDTO, GuestSessionDTO } from '@dineos/shared/dto';
+import type { CartDTO, CartLineDTO, GuestContextDTO, GuestSessionDTO } from '@dineos/shared/dto';
 import type { BillStatus, SessionStatus } from '@dineos/shared/enums';
 import type { Tx } from '../../context';
 import { json } from '../../db';
+import { shownBrand } from '../../lib/branding';
 import type { GuestAuth } from '../../lib/auth';
 import { badRequest, gone, notFound, tooMany } from '../../lib/errors';
 import { loadOrders, toGuestOrder } from '../orders/serialize';
@@ -48,14 +49,13 @@ export async function guestContext(tx: Tx, outletId: string, tableId: string): P
       'outlets.upi_payee_name',
       'tenants.name as tenant_name',
       'tenants.slug',
-      'tenants.branding',
     ])
     .where('tables.id', '=', tableId)
     .where('outlets.id', '=', outletId)
     .executeTakeFirst();
   if (!row) throw notFound('Table');
   return {
-    tenant: { name: row.tenant_name, slug: row.slug, branding: (row.branding ?? {}) as BrandingDTO },
+    tenant: { name: row.tenant_name, slug: row.slug, branding: (await shownBrand(tx)).branding },
     outlet: {
       id: row.outlet_id,
       name: row.outlet_name,

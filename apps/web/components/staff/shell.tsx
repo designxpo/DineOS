@@ -31,7 +31,9 @@ import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, type Action } from '@dineos/shared/
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
+import { useBrandTheme } from '@/lib/brand-theme';
 import { useScreenCheckIn } from '@/lib/screen-check-in';
+import { BrandMark } from '@/components/brand-mark';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
@@ -193,6 +195,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLowStockAlerts(can('inventory.record'));
   useSecurityAlerts(can('staff.manage'));
   useScreenCheckIn();
+  // A paid plan shows the restaurant's own logo and colours instead of the DineOS look.
+  useBrandTheme(me.tenant.branding, me.tenant.white_label ? me.tenant.name : null);
   const { signOut, dialog: unsyncedDialog } = useSignOut();
 
   const items = NAV.filter((n) => can(n.action));
@@ -246,9 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-line px-5">
-          <div className="grid size-9 place-items-center rounded-xl bg-[var(--brand)] text-white">
-            <ChefHat className="size-5" />
-          </div>
+          <BrandMark branding={me.tenant.branding} className={cn('size-9 rounded-xl', me.tenant.branding.logo_url && 'border border-line')} />
           <div className="min-w-0 leading-tight">
             <p className="truncate font-display text-[17px] font-semibold">{me.tenant.name}</p>
             <p className="truncate text-xs text-ink-faint">{outlet?.name ?? ''}</p>
@@ -273,6 +275,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="chrome sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:px-6">
+          {me.tenant.white_label && me.tenant.branding.logo_url && <BrandMark branding={me.tenant.branding} className="size-9 rounded-lg border border-line lg:hidden" />}
           {me.outlets.length > 1 ? (
             <Select value={outletId} onChange={(e) => setOutletId(e.target.value)} className="h-10 max-w-56" aria-label="Outlet">
               {me.outlets.map((o) => (
@@ -282,7 +285,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </Select>
           ) : (
-            <p className="font-medium lg:hidden">{outlet?.name}</p>
+            <p className="min-w-0 truncate font-medium lg:hidden">{outlet?.name}</p>
           )}
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
           <div className="ml-auto flex items-center gap-1">

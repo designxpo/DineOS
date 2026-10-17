@@ -1,8 +1,10 @@
 'use client';
 
-import { ChefHat, QrCode, Utensils, WifiOff } from 'lucide-react';
+import { QrCode, Utensils, WifiOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useBrandTheme } from '@/lib/brand-theme';
 import { I18nProvider, useI18n } from '@/lib/i18n';
+import { BrandMark } from '@/components/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { CartSheet } from './cart-sheet';
@@ -24,18 +26,17 @@ function GuestShell({ qr }: { qr: string }) {
   const [tab, setTab] = useState<'menu' | 'status'>('menu');
   const [cartOpen, setCartOpen] = useState(false);
 
-  const brand = g.context?.tenant.branding.primary_color;
-  const style = useMemo(() => (brand && /^#[0-9a-f]{6}$/i.test(brand) ? ({ '--brand': brand } as React.CSSProperties) : undefined), [brand]);
+  // The restaurant's own look across the menu, cart and order status (when its plan includes it).
+  useBrandTheme(g.context?.tenant.branding, g.context?.tenant.name);
 
   if (g.phase === 'invalid' || g.phase === 'unavailable') {
     return (
-      <Centered style={style} icon={<QrCode className="size-7" />} title={t('guest.invalid_qr')} hint={g.phase === 'unavailable' ? 'Ordering is not available here right now.' : t('guest.invalid_qr_hint')} />
+      <Centered icon={<QrCode className="size-7" />} title={t('guest.invalid_qr')} hint={g.phase === 'unavailable' ? 'Ordering is not available here right now.' : t('guest.invalid_qr_hint')} />
     );
   }
   if (g.phase === 'ended') {
     return (
       <Centered
-        style={style}
         icon={<Utensils className="size-7" />}
         title={t('guest.session_ended')}
         hint={t('guest.session_ended_hint')}
@@ -49,26 +50,26 @@ function GuestShell({ qr }: { qr: string }) {
   }
 
   const ctx = g.context;
+  const cover = ctx?.tenant.branding.cover_url ?? null;
   const orders = g.session?.orders ?? [];
   const activeOrders = orders.filter((o) => !['served', 'billed', 'rejected', 'cancelled'].includes(o.status)).length;
 
   return (
-    <div style={style} className="mx-auto min-h-dvh max-w-xl bg-surface pb-36 sm:border-x sm:border-line">
+    <div className="mx-auto min-h-dvh max-w-xl bg-surface pb-36 sm:border-x sm:border-line">
       {!g.online && g.phase === 'ready' && (
         <div className="sticky top-0 z-40 flex items-center gap-2 bg-amber-100 px-4 py-2 text-sm text-amber-900">
           <WifiOff className="size-4" /> {t('guest.offline')}
         </div>
       )}
 
-      <header className="px-4 pt-5 pb-3">
+      {cover && <img src={cover} alt="" className="h-36 w-full object-cover sm:h-44" />}
+      <header className={cn('px-4 pb-3', cover ? 'pt-3' : 'pt-5')}>
         <div className="flex items-start gap-3">
-          {ctx?.tenant.branding.logo_url ? (
-            <img src={ctx.tenant.branding.logo_url} alt="" className="size-12 rounded-2xl border border-line object-cover" />
-          ) : (
-            <div className="grid size-12 place-items-center rounded-2xl bg-[var(--brand)] text-white">
-              <ChefHat className="size-6" />
-            </div>
-          )}
+          {/* On a cover photo only the logo overlaps it; the name stays on white. */}
+          <BrandMark
+            branding={ctx?.tenant.branding}
+            className={cn('rounded-2xl', cover ? '-mt-10 size-16 shadow-[var(--shadow-pop)] ring-4 ring-surface' : 'size-12', ctx?.tenant.branding.logo_url && !cover && 'border border-line')}
+          />
           <div className="min-w-0 flex-1">
             {ctx ? (
               <>
@@ -175,9 +176,9 @@ function CartBar({ g, onOpen }: { g: ReturnType<typeof useGuest>; onOpen: () => 
 const rupee = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2, minimumFractionDigits: 0 });
 export const formatRupee = (paise: number) => rupee.format(paise / 100);
 
-function Centered({ icon, title, hint, action, style }: { icon: React.ReactNode; title: string; hint: string; action?: React.ReactNode; style?: React.CSSProperties }) {
+function Centered({ icon, title, hint, action }: { icon: React.ReactNode; title: string; hint: string; action?: React.ReactNode }) {
   return (
-    <div style={style} className="grid min-h-dvh place-items-center bg-surface px-6">
+    <div className="grid min-h-dvh place-items-center bg-surface px-6">
       <div className="max-w-sm text-center">
         <div className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-brand-50 text-[var(--brand)]">{icon}</div>
         <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>

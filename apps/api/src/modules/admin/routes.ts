@@ -174,21 +174,23 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           name: z.string().trim().min(1).max(80).optional(),
           plan_code: z.string().optional(),
           status: z.enum(['active', 'suspended', 'cancelled']).optional(),
+          // The restaurant's own look: true or false for this restaurant, null to follow its plan.
+          white_label: z.boolean().nullable().optional(),
           reason: z.string().max(300).optional(),
         }),
         req.body,
       );
       return db.transaction().execute(async (trx) => {
-        const before = await trx.selectFrom('tenants').select(['name', 'plan_code', 'status']).where('id', '=', id).forUpdate().executeTakeFirst();
+        const before = await trx.selectFrom('tenants').select(['name', 'plan_code', 'status', 'white_label']).where('id', '=', id).forUpdate().executeTakeFirst();
         if (!before) throw notFound('Tenant');
         if (body.plan_code) {
           const plan = await trx.selectFrom('plans').select('code').where('code', '=', body.plan_code).executeTakeFirst();
           if (!plan) throw badRequest('invalid_plan', 'Unknown plan');
         }
         if (body.status && body.status !== before.status && !body.reason) throw badRequest('reason_required', 'Give a reason for the status change');
-        const set = Object.fromEntries(Object.entries({ name: body.name, plan_code: body.plan_code, status: body.status }).filter(([, v]) => v !== undefined));
+        const set = Object.fromEntries(Object.entries({ name: body.name, plan_code: body.plan_code, status: body.status, white_label: body.white_label }).filter(([, v]) => v !== undefined));
         if (Object.keys(set).length) await trx.updateTable('tenants').set(set).where('id', '=', id).execute();
-        const after = await trx.selectFrom('tenants').select(['name', 'plan_code', 'status']).where('id', '=', id).executeTakeFirstOrThrow();
+        const after = await trx.selectFrom('tenants').select(['name', 'plan_code', 'status', 'white_label']).where('id', '=', id).executeTakeFirstOrThrow();
         await tenantAudit(trx, auth.adminId, { tenantId: id, action: 'tenant.update', entity: 'tenant', entityId: id, before, after, reason: body.reason ?? null });
         clearAuthCache();
         return after;

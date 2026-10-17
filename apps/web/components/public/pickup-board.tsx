@@ -4,7 +4,9 @@ import { Maximize, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { PickupBoardDTO } from '@dineos/shared/dto';
 import { ApiError, apiFetch } from '@/lib/api';
+import { useBrandTheme } from '@/lib/brand-theme';
 import { chime, unlockSound } from '@/lib/sound';
+import { BrandMark } from '@/components/brand-mark';
 import { cn } from '@/components/ui/cn';
 
 const clock = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit' });
@@ -54,6 +56,8 @@ export function PickupBoard({ token }: { token: string }) {
     };
   }, [token]);
 
+  useBrandTheme(board?.branding, board?.tenant_name);
+
   if (missing) {
     return (
       <main className="grid min-h-dvh place-items-center bg-stone-950 p-8 text-center text-stone-300">
@@ -65,6 +69,7 @@ export function PickupBoard({ token }: { token: string }) {
   return (
     <main className="flex min-h-dvh flex-col bg-stone-950 text-white">
       <header className="flex items-center gap-4 border-b border-white/10 px-8 py-5">
+        {board?.branding.logo_url && <BrandMark branding={board.branding} className="size-14 rounded-2xl" />}
         <h1 className="flex-1 truncate text-2xl font-semibold">{board?.outlet_name ?? ''}</h1>
         {!sound && (
           <button onClick={() => setSound(unlockSound())} className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold hover:bg-white/20">

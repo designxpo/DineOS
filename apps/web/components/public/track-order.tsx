@@ -4,7 +4,9 @@ import { Check, ChefHat, PackageCheck, ReceiptText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { TrackedOrderDTO } from '@dineos/shared/dto';
 import { ApiError, apiFetch } from '@/lib/api';
+import { useBrandTheme } from '@/lib/brand-theme';
 import { chime, unlockSound } from '@/lib/sound';
+import { BrandMark } from '@/components/brand-mark';
 import { cn } from '@/components/ui/cn';
 import { Spinner } from '@/components/ui/primitives';
 
@@ -63,6 +65,8 @@ export function TrackOrder({ code }: { code: string }) {
     if (order) document.title = stepOf(order.status) === 2 && order.status === 'ready' ? `Ready: order ${order.order_no}` : `Order ${order.order_no}`;
   }, [order]);
 
+  useBrandTheme(order?.branding, order?.tenant_name);
+
   if (missing) return <Shell><p className="text-center text-ink-soft">This order link is not valid. Ask at the counter.</p></Shell>;
   if (!order) {
     return (
@@ -81,6 +85,7 @@ export function TrackOrder({ code }: { code: string }) {
 
   return (
     <Shell>
+      {order.branding.logo_url && <BrandMark branding={order.branding} className="mx-auto mb-3 size-16 rounded-2xl border border-line" />}
       <p className="text-center text-sm font-medium text-ink-soft">{order.outlet_name}</p>
       <div className={cn('mt-4 rounded-3xl p-6 text-center transition-colors duration-500', ready ? 'bg-emerald-600 text-white' : 'bg-surface shadow-[var(--shadow-card)]')}>
         <p className={cn('text-sm font-medium', ready ? 'text-emerald-50' : 'text-ink-faint')}>Your order number</p>
