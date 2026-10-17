@@ -8,6 +8,7 @@ import type { OrderStatus } from '@dineos/shared/enums';
 import { ApiError, errorMessage } from '@/lib/api';
 import { ago, formatPaise, minutesSince } from '@/lib/format';
 import { send } from '@/lib/outbox';
+import { orderTitle } from '@/components/staff/order-title';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
@@ -118,7 +119,7 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
     >
       <header className="p-4 pb-2">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-lg font-semibold text-ink">{order.table_label ? t('order.table', { label: order.table_label }) : order.type === 'takeaway' ? t('order.takeaway') : t('order.counter')}</h3>
+          <h3 className="truncate text-lg font-semibold text-ink">{orderTitle(order, t)}</h3>
           <p className="shrink-0 pt-0.5 text-sm font-semibold tabular">{formatPaise(order.subtotal_paise)}</p>
         </div>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-faint">

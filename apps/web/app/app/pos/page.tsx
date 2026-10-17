@@ -5,7 +5,7 @@ import { Minus, Plus, Search, ShoppingCart, StickyNote, Trash2, X } from 'lucide
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import type { BillDTO, MenuItemDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
-import type { OrderType } from '@dineos/shared/enums';
+import type { DeliveryChannel, OrderType } from '@dineos/shared/enums';
 import { isScheduleOpen } from '@dineos/shared/menu';
 import { ApiError, errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
@@ -51,6 +51,8 @@ function Pos() {
   const [tableId, setTableId] = useState('');
   const [guests, setGuests] = useState('');
   const [customer, setCustomer] = useState({ name: '', phone: '' });
+  const [channel, setChannel] = useState<DeliveryChannel>('zomato');
+  const [channelRef, setChannelRef] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<string>('all');
@@ -96,6 +98,7 @@ function Pos() {
     setLines([]);
     setNote('');
     setCustomer({ name: '', phone: '' });
+    setChannelRef('');
     setGuests('');
     setTicketOpen(false);
   };
@@ -113,10 +116,12 @@ function Pos() {
       note: note.trim() || null,
       customer_name: customer.name.trim() || null,
       customer_phone: customer.phone.trim() || null,
+      channel: type === 'delivery' ? channel : undefined,
+      channel_ref: type === 'delivery' ? channelRef.trim() || null : undefined,
       lines: lines.map((l) => ({ item_id: l.item.id, qty: l.qty, modifier_ids: l.modifierIds, note: l.note.trim() || null, seat_no: l.seat })),
     };
     try {
-      const res = await send<OrderDTO>(token, '/orders', { method: 'POST', body, label: `${type === 'dine_in' ? tables.data?.find((t) => t.id === tableId)?.label : 'Counter'} order` });
+      const res = await send<OrderDTO>(token, '/orders', { method: 'POST', body, label: `${type === 'dine_in' ? tables.data?.find((t) => t.id === tableId)?.label : type === 'delivery' ? t(`channel.${channel}`) : 'Counter'} order` });
       if (res.queued) {
         toast('No connection: order saved on this device and will be sent automatically', 'info');
         reset();
@@ -149,8 +154,21 @@ function Pos() {
             { value: 'dine_in', label: t('pos.dine_in') },
             { value: 'takeaway', label: t('pos.takeaway') },
             { value: 'counter', label: t('pos.counter') },
+            { value: 'delivery', label: t('pos.delivery') },
           ]}
         />
+        {type === 'delivery' && (
+          <Segmented
+            value={channel}
+            onChange={setChannel}
+            className="w-full"
+            options={[
+              { value: 'zomato', label: t('channel.zomato') },
+              { value: 'swiggy', label: t('channel.swiggy') },
+              { value: 'own', label: t('channel.own') },
+            ]}
+          />
+        )}
         {type === 'dine_in' ? (
           <div className="flex gap-2">
             <Select value={tableId} onChange={(e) => setTableId(e.target.value)} aria-label="Table" className="flex-1">
@@ -164,6 +182,8 @@ function Pos() {
             </Select>
             <Input value={guests} onChange={(e) => setGuests(e.target.value.replace(/\D/g, ''))} placeholder={t('pos.guests')} inputMode="numeric" className="w-24" aria-label={t('pos.guests')} />
           </div>
+        ) : type === 'delivery' && channel !== 'own' ? (
+          <Input value={channelRef} onChange={(e) => setChannelRef(e.target.value)} placeholder={t('pos.platform_ref')} aria-label={t('pos.platform_ref')} />
         ) : (
           <div className="flex gap-2">
             <Input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder={t('pos.customer')} aria-label={t('pos.customer')} />

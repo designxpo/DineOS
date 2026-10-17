@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'vision' | 'room-charges';
+type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'delivery' | 'vision' | 'room-charges';
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -76,7 +76,7 @@ export default function ReportsPage() {
         subtitle={range.from === range.to ? range.from : `${range.from} to ${range.to}`}
         actions={
           <>
-            {tab === 'insights' || tab === 'vision' ? null : tab !== 'day-end' ? (
+            {tab === 'insights' || tab === 'vision' || tab === 'delivery' ? null : tab !== 'day-end' ? (
               <Button variant="outline" onClick={() => void csv()}>
                 <Download className="size-4" /> CSV
               </Button>
@@ -95,6 +95,7 @@ export default function ReportsPage() {
             { value: 'gst', label: 'GST' },
             { value: 'items', label: 'Dishes' },
             { value: 'day-end', label: 'Day end' },
+            { value: 'delivery', label: 'Delivery' },
             ...(outlet?.room_charge_enabled ? [{ value: 'room-charges' as Tab, label: 'Room charges' }] : []),
             ...(hasCameras ? [{ value: 'vision' as Tab, label: 'Camera' }] : []),
           ]}
@@ -136,6 +137,8 @@ export default function ReportsPage() {
           <Gst data={q.data} />
         ) : tab === 'items' ? (
           <Items data={q.data} />
+        ) : tab === 'delivery' ? (
+          <Delivery data={q.data} />
         ) : (
           <DayEnd data={q.data} />
         )}
@@ -498,10 +501,40 @@ function Gst({ data }: { data: any }) {
         rows={data.by_rate.map((r: any) => [formatRate(r.tax_rate_bp), r.kind === 'service_charge' ? 'Service charge' : 'Food & beverage', formatPaise(r.taxable_paise), formatPaise(r.cgst_paise), formatPaise(r.sgst_paise), formatPaise(r.cgst_paise + r.sgst_paise)])}
       />
       <Table title="HSN / SAC summary" head={['HSN/SAC', 'Rate', 'Qty', 'Taxable', 'Tax']} rows={data.hsn_summary.map((h: any) => [h.hsn_sac ?? '—', formatRate(h.tax_rate_bp), h.qty, formatPaise(h.taxable_paise), formatPaise(h.tax_paise)])} />
+      {data.operator_supplies.length > 0 && (
+        <Table
+          title="Sold through delivery apps (GST paid by the app, section 9(5))"
+          head={['App', 'Bills', 'Value']}
+          rows={data.operator_supplies.map((o: any) => [CHANNEL_NAMES[o.channel] ?? o.channel, o.bills, formatPaise(o.value_paise)])}
+        />
+      )}
       {data.b2b.length > 0 && (
         <Table title="Business (B2B) invoices" head={['Invoice', 'Date', 'Customer', 'GSTIN', 'Taxable', 'Tax', 'Total']} rows={data.b2b.map((b: any) => [b.invoice_no, b.invoice_date, b.customer_name ?? '', b.customer_gstin, formatPaise(b.taxable_paise), formatPaise(b.tax_paise), formatPaise(b.total_paise)])} />
       )}
       <p className="text-xs text-ink-faint">Check rates and filing with your accountant before submitting returns.</p>
+    </div>
+  );
+}
+
+const CHANNEL_NAMES: Record<string, string> = { zomato: 'Zomato', swiggy: 'Swiggy', own: 'Own delivery' };
+
+function Delivery({ data }: { data: any }) {
+  return (
+    <div className="space-y-4">
+      <Table
+        title="Delivery orders by channel"
+        head={['Channel', 'Orders', 'Sales', 'Commission', 'Payout to expect']}
+        rows={data.channels.map((c: any) => [
+          CHANNEL_NAMES[c.channel] ?? c.channel,
+          c.orders,
+          formatPaise(c.sales_paise),
+          c.commission_bp ? `${formatPaise(c.commission_paise)} (${formatRate(c.commission_bp)})` : '—',
+          formatPaise(c.payout_paise),
+        ])}
+      />
+      <p className="text-xs text-ink-faint">
+        Commission uses the rates in Settings. Check the payout against the app's settlement statement: prices on the app, packaging, delivery fees and the app's tax deductions are not tracked here.
+      </p>
     </div>
   );
 }

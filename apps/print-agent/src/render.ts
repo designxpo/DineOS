@@ -83,11 +83,15 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
     p.line(columns(`CGST ${half} on ${money(t.taxable_paise)}`, money(t.cgst_paise), width));
     p.line(columns(`SGST ${half} on ${money(t.taxable_paise)}`, money(t.sgst_paise), width));
   }
+  if (bill.tax_by_operator) {
+    p.line('GST paid by the e-commerce operator');
+    p.line('under section 9(5), CGST Act');
+  }
   if (bill.round_off_paise) p.line(columns('Round off', money(bill.round_off_paise), width));
   p.line(rule);
   p.bold(true).size(1, 2).line(columns('TOTAL', `Rs. ${money(bill.total_paise)}`, width)).size(1, 1).bold(false);
   for (const pay of bill.payments) {
-    const how = pay.method === 'room' ? `room ${pay.room_no ?? ''}`.trim() : pay.method.replace('_', ' ');
+    const how = pay.method === 'room' ? `room ${pay.room_no ?? ''}`.trim() : pay.method === 'platform' ? 'via delivery app' : pay.method.replace('_', ' ');
     const label = pay.kind === 'refund' ? `Refund (${how})` : pay.method === 'room' ? `Charged to ${how}` : `Paid ${how}`;
     p.line(columns(label, money(pay.amount_paise), width));
   }

@@ -3,6 +3,7 @@
 
 import type {
   BillStatus,
+  DeliveryChannel,
   ItemStatus,
   OrderSource,
   OrderStatus,
@@ -78,6 +79,8 @@ export interface OutletDTO {
   hub_url: string | null;
   /** Hotel restaurants: bills can be charged to a guest's room. */
   room_charge_enabled: boolean;
+  /** Commission each delivery platform takes, in basis points (2500 = 25%), for expected payouts. */
+  delivery_commission_bp: Partial<Record<DeliveryChannel, number>>;
 }
 
 // ---------- Menu ----------
@@ -275,6 +278,9 @@ export interface OrderDTO {
   table_id: string | null;
   table_label: string | null;
   table_session_id: string | null;
+  /** Delivery orders: who delivers, and the platform's own order number. */
+  channel: DeliveryChannel | null;
+  channel_ref: string | null;
   note: string | null;
   flagged: boolean;
   flag_reason: string | null;
@@ -414,6 +420,8 @@ export interface BillDTO {
   parent_bill_id: string | null;
   split_label: string | null;
   status: BillStatus;
+  /** A Zomato or Swiggy order: the platform collects and pays the GST (s. 9(5)), so none is charged here. */
+  tax_by_operator: boolean;
   lines: BillLineDTO[];
   bill_discount: { kind: 'percent'; bp: number } | { kind: 'amount'; paise: number } | null;
   discount_reason: string | null;

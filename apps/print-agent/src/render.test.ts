@@ -69,7 +69,7 @@ describe('bill', () => {
       outlet: { name: 'The Courtyard', legal_name: 'Aurum Hotels Pvt Ltd', address: 'MG Road, Bengaluru', gstin: '29ABCDE1234F1Z5', fssai_no: '11223344556677', phone: null, state_code: '29' },
       tax_summary: [{ tax_rate_bp: 500, taxable_paise: 50000, cgst_paise: 1250, sgst_paise: 1250 }],
       bill: {
-        id: 'b', outlet_id: 'o', table_session_id: 's', order_id: null, table_label: 'T4', parent_bill_id: null, split_label: null,
+        id: 'b', outlet_id: 'o', table_session_id: 's', order_id: null, table_label: 'T4', parent_bill_id: null, split_label: null, tax_by_operator: false,
         status: 'finalised',
         lines: [{ id: 'l', order_item_id: 'i', name: 'Paneer Tikka', qty: 2, unit_price_paise: 25000, gross_paise: 50000, item_discount_paise: 0, bill_discount_paise: 0, taxable_paise: 50000, tax_rate_bp: 500, cgst_paise: 1250, sgst_paise: 1250, amount_paise: 52500, hsn_sac: '996331', seat_no: null }],
         bill_discount: null, discount_reason: null, service_charge_bp: 0, service_charge_waived: false,
@@ -110,6 +110,30 @@ describe('bill', () => {
     const text = renderBill({ ...doc, upi_uri: null, invoice: { ...doc.invoice, bill } }, 42).preview.join('\n');
     expect(text).toMatch(/Charged to room 204\s+525\.00/);
     expect(text).not.toContain('Paid room');
+  });
+
+  it('notes that the delivery app pays the GST on Zomato and Swiggy orders', () => {
+    const bill = {
+      ...doc.invoice.bill,
+      tax_by_operator: true,
+      cgst_paise: 0,
+      sgst_paise: 0,
+      tax_total_paise: 0,
+      total_paise: 50000,
+      paid_paise: 50000,
+      balance_paise: 0,
+      status: 'paid' as const,
+      payments: [
+        { id: 'p', bill_id: 'b', kind: 'payment' as const, method: 'platform' as const, amount_paise: 50000, tendered_paise: null, change_paise: null, reference: 'ZOM-48214', confirmed_by_name: null, created_at: '2026-10-15T08:00:00Z', room_no: null, room_guest: null, room_posted_at: null },
+      ],
+    };
+    const out = renderBill({ ...doc, upi_uri: null, invoice: { ...doc.invoice, tax_summary: [], bill } }, 42).preview;
+    const text = out.join('\n');
+    expect(text).toContain('GST paid by the e-commerce operator');
+    expect(text).toContain('section 9(5)');
+    expect(text).not.toContain('CGST 2.5%');
+    expect(text).toMatch(/Paid via delivery app\s+500\.00/);
+    for (const line of out) expect(line.length).toBeLessThanOrEqual(42);
   });
 
   it('shows redeemed and earned loyalty points and the member name', () => {

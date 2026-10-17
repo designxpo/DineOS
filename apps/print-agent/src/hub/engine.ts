@@ -455,6 +455,8 @@ export class HubEngine {
       table_id: o.table_id,
       table_label: this.tableLabel(o.table_id),
       table_session_id: o.table_session_id,
+      channel: o.channel ?? null,
+      channel_ref: o.channel_ref ?? null,
       note: o.note,
       flagged: o.flagged,
       flag_reason: null,
@@ -624,6 +626,7 @@ export class HubEngine {
     this.assertOutlet(body.outlet_id);
     this.assertCan(user, 'order.create');
     if (body.type === 'dine_in' && !body.table_id) throw badRequest('session_required', 'Pick a table for dine-in');
+    if (body.type === 'delivery') throw badRequest('online_only', 'Enter delivery orders once the internet is back');
     const prepared = this.prepareLines(body.lines);
     const session = body.type === 'dine_in' ? this.openSession(body.table_id!, { guestCount: body.guest_count ?? null, waiterId: user.id }) : null;
     const now = this.now().toISOString();
@@ -922,6 +925,7 @@ export class HubEngine {
       parent_bill_id: null,
       split_label: null,
       status: b.status,
+      tax_by_operator: b.tax_by_operator ?? false,
       lines: b.lines.map((l) => ({ id: l.order_item_id, ...l })),
       bill_discount: null,
       discount_reason: null,
@@ -981,6 +985,8 @@ export class HubEngine {
     } else if (input.order_id) {
       const o = this.order(input.order_id);
       if (o.table_session_id) throw badRequest('use_table_bill', 'Dine-in orders are billed by table');
+      // Their GST and payment belong to the platform; the hub bills them once back online.
+      if (o.channel === 'zomato' || o.channel === 'swiggy') throw conflict('online_only', 'Bill Zomato and Swiggy orders once the internet is back. They are paid on the app.');
     } else {
       throw badRequest('scope_required', 'Give a table session or an order');
     }
@@ -1134,6 +1140,9 @@ export class HubEngine {
     if (b.status !== 'finalised') throw conflict('bill_closed', `This bill is ${b.status}`);
     const balance = b.total_paise - b.paid_paise;
     if (input.amount_paise > balance) throw badRequest('overpayment', 'Payment is more than the balance due', { balance_paise: balance });
+    // Same rule as the cloud: Zomato and Swiggy orders are paid by the platform, and only they are.
+    if (b.tax_by_operator && input.method !== 'platform') throw badRequest('paid_by_platform', 'This order was paid on the delivery app. Record it as paid by the platform.');
+    if (!b.tax_by_operator && input.method === 'platform') throw badRequest('not_a_platform_order', 'Only Zomato and Swiggy orders are paid by the platform');
     let change: number | null = null;
     if (input.method === 'cash' && input.tendered_paise != null) {
       if (input.tendered_paise < input.amount_paise) throw badRequest('tendered_short', 'Cash tendered is less than the amount');

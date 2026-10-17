@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES, type OrderStatus } from '@dineos/shared/enums';
+import { DELIVERY_CHANNELS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES, type OrderStatus } from '@dineos/shared/enums';
 import type { KotDoc } from '@dineos/shared/print';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
@@ -32,8 +32,11 @@ const createBody = z
     customer_name: z.string().max(80).nullable().optional(),
     customer_phone: z.string().max(20).nullable().optional(),
     guest_count: z.number().int().min(1).max(100).optional(),
+    channel: z.enum(DELIVERY_CHANNELS).optional(),
+    channel_ref: z.string().trim().max(40).nullable().optional(),
   })
-  .refine((b) => b.type !== 'dine_in' || b.table_id, { message: 'Pick a table for dine-in', path: ['table_id'] });
+  .refine((b) => b.type !== 'dine_in' || b.table_id, { message: 'Pick a table for dine-in', path: ['table_id'] })
+  .refine((b) => (b.type === 'delivery') === !!b.channel, { message: 'Delivery orders need a channel: Zomato, Swiggy or own', path: ['channel'] });
 
 const listQuery = outletQuery.extend({
   status: z.string().optional(),
@@ -101,6 +104,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           createdBy: auth.userId,
           customerName: body.customer_name,
           customerPhone: body.customer_phone,
+          channel: body.channel ?? null,
+          channelRef: body.channel_ref || null,
         });
       });
       return reply.status(201).send(order);

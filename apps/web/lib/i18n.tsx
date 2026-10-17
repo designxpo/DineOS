@@ -168,6 +168,12 @@ const en = {
   'pos.dine_in': 'Dine-in',
   'pos.takeaway': 'Takeaway',
   'pos.counter': 'Counter',
+  'pos.delivery': 'Delivery',
+  'pos.platform_ref': 'Platform order no.',
+  'channel.zomato': 'Zomato',
+  'channel.swiggy': 'Swiggy',
+  'channel.own': 'Own delivery',
+  'order.delivery_ref': '{channel} #{ref}',
   'pos.select_table': 'Select table…',
   'pos.guests': 'Guests',
   'pos.customer': 'Customer name',
@@ -199,6 +205,10 @@ const en = {
   'pay.card': 'Card',
   'pay.other': 'Other',
   'pay.room': 'Room',
+  'pay.platform': 'Delivery app',
+  'bill.tax_by_platform': 'GST paid by the delivery app (section 9(5))',
+  'bill.platform_hint': 'The guest paid on Zomato or Swiggy. The app pays you in its payout, after its commission.',
+  'bill.paid_on_app': 'Mark paid on the app',
   'pay.room_no': 'Room number',
   'pay.room_guest': 'Guest name (optional)',
   'req.calling': 'Calling waiter',
@@ -628,6 +638,12 @@ const hi: Record<Key, string> = {
   'pos.dine_in': 'यहीं खाना',
   'pos.takeaway': 'पैक करके',
   'pos.counter': 'काउंटर',
+  'pos.delivery': 'डिलीवरी',
+  'pos.platform_ref': 'ऐप का ऑर्डर नंबर',
+  'channel.zomato': 'Zomato',
+  'channel.swiggy': 'Swiggy',
+  'channel.own': 'अपनी डिलीवरी',
+  'order.delivery_ref': '{channel} #{ref}',
   'pos.select_table': 'टेबल चुनें…',
   'pos.guests': 'मेहमान',
   'pos.customer': 'ग्राहक का नाम',
@@ -659,6 +675,10 @@ const hi: Record<Key, string> = {
   'pay.card': 'कार्ड',
   'pay.other': 'अन्य',
   'pay.room': 'कमरा',
+  'pay.platform': 'डिलीवरी ऐप',
+  'bill.tax_by_platform': 'GST डिलीवरी ऐप भरता है (धारा 9(5))',
+  'bill.platform_hint': 'मेहमान ने Zomato या Swiggy पर भुगतान किया है। ऐप अपना कमीशन काटकर आपको पेआउट में भुगतान करेगा।',
+  'bill.paid_on_app': 'ऐप पर भुगतान हुआ',
   'pay.room_no': 'कमरा नंबर',
   'pay.room_guest': 'मेहमान का नाम (वैकल्पिक)',
   'req.calling': 'वेटर बुला रहे हैं',
@@ -929,7 +949,7 @@ const hi: Record<Key, string> = {
 
 const dictionaries: Record<Lang, Record<Key, string>> = { en, hi };
 
-interface I18n {
+export interface I18n {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: Key, vars?: Record<string, string | number>) => string;

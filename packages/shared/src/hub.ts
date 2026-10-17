@@ -6,7 +6,7 @@
 // session, order and bill it touched; the cloud upserts them by id, so a retry is harmless.
 
 import type { InvoiceDTO, MeDTO, MenuDTO, ModifierSnapshot, OutletDTO } from './dto';
-import type { ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from './enums';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from './enums';
 
 export interface HubTable {
   id: string;
@@ -79,6 +79,9 @@ export interface HubOrder {
   flagged: boolean;
   customer_name: string | null;
   customer_phone: string | null;
+  /** Delivery orders from the cloud; the hub itself does not take new ones. */
+  channel?: DeliveryChannel | null;
+  channel_ref?: string | null;
   created_by: string | null;
   placed_at: string;
   accepted_at: string | null;
@@ -124,6 +127,8 @@ export interface HubBill {
   table_session_id: string | null;
   order_id: string | null;
   status: 'draft' | 'finalised' | 'paid';
+  /** Zomato or Swiggy order: GST paid by the platform, settled by its payout. */
+  tax_by_operator?: boolean;
   invoice_series: 'main' | 'hub';
   fy_code: string | null;
   invoice_seq: number | null;

@@ -1,6 +1,6 @@
 import { sql } from 'kysely';
 import type { MeDTO, ModifierSnapshot } from '@dineos/shared/dto';
-import type { ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@dineos/shared/enums';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@dineos/shared/enums';
 import type { HubBill, HubOrder, HubSession, HubSnapshot, HubStaff, HubTable } from '@dineos/shared/hub';
 import type { Tx } from '../../context';
 import { loadMenu } from '../menu/service';
@@ -29,6 +29,8 @@ export async function loadHubOrders(tx: Tx, ids: readonly string[]): Promise<Hub
     flagged: o.flagged,
     customer_name: o.customer_name,
     customer_phone: o.customer_phone,
+    channel: o.channel as DeliveryChannel | null,
+    channel_ref: o.channel_ref,
     created_by: o.created_by,
     placed_at: o.placed_at.toISOString(),
     accepted_at: iso(o.accepted_at),
@@ -88,6 +90,7 @@ export async function loadHubBills(tx: Tx, ids: readonly string[]): Promise<HubB
     cgst_paise: b.cgst_paise,
     sgst_paise: b.sgst_paise,
     tax_total_paise: b.tax_total_paise,
+    tax_by_operator: b.tax_by_operator,
     round_off_paise: b.round_off_paise,
     total_paise: b.total_paise,
     paid_paise: b.paid_paise,

@@ -3,7 +3,7 @@
 
 import { businessDate } from '@dineos/shared/dates';
 import type { AvailabilitySchedule, ModifierSnapshot, OrderDTO } from '@dineos/shared/dto';
-import type { ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
 import { checkModifierSelection, isScheduleOpen, type ModifierGroupRule } from '@dineos/shared/menu';
 import {
   canItemTransition,
@@ -243,6 +243,9 @@ export interface CreateOrderInput {
   createdBy?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  /** Delivery orders: who delivers, and the platform's order number. */
+  channel?: DeliveryChannel | null;
+  channelRef?: string | null;
 }
 
 export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<OrderDTO> {
@@ -323,6 +326,8 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
       device_id: input.deviceId ?? null,
       customer_name: input.customerName ?? null,
       customer_phone: input.customerPhone ?? null,
+      channel: input.channel ?? null,
+      channel_ref: input.channelRef ?? null,
       created_by: input.createdBy ?? null,
       placed_at: now,
       accepted_at: accepted ? now : null,

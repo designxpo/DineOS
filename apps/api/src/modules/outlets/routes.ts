@@ -38,6 +38,7 @@ const outletFields = {
   inventory_auto_stockout: z.boolean(),
   hub_device_id: z.uuid().nullable(),
   room_charge_enabled: z.boolean(),
+  delivery_commission_bp: z.object({ zomato: z.number().int().min(0).max(5000).optional(), swiggy: z.number().int().min(0).max(5000).optional() }),
   hub_url: z.string().trim().regex(/^https?:\/\/[^\s/]+(:\d+)?\/?$/, 'Address looks like http://192.168.1.20:4100').nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
@@ -48,13 +49,13 @@ export const OUTLET_COLUMNS = [
   'auto_accept', 'approve_flagged_orders', 'service_charge_bp', 'service_charge_tax_rate_bp', 'default_tax_rate_bp',
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
-  'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled',
+  'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled', 'delivery_commission_bp',
 ] as const;
 
 export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
   const o = await tx.db.selectFrom('outlets').select(OUTLET_COLUMNS).where('id', '=', id).executeTakeFirst();
   if (!o) throw notFound('Outlet');
-  return o;
+  return { ...o, delivery_commission_bp: (o.delivery_commission_bp ?? {}) as OutletDTO['delivery_commission_bp'] };
 }
 
 function requireOwner(auth: StaffAuth): void {

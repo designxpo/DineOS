@@ -10,6 +10,7 @@ import type { ItemStatus } from '@dineos/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { minutesSince } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
+import { orderTitle } from '@/components/staff/order-title';
 import { send } from '@/lib/outbox';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { chime, soundReady, unlockSound } from '@/lib/sound';
@@ -146,7 +147,7 @@ export default function KdsPage() {
               <article key={order.id} className="flex flex-col overflow-hidden rounded-2xl bg-stone-800 shadow-lg">
                 <header className={cn('flex items-center justify-between px-4 py-3', tone)}>
                   <div>
-                    <p className="text-xl font-bold">{order.table_label ? order.table_label : order.type === 'takeaway' ? 'Takeaway' : 'Counter'}</p>
+                    <p className="text-xl font-bold">{order.table_label ?? orderTitle(order, t)}</p>
                     <p className="text-sm font-medium opacity-90">#{order.order_no}</p>
                   </div>
                   <p className="text-3xl font-bold tabular">{mins}′</p>

@@ -58,13 +58,14 @@ export default function PrintBill() {
           <Line left={`SGST ${formatRate(t.tax_rate_bp / 2)} on ${money(t.taxable_paise)}`} right={money(t.sgst_paise)} />
         </div>
       ))}
+      {bill.tax_by_operator && <p>GST paid by the e-commerce operator under section 9(5), CGST Act</p>}
       {bill.round_off_paise !== 0 && <Line left="Round off" right={money(bill.round_off_paise)} />}
       <Rule />
       <Line left={<span className="text-[15px]">TOTAL</span>} right={<span className="text-[15px]">Rs. {money(bill.total_paise)}</span>} bold />
       {bill.payments.map((p) => (
         <Line
           key={p.id}
-          left={p.kind === 'refund' ? `Refund (${p.method === 'room' ? `room ${p.room_no}` : p.method})` : p.method === 'room' ? `Charged to room ${p.room_no}${p.room_guest ? ` (${p.room_guest})` : ''}` : `Paid ${p.method.replace('_', ' ')}`}
+          left={p.kind === 'refund' ? `Refund (${p.method === 'room' ? `room ${p.room_no}` : p.method})` : p.method === 'room' ? `Charged to room ${p.room_no}${p.room_guest ? ` (${p.room_guest})` : ''}` : p.method === 'platform' ? 'Paid via delivery app' : `Paid ${p.method.replace('_', ' ')}`}
           right={money(p.amount_paise)}
         />
       ))}

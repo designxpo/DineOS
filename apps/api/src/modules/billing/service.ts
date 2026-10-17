@@ -4,7 +4,7 @@
 import { computeBill, type BillDiscount } from '@dineos/shared/billing';
 import { businessDate, financialYear, formatInvoiceNo } from '@dineos/shared/dates';
 import type { BillDTO } from '@dineos/shared/dto';
-import type { PaymentMethod } from '@dineos/shared/enums';
+import { OPERATOR_CHANNELS, type DeliveryChannel, type PaymentMethod } from '@dineos/shared/enums';
 import { CASHIER_DISCOUNT_LIMIT_BP } from '@dineos/shared/permissions';
 import type { BillDoc } from '@dineos/shared/print';
 import { sql } from 'kysely';
@@ -95,7 +95,8 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
       key: i.id,
       qty: i.qty,
       unit_price_paise: i.unit_price_paise,
-      tax_rate_bp: i.tax_rate_bp,
+      // Zomato and Swiggy pay the GST on their orders (s. 9(5)); the outlet charges none.
+      tax_rate_bp: bill.tax_by_operator ? 0 : i.tax_rate_bp,
       item_discount_paise: discounts[i.id] ?? 0,
     })),
     bill_discount: (bill.bill_discount ?? null) as BillDiscount | null,
@@ -193,6 +194,8 @@ export async function createBill(
   input: { table_session_id?: string | null; order_id?: string | null },
 ): Promise<BillDTO> {
   let outletId: string;
+  let delivery = false;
+  let taxByOperator = false;
   if (input.table_session_id) {
     const s = await tx.db
       .selectFrom('table_sessions')
@@ -204,10 +207,12 @@ export async function createBill(
     if (s.status === 'closed') throw conflict('session_closed', 'This table visit has already been settled');
     outletId = s.outlet_id;
   } else if (input.order_id) {
-    const o = await tx.db.selectFrom('orders').select(['outlet_id', 'table_session_id']).where('id', '=', input.order_id).forUpdate().executeTakeFirst();
+    const o = await tx.db.selectFrom('orders').select(['outlet_id', 'table_session_id', 'type', 'channel']).where('id', '=', input.order_id).forUpdate().executeTakeFirst();
     if (!o) throw notFound('Order');
     if (o.table_session_id) throw badRequest('use_table_bill', 'Dine-in orders are billed by table');
     outletId = o.outlet_id;
+    delivery = o.type === 'delivery';
+    taxByOperator = OPERATOR_CHANNELS.includes(o.channel as DeliveryChannel);
   } else {
     throw badRequest('scope_required', 'Give a table session or an order');
   }
@@ -246,8 +251,10 @@ export async function createBill(
       table_session_id: input.table_session_id ?? null,
       order_id: input.order_id ?? null,
       customer_id: customerId,
-      service_charge_bp: outlet.service_charge_bp,
+      // Service charge is for guests served at the outlet, not for deliveries.
+      service_charge_bp: delivery ? 0 : outlet.service_charge_bp,
       service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
+      tax_by_operator: taxByOperator,
       created_by: auth.userId,
     })
     .returning('id')
@@ -595,6 +602,9 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
   if (input.amount_paise > balance) {
     throw badRequest('overpayment', 'Payment is more than the balance due', { balance_paise: balance });
   }
+  // The guest paid Zomato or Swiggy, which pays the outlet in its payout; nothing else settles it.
+  if (bill.tax_by_operator && input.method !== 'platform') throw badRequest('paid_by_platform', 'This order was paid on the delivery app. Record it as paid by the platform.');
+  if (!bill.tax_by_operator && input.method === 'platform') throw badRequest('not_a_platform_order', 'Only Zomato and Swiggy orders are paid by the platform');
   const confirmation = await paymentAdapterFor(input.method).confirm({
     billId,
     invoiceNo: bill.invoice_no,

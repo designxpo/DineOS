@@ -151,10 +151,13 @@ function BillingForm() {
   const save = useSaveOutlet();
   const [sc, setSc] = useState('0');
   const [upi, setUpi] = useState({ vpa: '', name: '' });
+  const [commission, setCommission] = useState({ zomato: '', swiggy: '' });
   useEffect(() => {
     if (!outlet) return;
     setSc(String(outlet.service_charge_bp / 100));
     setUpi({ vpa: outlet.upi_vpa ?? '', name: outlet.upi_payee_name ?? '' });
+    const pctOf = (bp: number | undefined) => (bp == null ? '' : String(bp / 100));
+    setCommission({ zomato: pctOf(outlet.delivery_commission_bp.zomato), swiggy: pctOf(outlet.delivery_commission_bp.swiggy) });
   }, [outlet]);
   if (!outlet) return <Spinner />;
   const rates = [0, 500, 1200, 1800, 2800];
@@ -175,6 +178,25 @@ function BillingForm() {
         </Row>
         <Row title="Charge bills to hotel rooms" hint="For restaurants inside a hotel: cashiers can put a bill on a guest's room. The front desk sees them under Reports → Room charges.">
           <Switch label="Charge bills to hotel rooms" checked={outlet.room_charge_enabled} onChange={(v) => void save({ room_charge_enabled: v })} />
+        </Row>
+        <Row title="Delivery app commission (%)" hint="What Zomato and Swiggy keep from each order. Reports → Delivery uses it to show the payout to expect.">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={commission.zomato} onChange={(e) => setCommission({ ...commission, zomato: e.target.value })} className="w-20" inputMode="decimal" placeholder="Zomato" aria-label="Zomato commission percent" />
+            <Input value={commission.swiggy} onChange={(e) => setCommission({ ...commission, swiggy: e.target.value })} className="w-20" inputMode="decimal" placeholder="Swiggy" aria-label="Swiggy commission percent" />
+            <Button
+              variant="outline"
+              onClick={() =>
+                void save({
+                  delivery_commission_bp: {
+                    ...(commission.zomato ? { zomato: Math.round(Number(commission.zomato) * 100) } : {}),
+                    ...(commission.swiggy ? { swiggy: Math.round(Number(commission.swiggy) * 100) } : {}),
+                  },
+                })
+              }
+            >
+              Save
+            </Button>
+          </div>
         </Row>
         <Row title="Service charge (%)" hint="Optional. Staff can remove it from any bill; it can't be compulsory for guests.">
           <div className="flex gap-2">

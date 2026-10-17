@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, BedDouble, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
+import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -31,6 +31,7 @@ const METHODS: { value: PaymentMethod; label: I18nKey; icon: React.ComponentType
   { value: 'card_slip', label: 'pay.card', icon: CreditCard },
   { value: 'other', label: 'pay.other', icon: Wallet },
   { value: 'room', label: 'pay.room', icon: BedDouble },
+  { value: 'platform', label: 'pay.platform', icon: Bike },
 ];
 
 export default function BillPage() {
@@ -151,6 +152,7 @@ export default function BillPage() {
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
               <Row label={`${t('bill.sc')} ${bill.service_charge_waived ? t('bill.sc_removed') : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
             )}
+            {bill.tax_by_operator && <Row label={t('bill.tax_by_platform')} value="—" />}
             {inv.tax_summary.map((tx) => (
               <Row
                 key={tx.tax_rate_bp}
@@ -224,7 +226,7 @@ export default function BillPage() {
             />
           )}
 
-          {finalised && can('payment.record') && <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />}
+          {finalised && can('payment.record') && (bill.tax_by_operator ? <PlatformPayment bill={bill} onPaid={refresh} /> : <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />)}
 
           {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record') && !hub} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), t('bill.refund_done'))} />}
 
@@ -400,10 +402,48 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
   );
 }
 
+/** Zomato and Swiggy orders are paid on the app; the platform pays the outlet in its payout. */
+function PlatformPayment({ bill, onPaid }: { bill: BillDTO; onPaid: () => Promise<void> }) {
+  const { token } = useStaff();
+  const { t } = useI18n();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const pay = async () => {
+    setBusy(true);
+    try {
+      const res = await send<BillDTO>(token, `/bills/${bill.id}/payments`, {
+        method: 'POST',
+        body: { method: 'platform', amount_paise: bill.balance_paise, reference: null },
+        label: t('outbox.pay_label', { method: t('pay.platform'), amount: formatPaise(bill.balance_paise) }),
+      });
+      toast(res.queued ? t('offline.saved_payment') : t('bill.fully_paid'), res.queued ? 'info' : undefined);
+      await onPaid();
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card className="space-y-3 p-4">
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-semibold">{t('bill.take_payment')}</h2>
+        <p className="text-sm text-ink-soft">
+          {t('bill.due')} <span className="font-semibold text-ink tabular">{formatPaise(bill.balance_paise)}</span>
+        </p>
+      </div>
+      <p className="text-sm text-ink-soft">{t('bill.platform_hint')}</p>
+      <Button block size="lg" loading={busy} onClick={() => void pay()}>
+        <Bike className="size-4" /> {t('bill.paid_on_app')}
+      </Button>
+    </Card>
+  );
+}
+
 function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string | null; onPaid: () => Promise<void> }) {
   const { token, outlet } = useStaff();
   // Charging to a room only exists in hotel outlets that turned it on.
-  const methods = METHODS.filter((m) => m.value !== 'room' || outlet?.room_charge_enabled);
+  const methods = METHODS.filter((m) => m.value !== 'platform' && (m.value !== 'room' || outlet?.room_charge_enabled));
   const [roomNo, setRoomNo] = useState('');
   const [roomGuest, setRoomGuest] = useState('');
   const { t } = useI18n();

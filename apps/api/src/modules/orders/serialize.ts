@@ -1,5 +1,5 @@
 import type { GuestOrderDTO, ModifierSnapshot, OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
-import type { ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
 import type { Tx } from '../../context';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -57,6 +57,8 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
         table_id: o.table_id,
         table_label: o.table_label,
         table_session_id: o.table_session_id,
+        channel: o.channel as DeliveryChannel | null,
+        channel_ref: o.channel_ref,
         note: o.note,
         flagged: o.flagged,
         flag_reason: o.flag_reason,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, CreditCard, Landmark, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
+import { Banknote, Bike, CreditCard, Landmark, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -30,7 +30,7 @@ interface Dashboard {
   hourly: { hour: number; net_paise: number }[];
 }
 
-const METHOD = { cash: { label: 'Cash', icon: Banknote }, upi: { label: 'UPI', icon: Smartphone }, card_slip: { label: 'Card', icon: CreditCard }, other: { label: 'Other', icon: Wallet } } as const;
+const METHOD = { cash: { label: 'Cash', icon: Banknote }, upi: { label: 'UPI', icon: Smartphone }, card_slip: { label: 'Card', icon: CreditCard }, other: { label: 'Other', icon: Wallet }, platform: { label: 'Delivery app', icon: Bike } } as const;
 
 export default function DashboardPage() {
   const { api, outletId, outlet, can } = useStaff();

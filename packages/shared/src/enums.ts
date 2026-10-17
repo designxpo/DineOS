@@ -3,8 +3,13 @@
 export const ROLES = ['owner', 'manager', 'cashier', 'waiter', 'kitchen'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const ORDER_TYPES = ['dine_in', 'takeaway', 'counter'] as const;
+export const ORDER_TYPES = ['dine_in', 'takeaway', 'counter', 'delivery'] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
+
+/** Who delivers a delivery order. Zomato and Swiggy collect and pay its GST (CGST Act s. 9(5)). */
+export const DELIVERY_CHANNELS = ['zomato', 'swiggy', 'own'] as const;
+export type DeliveryChannel = (typeof DELIVERY_CHANNELS)[number];
+export const OPERATOR_CHANNELS: readonly DeliveryChannel[] = ['zomato', 'swiggy'];
 
 export const ORDER_SOURCES = ['guest_qr', 'waiter', 'pos'] as const;
 export type OrderSource = (typeof ORDER_SOURCES)[number];
@@ -40,7 +45,8 @@ export const BILL_STATUSES = ['draft', 'finalised', 'paid', 'void'] as const;
 export type BillStatus = (typeof BILL_STATUSES)[number];
 
 /** `room`: charged to a hotel guest's room, collected by the hotel at checkout. */
-export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room'] as const;
+/** `platform`: settled by Zomato's or Swiggy's payout, for their orders only. */
+export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room', 'platform'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const SERVICE_REQUEST_KINDS = ['call_waiter', 'bill'] as const;

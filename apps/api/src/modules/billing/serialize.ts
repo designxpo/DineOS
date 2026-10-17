@@ -63,6 +63,7 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         parent_bill_id: b.parent_bill_id,
         split_label: b.split_label,
         status: b.status as BillStatus,
+        tax_by_operator: b.tax_by_operator,
         lines: lines
           .filter((l) => l.bill_id === b.id)
           .map(
@@ -169,7 +170,8 @@ export async function loadInvoice(tx: Tx, billId: string): Promise<InvoiceDTO | 
     r.sgst_paise += sgst;
     byRate.set(rate, r);
   };
-  for (const l of bill.lines) add(l.tax_rate_bp, l.taxable_paise, l.cgst_paise, l.sgst_paise);
+  // Zomato and Swiggy orders carry no tax of the outlet's (s. 9(5)): no 0% rows on the invoice.
+  if (!bill.tax_by_operator) for (const l of bill.lines) add(l.tax_rate_bp, l.taxable_paise, l.cgst_paise, l.sgst_paise);
   if (bill.service_charge_paise > 0) {
     const linesCgst = bill.lines.reduce((a, l) => a + l.cgst_paise, 0);
     const linesSgst = bill.lines.reduce((a, l) => a + l.sgst_paise, 0);

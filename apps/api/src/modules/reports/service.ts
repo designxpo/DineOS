@@ -1,6 +1,7 @@
 // Reports (spec §7 dashboards, §8 day-end). Sales and GST follow invoice dates of finalised bills;
 // payments follow the outlet-local date they were taken; item sales follow the order's business date.
 
+import { DELIVERY_CHANNELS, type DeliveryChannel } from '@dineos/shared/enums';
 import { sql } from 'kysely';
 import type { Tx } from '../../context';
 
@@ -153,6 +154,8 @@ export async function gstReport(tx: Tx, r: Range) {
     .where('bills.status', 'in', LIVE)
     .where('bills.invoice_date', '>=', r.from)
     .where('bills.invoice_date', '<=', r.to)
+    // Zomato and Swiggy pay the GST on their orders (s. 9(5)); those are listed apart below.
+    .where('bills.tax_by_operator', '=', false)
     .groupBy('bill_lines.tax_rate_bp')
     .orderBy('bill_lines.tax_rate_bp')
     .execute();
@@ -192,13 +195,14 @@ export async function gstReport(tx: Tx, r: Range) {
     .where('bills.status', 'in', LIVE)
     .where('bills.invoice_date', '>=', r.from)
     .where('bills.invoice_date', '<=', r.to)
+    .where('bills.tax_by_operator', '=', false)
     .groupBy([sql`1`, 'bill_lines.tax_rate_bp'])
     .orderBy(sql`1`)
     .execute();
 
   const invoices = await tx.db
     .selectFrom('bills')
-    .select(['invoice_no', 'invoice_seq', 'invoice_series', 'fy_code', 'status', 'invoice_date', 'total_paise', 'taxable_paise', 'tax_total_paise', 'customer_name', 'customer_gstin'])
+    .select(['invoice_no', 'invoice_seq', 'invoice_series', 'fy_code', 'status', 'invoice_date', 'total_paise', 'taxable_paise', 'tax_total_paise', 'customer_name', 'customer_gstin', 'tax_by_operator'])
     .where('outlet_id', '=', r.outletId)
     .where('invoice_no', 'is not', null)
     .where('invoice_date', '>=', r.from)
@@ -214,10 +218,24 @@ export async function gstReport(tx: Tx, r: Range) {
     })
     .filter((x) => x.count > 0);
   const main = invoices.filter((i) => i.invoice_series === 'main');
+  // Sales through Zomato and Swiggy, on which the platform pays the GST: reported apart in GSTR-1.
+  const operator = await tx.db
+    .selectFrom('bills')
+    .innerJoin('orders', 'orders.id', 'bills.order_id')
+    .select((eb) => ['orders.channel', eb.fn.countAll<number>().as('bills'), eb.fn.sum<number>('bills.taxable_paise').as('value_paise')])
+    .where('bills.outlet_id', '=', r.outletId)
+    .where('bills.status', 'in', LIVE)
+    .where('bills.invoice_date', '>=', r.from)
+    .where('bills.invoice_date', '<=', r.to)
+    .where('bills.tax_by_operator', '=', true)
+    .groupBy('orders.channel')
+    .orderBy('orders.channel')
+    .execute();
 
   return {
     from: r.from,
     to: r.to,
+    operator_supplies: operator.map((o) => ({ channel: o.channel as DeliveryChannel, bills: n(o.bills), value_paise: n(o.value_paise) })),
     by_rate: [
       ...byRate.map((x) => ({ kind: 'items' as const, tax_rate_bp: x.tax_rate_bp, taxable_paise: n(x.taxable_paise), cgst_paise: n(x.cgst_paise), sgst_paise: n(x.sgst_paise) })),
       ...sc.map((x) => ({ kind: 'service_charge' as const, tax_rate_bp: x.service_charge_tax_rate_bp, taxable_paise: n(x.taxable_paise), cgst_paise: n(x.cgst_paise), sgst_paise: n(x.sgst_paise) })),
@@ -231,7 +249,7 @@ export async function gstReport(tx: Tx, r: Range) {
       series,
     },
     b2b: invoices
-      .filter((i) => i.customer_gstin && i.status !== 'void')
+      .filter((i) => i.customer_gstin && i.status !== 'void' && !i.tax_by_operator)
       .map((i) => ({
         invoice_no: i.invoice_no,
         invoice_date: i.invoice_date,
@@ -441,4 +459,35 @@ export function toCsv(rows: Record<string, unknown>[]): string {
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [keys.join(','), ...rows.map((r) => keys.map((k) => esc(r[k])).join(','))].join('\n');
+}
+
+/**
+ * Delivery orders per channel: how many came in, what the outlet billed for them, and the
+ * commission and payout to expect at the outlet's rates. Own deliveries pay no commission.
+ */
+export async function deliveryReport(tx: Tx, r: Range) {
+  const outlet = await tx.db.selectFrom('outlets').select('delivery_commission_bp').where('id', '=', r.outletId).executeTakeFirstOrThrow();
+  const rates = (outlet.delivery_commission_bp ?? {}) as Partial<Record<DeliveryChannel, number>>;
+  const rows = await tx.db
+    .selectFrom('orders')
+    .leftJoin('bills', (j) => j.onRef('bills.order_id', '=', 'orders.id').on('bills.status', 'in', LIVE))
+    .select((eb) => ['orders.channel', eb.fn.count<number>('orders.id').distinct().as('orders'), eb.fn.sum<number>('bills.total_paise').as('sales_paise')])
+    .where('orders.outlet_id', '=', r.outletId)
+    .where('orders.type', '=', 'delivery')
+    .where('orders.status', 'not in', ['rejected', 'cancelled'])
+    .where('orders.business_date', '>=', r.from)
+    .where('orders.business_date', '<=', r.to)
+    .groupBy('orders.channel')
+    .execute();
+  return {
+    from: r.from,
+    to: r.to,
+    channels: DELIVERY_CHANNELS.map((channel) => {
+      const row = rows.find((x) => x.channel === channel);
+      const sales = n(row?.sales_paise);
+      const bp = channel === 'own' ? 0 : (rates[channel] ?? 0);
+      const commission = Math.round((sales * bp) / 10_000);
+      return { channel, orders: n(row?.orders), sales_paise: sales, commission_bp: bp, commission_paise: commission, payout_paise: sales - commission };
+    }),
+  };
 }

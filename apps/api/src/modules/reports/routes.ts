@@ -9,7 +9,7 @@ import { inventoryReport } from '../inventory/report';
 import { roomCharges } from '../billing/rooms';
 import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
-import { dashboard, dayEnd, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
+import { dashboard, dayEnd, deliveryReport, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
 
 const rangeQuery = z.object({
   outlet_id: z.uuid(),
@@ -78,6 +78,13 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { r } = await range(req, auth.tenantId);
       assertCan(auth, r.outletId, 'report.view');
       return ctx.tx(auth.tenantId, (tx) => dayEnd(tx, r));
+    });
+
+    app.get('/reports/delivery', async (req) => {
+      const auth = requireStaff(req);
+      const { r } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      return ctx.tx(auth.tenantId, (tx) => deliveryReport(tx, r));
     });
 
     app.get('/reports/insights', async (req) => {

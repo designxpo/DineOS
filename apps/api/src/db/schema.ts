@@ -166,6 +166,7 @@ export interface Bills {
   status: Generated<string>;
   subtotal_paise: Generated<number>;
   table_session_id: string | null;
+  tax_by_operator: Generated<boolean>;
   tax_total_paise: Generated<number>;
   taxable_paise: Generated<number>;
   tenant_id: string;
@@ -399,6 +400,8 @@ export interface Orders {
   accepted_at: Timestamp | null;
   business_date: string;
   cancelled_reason: string | null;
+  channel: string | null;
+  channel_ref: string | null;
   created_at: Generated<Timestamp>;
   created_by: string | null;
   customer_id: string | null;
@@ -442,6 +445,7 @@ export interface Outlets {
   city: string | null;
   created_at: Generated<Timestamp>;
   default_tax_rate_bp: Generated<number>;
+  delivery_commission_bp: Generated<Json>;
   event_seq: Generated<number>;
   fssai_no: string | null;
   gstin: string | null;
