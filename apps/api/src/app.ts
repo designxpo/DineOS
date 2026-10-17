@@ -2,6 +2,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type { Redis } from 'ioredis';
 import { sql } from 'kysely';
 import { loadConfig, type Config } from './config';
 import { createContext, type AppContext } from './context';
@@ -16,6 +17,8 @@ export interface BuildOptions {
   logger?: boolean;
   /** Requests per minute per caller. Tests raise it. */
   rateLimitMax?: number;
+  /** Where rate-limit counts live; by default Redis when REDIS_URL is set. Tests pass their own. */
+  rateLimitRedis?: Redis;
 }
 
 export interface RouteEntry {
@@ -47,10 +50,24 @@ export async function buildApp(
     exposedHeaders: ['idempotent-replayed'],
   });
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+  // Several API servers run at once (Vercel starts more under load), so limits are counted in Redis
+  // when there is one; otherwise each server's memory. If Redis is unreachable, requests go through
+  // rather than locking restaurants out.
+  let limitRedis = opts.rateLimitRedis;
+  if (!limitRedis && config.REDIS_URL) {
+    const { Redis } = await import('ioredis');
+    const own = new Redis(config.REDIS_URL, { enableOfflineQueue: false, maxRetriesPerRequest: 1, commandTimeout: 1000 });
+    own.on('error', (err) => app.log.warn({ err }, 'rate-limit redis unavailable'));
+    app.addHook('onClose', async () => {
+      own.disconnect();
+    });
+    limitRedis = own;
+  }
   await app.register(rateLimit, {
     max: opts.rateLimitMax ?? config.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
     keyGenerator: (req) => bearerToken(req) ?? req.ip,
+    ...(limitRedis ? { redis: limitRedis, nameSpace: 'dineos-rate-', skipOnError: true } : {}),
   });
 
   registerAuth(app, ctx);

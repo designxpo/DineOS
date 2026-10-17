@@ -38,9 +38,11 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "^8.2.8",
     "@types/pdfkit": "^0.17.3",
     "@types/pg": "^8.15.6",
     "@types/qrcode": "^1.5.6",
+    "ioredis-mock": "^8.13.1",
     "kysely-codegen": "^0.20.0",
     "socket.io-client": "^4.8.4",
     "tsup": "^8.5.0",
