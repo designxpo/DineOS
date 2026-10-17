@@ -141,6 +141,11 @@ describe('menu management', () => {
     const file = await t.app.inject({ method: 'GET', url: url.pathname });
     expect(file.statusCode).toBe(200);
     expect(file.headers['content-type']).toBe('image/png');
+
+    // Removing it takes the photo off the menu guests see.
+    expect((await owner({ method: 'DELETE', url: `/v1/menu/items/${item.json().id}/photo` })).statusCode).toBe(204);
+    const menu = (await t.app.inject({ method: 'GET', url: `/v1/public/menu/${tenant.tenantId}/${tenant.outletId}` })).json();
+    expect(menu.items.find((i: { id: string }) => i.id === item.json().id).photo_url).toBeNull();
   });
 });
 

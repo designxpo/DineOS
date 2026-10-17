@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Clock, Download, ImagePlus, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react';
+import { Clock, Download, ImageOff, ImagePlus, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
 import type { MenuCategoryDTO, MenuDTO, MenuItemDTO, ModifierGroupDTO } from '@dineos/shared/dto';
@@ -235,6 +235,8 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
     groups: item?.modifier_group_ids ?? [],
   });
   const [photo, setPhoto] = useState<string | null>(item?.photo_url ?? null);
+  // A photo picked before a new dish is saved: it uploads once the dish exists.
+  const [pendingPhoto, setPendingPhoto] = useState<Blob | null>(null);
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -259,26 +261,50 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
       modifier_group_ids: form.groups,
       translations: form.hi ? { hi: { name: form.hi } } : {},
     };
-    const ok = await mutate(() => (item ? api(`/menu/items/${item.id}`, { method: 'PATCH', body }) : api('/menu/items', { method: 'POST', body: { ...body, outlet_id: outletId } })), 'Dish saved');
+    const result = { photoError: null as string | null };
+    const ok = await mutate(async () => {
+      if (item) return api(`/menu/items/${item.id}`, { method: 'PATCH', body });
+      const created = await api<{ id: string }>('/menu/items', { method: 'POST', body: { ...body, outlet_id: outletId } });
+      // The dish is saved either way; a failed photo must not lead to saving it twice.
+      if (pendingPhoto) await sendPhoto(created.id, pendingPhoto).catch((err: Error) => (result.photoError = err.message));
+    }, 'Dish saved');
+    if (ok && result.photoError) toast(`The photo did not upload (${result.photoError}). Open the dish to add it again.`, 'error');
     if (ok) onClose();
   };
 
+  const sendPhoto = async (itemId: string, blob: Blob): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', blob, 'photo.jpg');
+    const res = await fetch(`${API_URL}/v1/menu/items/${itemId}/photo`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
+    if (!res.ok) throw new Error((await res.json()).error?.message ?? 'Upload failed');
+    return (await res.json()).photo_url;
+  };
+
   const upload = async (file: File) => {
-    if (!item) return toast('Save the dish first, then add a photo', 'info');
     setUploading(true);
     try {
       const blob = await resizeImage(file);
-      const fd = new FormData();
-      fd.append('file', blob, 'photo.jpg');
-      const res = await fetch(`${API_URL}/v1/menu/items/${item.id}/photo`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
-      if (!res.ok) throw new Error((await res.json()).error?.message ?? 'Upload failed');
-      setPhoto((await res.json()).photo_url);
+      if (!item) {
+        setPendingPhoto(blob);
+        setPhoto(URL.createObjectURL(blob));
+        return;
+      }
+      setPhoto(await sendPhoto(item.id, blob));
       await mutate(async () => {});
     } catch (err) {
       toast((err as Error).message, 'error');
     } finally {
       setUploading(false);
     }
+  };
+
+  const removePhoto = async () => {
+    if (!item) {
+      setPendingPhoto(null);
+      setPhoto(null);
+      return;
+    }
+    if (await mutate(() => api(`/menu/items/${item.id}/photo`, { method: 'DELETE' }), 'Photo removed')) setPhoto(null);
   };
 
   return (
@@ -351,12 +377,17 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
         </div>
         <div>
           <p className="mb-2 text-sm font-medium">Photo</p>
-          <label className={cn('relative grid aspect-square cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed border-line bg-stone-50 text-ink-faint hover:bg-stone-100', !item && 'cursor-not-allowed opacity-60')}>
+          <label className="relative grid aspect-square cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed border-line bg-stone-50 text-ink-faint hover:bg-stone-100">
             {photo ? <img src={photo} alt="" className="absolute inset-0 size-full object-cover" /> : <ImagePlus className="size-7" />}
             {uploading && <span className="absolute inset-0 grid place-items-center bg-white/70"><Spinner /></span>}
-            <input type="file" accept="image/*" className="sr-only" disabled={!item} onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
           </label>
-          <p className="mt-2 text-xs text-ink-faint">{item ? 'Square photos look best. We resize before uploading.' : 'Save the dish first to add a photo.'}</p>
+          <p className="mt-2 text-xs text-ink-faint">{item ? 'Square photos look best. We resize before uploading.' : 'Square photos look best. It uploads when you save the dish.'}</p>
+          {photo && (
+            <Button variant="ghost" className="mt-2" onClick={() => void removePhoto()} disabled={uploading}>
+              <ImageOff className="size-4" /> Remove photo
+            </Button>
+          )}
           {item && (
             <Button variant="ghost" className="mt-4 text-rose-700" onClick={() => setConfirmDelete(true)}>
               <Trash2 className="size-4" /> Delete dish
