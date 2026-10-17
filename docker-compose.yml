@@ -5,10 +5,20 @@
 #   docker compose --env-file .env.production up -d --build
 #   docker compose --env-file .env.production run --rm api node apps/api/dist/create-admin.js --email you@company.in --name You --password '...'
 
+# Containers run without extra Linux privileges: no capabilities beyond what each one needs, and
+# no gaining privileges later (setuid binaries). Memory and CPU are capped so one runaway service
+# cannot starve the rest; raise the limits for a bigger server.
+x-hardened: &hardened
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # The entrypoint needs its root capabilities to set up the data directory, then drops to the
+    # postgres user itself.
+    security_opt: ['no-new-privileges:true']
     environment:
       POSTGRES_USER: dineos_owner
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
@@ -23,13 +33,23 @@ services:
       interval: 5s
       retries: 20
 
+  # Carries live events between API servers and rate-limit counters. Password-protected even on
+  # the private network; keeps nothing on disk.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    <<: *hardened
+    user: redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD (openssl rand -hex 32)}
+    command: ['sh', '-c', 'exec redis-server --requirepass "$$REDIS_PASSWORD" --save "" --appendonly no --maxmemory 128mb --maxmemory-policy volatile-lru']
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
 
   migrate:
     build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    <<: *hardened
     command: ['node', 'apps/api/dist/migrate.js']
     environment:
       DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
@@ -39,13 +59,17 @@ services:
   api:
     build: { context: ., dockerfile: infra/docker/api.Dockerfile }
     restart: unless-stopped
+    <<: *hardened
+    deploy:
+      resources:
+        limits: { cpus: '2.0', memory: 2048M }
     environment:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgres://dineos_app:${DINEOS_APP_PASSWORD}@postgres:5432/dineos
       DATABASE_ADMIN_URL: postgres://dineos_admin:${DINEOS_ADMIN_PASSWORD}@postgres:5432/dineos
       TOKEN_SECRET: ${TOKEN_SECRET:?}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       CORS_ORIGINS: https://${APP_DOMAIN}
       GUEST_URL_TEMPLATE: https://${APP_DOMAIN}/t/{token}
       PUBLIC_API_URL: https://${API_DOMAIN}
@@ -69,11 +93,21 @@ services:
       args:
         NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
     restart: unless-stopped
+    <<: *hardened
+    deploy:
+      resources:
+        limits: { cpus: '1.0', memory: 1024M }
     depends_on: [api]
 
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    <<: *hardened
+    # The only capability it keeps: listening on ports 80 and 443.
+    cap_add: [NET_BIND_SERVICE]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
     ports: ['80:80', '443:443']
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?}
@@ -89,6 +123,7 @@ services:
   backup:
     build: { context: ., dockerfile: infra/docker/backup.Dockerfile }
     profiles: ['ops']
+    <<: *hardened
     environment:
       DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?}
@@ -102,22 +137,9 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
-  # Optional self-hosted object storage for menu photos (STORAGE_DRIVER=s3).
-  minio:
-    # Pin this to the MinIO release you test before going live.
-    image: minio/minio:latest
-    profiles: ['s3']
-    command: ['server', '/data', '--console-address', ':9001']
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-dineos}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change-me-please}
-    volumes:
-      - miniodata:/data
-
 volumes:
   pgdata:
   uploads:
   backups:
   caddy_data:
   caddy_config:
-  miniodata:

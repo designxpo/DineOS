@@ -75,6 +75,10 @@ export function rolesCan(roles: readonly Role[], action: Action): boolean {
   return roles.some((r) => roleCan(r, action));
 }
 
+/** Wrong manager PINs in a row before that PIN locks, and for how long (guessing protection). */
+export const PIN_MAX_ATTEMPTS = 5;
+export const PIN_LOCK_MINUTES = 15;
+
 /** Actions that need a manager's PIN when a lower role performs them (spec §8: voids and refunds). */
 export const MANAGER_APPROVAL_ACTIONS = ['bill.void', 'payment.refund', 'order.cancel_after_accept', 'bill.discount_large'] as const;
 export type ApprovalAction = (typeof MANAGER_APPROVAL_ACTIONS)[number];

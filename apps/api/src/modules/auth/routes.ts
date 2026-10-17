@@ -62,7 +62,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       await ctx.tx(auth.tenantId, async (tx) => {
         const user = await tx.db.selectFrom('users').select('password_hash').where('id', '=', auth.userId).executeTakeFirstOrThrow();
         if (!(await verifySecret(body.password, user.password_hash))) throw unauthorized('Password is incorrect');
-        await tx.db.updateTable('users').set({ pin_hash: await hashSecret(body.pin) }).where('id', '=', auth.userId).execute();
+        // A new PIN also lifts a lock from wrong guesses at the old one.
+        await tx.db.updateTable('users').set({ pin_hash: await hashSecret(body.pin), pin_failed_attempts: 0, pin_locked_until: null }).where('id', '=', auth.userId).execute();
       });
       return reply.status(204).send();
     });

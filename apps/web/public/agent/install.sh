@@ -37,6 +37,13 @@ if [ -z "$WEB" ] || [ -z "$API" ]; then
   echo "Copy the full command from DineOS (Settings > Printers) and run it again." >&2
   exit 1
 fi
+# The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
+for url in "$WEB" "$API"; do
+  case "$url" in
+    https://* | http://localhost* | http://127.0.0.1*) ;;
+    *) echo "The DineOS address must start with https:// ($url)" >&2; exit 1 ;;
+  esac
+done
 
 OS=$(uname -s)
 say() { printf '\n==> %s\n' "$1"; }
@@ -64,6 +71,15 @@ fi
 say "Installing the DineOS print agent in $DIR"
 mkdir -p "$DIR"
 curl -fsSL "$WEB/agent/dineos-agent.mjs" -o "$DIR/dineos-agent.mjs.new"
+# Install only the exact file published with the site (a damaged, cut-off or stale download is
+# refused, and the running agent is left as it was).
+EXPECTED=$(curl -fsSL "$WEB/agent/dineos-agent.mjs.sha256" | cut -d' ' -f1)
+ACTUAL=$( (sha256sum "$DIR/dineos-agent.mjs.new" 2>/dev/null || shasum -a 256 "$DIR/dineos-agent.mjs.new") | cut -d' ' -f1)
+if [ -z "$EXPECTED" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+  rm -f "$DIR/dineos-agent.mjs.new"
+  echo "The downloaded agent does not match its published checksum, so nothing was installed. Run the command again." >&2
+  exit 1
+fi
 mv "$DIR/dineos-agent.mjs.new" "$DIR/dineos-agent.mjs"
 HUBJSON=""
 if [ "$HUB" -eq 1 ]; then HUBJSON=', "hub": true'; fi

@@ -16,6 +16,7 @@ docker compose --env-file .env.production run --rm api \
 - The `migrate` service applies database migrations before the API starts, on every deploy.
 - Health: `GET https://API_DOMAIN/healthz`. Logs: `docker compose logs -f api`.
 - `TOKEN_SECRET` signs every table QR code. Keep it stable; changing it invalidates all printed QR codes.
+- `REDIS_PASSWORD` protects Redis even on the private Docker network (use `openssl rand -hex 32`, so it fits in the connection URL). Containers run with no extra Linux capabilities, cannot gain privileges, and have CPU and memory caps; raise the caps in `docker-compose.yml` on a bigger server.
 
 ### Database on Supabase (optional)
 
@@ -69,7 +70,30 @@ How the API behaves on Vercel:
 
 - More API capacity: run several `api` containers (`docker compose up -d --scale api=3`). Redis carries live events between them, and the hourly maintenance job runs on only one, using an advisory lock.
 - The database is the shared state. Move it to a managed or dedicated Postgres 16 with point-in-time recovery when one VM is no longer enough.
-- Menu photos: switch `STORAGE_DRIVER=s3` and point it at MinIO (`--profile s3`) or any S3-compatible bucket you own.
+- Menu photos: switch `STORAGE_DRIVER=s3` and point it at MinIO or any S3-compatible bucket you own (see Object storage below).
+
+### Object storage
+
+Menu photos and logos must be readable by guest phones; nothing else in the bucket should be, and nobody should be able to list it.
+
+- **Supabase Storage** (the Vercel setup): a public bucket serves files by exact path only; leave the default policies, which do not let anonymous users list objects.
+- **AWS S3**: keep *Block public access* on for ACLs (`BlockPublicAcls`, `IgnorePublicAcls`) and allow reads of the photo folders only by bucket policy:
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Sid": "PublicMenuPhotos",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": ["arn:aws:s3:::BUCKET/*/menu/*", "arn:aws:s3:::BUCKET/*/branding/*"]
+    }]
+  }
+  ```
+- **Bundled MinIO**: start it with the extra file, which refuses to run without `S3_ACCESS_KEY` and `S3_SECRET_KEY` (long random values, no defaults):
+  `docker compose -f docker-compose.yml -f docker-compose.s3.yml --env-file .env.production up -d`
+  Then allow anonymous reads of the photo folders only (`mc anonymous set-json` with the policy above, `arn:aws:s3:::BUCKET/*/menu/*` and `.../branding/*`), never `mc anonymous set download` on the whole bucket, which also allows listing it.
+- Uploads are checked by their content, not their name: only real JPG, PNG and WebP files are stored. The API serves stored files (fs driver) only if they are images inside the storage folder, with headers that stop a browser from running anything in them.
 
 ## Onboard a restaurant
 
@@ -103,7 +127,7 @@ How it behaves:
 - Jobs are acknowledged once printed and retried up to five times. Jobs queued while the computer was off print when it comes back. On hosts where the agent cannot keep its live connection (some serverless hosts), it checks for jobs every 5 seconds instead.
 - If a ticket or bill has not printed after 90 seconds, or failed, every staff screen (including the kitchen screen) shows a red **Printer problem** bar naming it, with **Print here** (browser printing on that device), **Try again** and **Done**.
 - To remove the agent: Windows `Unregister-ScheduledTask -TaskName 'DineOS Print Agent' -Confirm:$false`; Linux `sudo systemctl disable --now dineos-print-agent`; Mac `launchctl unload ~/Library/LaunchAgents/in.dineos.print-agent.plist`. **Remove** on its card stops it printing at once.
-- Developers: after changing `apps/print-agent`, run `npm run build:download -w @dineos/print-agent` and commit `apps/web/public/agent/dineos-agent.mjs`; that file is what installers download. `DINEOS_DRY_RUN=1` prints tickets as text, `DINEOS_SCAN=0` skips the printer search, `DINEOS_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
+- Developers: after changing `apps/print-agent`, run `npm run build:download -w @dineos/print-agent` and commit `apps/web/public/agent/dineos-agent.mjs` with its `.sha256`; installers download the file and refuse it if the checksum does not match. `DINEOS_DRY_RUN=1` prints tickets as text, `DINEOS_SCAN=0` skips the printer search, `DINEOS_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
 
 ## Outlet hub (offline mode)
 
@@ -154,6 +178,7 @@ Runs hourly on one API server (advisory lock) and can be run by hand with `node 
   `DATABASE_OWNER_URL=... BACKUP_PASSPHRASE=... BACKUP_DIR=... infra/backup/restore-drill.sh`
   It restores the newest backup into a scratch database, checks migrations, RLS, gap-free invoice numbers and row counts against the backup's manifest, then drops the scratch database. A non-zero exit means investigate.
 - To restore for real: `infra/backup/restore.sh <file.dump.enc> <empty-database-url>`, then set role passwords and point the API at it.
+- Each backup is signed (`.hmac`, keyed from `BACKUP_PASSPHRASE`), so a changed or swapped file is caught; a plain checksum next to the file would not catch a swap. `restore.sh` refuses any backup it cannot verify. Backups made before signing have only a `.sha256`; restore one of those with `ALLOW_UNSIGNED_BACKUP=yes` (it is then checked for damage only). Copy the `.hmac` and `.sha256` files with the backups.
 
 ## Load test
 
@@ -176,6 +201,9 @@ It creates a throwaway restaurant, joins 300 guests across 60 tables, connects 1
 - Secrets live in `.env.production` (mode 600) and the password manager, not in git.
 - Rate limits: 600 requests per minute per token or IP, guest joins 120 per minute per IP, logins 10 per minute, guest orders limited per phone and per table.
 - Support access to a restaurant is time-limited (1 hour), needs a written reason, and appears in that restaurant's audit log.
+- Manager PINs: five wrong PINs in a row lock that manager's PIN for 15 minutes, whichever screen or network they came from. The owner gets a phone alert, the attempt is in the audit log, and setting a new PIN (My account) lifts the lock.
+- Every API response carries security headers (no sniffing, no framing, a no-script content policy, no referrer, HSTS in production), so they hold on Vercel where there is no proxy in front.
+- The print agent installers check the download against the checksum published with the site (`/agent/dineos-agent.mjs.sha256`) and accept only HTTPS addresses. The checksum catches a damaged or wrong download; the site's HTTPS certificate is what vouches for the source.
 - Run `npm audit --omit=dev` before each release; CI runs lint, types, migrations, all tests and Docker builds on every push.
 
 ## Loyalty codes by SMS (MSG91)

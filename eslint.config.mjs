@@ -10,7 +10,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     // Operational scripts run under plain Node.
-    files: ['infra/**/*.mjs', '**/*.config.mjs'],
+    files: ['infra/**/*.mjs', '**/*.config.mjs', 'apps/*/scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
   {

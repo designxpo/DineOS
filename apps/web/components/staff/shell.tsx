@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { OrderDTO } from '@dineos/shared/dto';
-import type { Action } from '@dineos/shared/permissions';
+import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, type Action } from '@dineos/shared/permissions';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -128,6 +128,16 @@ function TabBar({ items, onMore, moreOpen }: { items: NavItem[]; onMore: () => v
   );
 }
 
+/** Tells owners and managers when a manager PIN was locked after repeated wrong guesses. */
+function useSecurityAlerts(enabled: boolean) {
+  const toast = useToast();
+  useOutletEvents((e) => {
+    if (!enabled || e.type !== 'staff.pin_locked') return;
+    const p = e.payload as { user_name: string; requested_by_name: string | null };
+    toast(`${p.user_name}'s manager PIN is locked for ${PIN_LOCK_MINUTES} minutes: ${p.requested_by_name ?? 'someone'} entered it wrong ${PIN_MAX_ATTEMPTS} times in a row.`, 'error');
+  });
+}
+
 /** Where each role starts its day. */
 export function homeFor(can: (a: Action) => boolean): string {
   if (can('report.view')) return '/app';
@@ -144,6 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   useLowStockAlerts(can('inventory.record'));
+  useSecurityAlerts(can('staff.manage'));
   const { signOut, dialog: unsyncedDialog } = useSignOut();
 
   const items = NAV.filter((n) => can(n.action));

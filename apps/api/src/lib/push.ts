@@ -1,7 +1,7 @@
 import type { ItemsReadyDTO, OrderDTO, ServiceRequestDTO } from '@dineos/shared/dto';
 import type { Role } from '@dineos/shared/enums';
 import type { OutletEvent } from '@dineos/shared/events';
-import { roleCan, type Action } from '@dineos/shared/permissions';
+import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, roleCan, type Action } from '@dineos/shared/permissions';
 
 /** What a staff phone shows. `tag` lets a newer alert for the same thing replace the older one. */
 export interface PushMessage {
@@ -124,6 +124,20 @@ export function pushFor(event: OutletEvent): PushAlert | null {
         url: '/app/inbox',
         // The whole order being ready replaces the earlier "drinks ready" on the lock screen.
         tag: `ready-${ready.order_id}`,
+      },
+    };
+  }
+  if (event.type === 'staff.pin_locked') {
+    const p = event.payload as { user_name: string; requested_by_name: string | null };
+    return {
+      // Security notices go to the owner.
+      action: 'staff.manage',
+      roles: ['owner'],
+      message: {
+        title: `${p.user_name}'s manager PIN is locked`,
+        body: `${p.requested_by_name ?? 'Someone'} entered a wrong PIN ${PIN_MAX_ATTEMPTS} times in a row. It unlocks in ${PIN_LOCK_MINUTES} minutes.`,
+        url: '/app/settings',
+        tag: `pin-locked-${p.user_name}`,
       },
     };
   }

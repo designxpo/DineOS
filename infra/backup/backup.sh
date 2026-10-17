@@ -38,6 +38,9 @@ pg_dump --format=custom --compress=9 --no-password "$DATABASE_OWNER_URL" \
 
 sha256sum "${BACKUP_DIR}/${NAME}.dump.enc" 2>/dev/null > "${BACKUP_DIR}/${NAME}.sha256" \
   || shasum -a 256 "${BACKUP_DIR}/${NAME}.dump.enc" > "${BACKUP_DIR}/${NAME}.sha256"
+# Signed with a key derived from the passphrase: restore.sh refuses a backup whose signature does
+# not match, so a changed file (or a swapped one with a fresh checksum beside it) is caught.
+"$(dirname "$0")/backup-mac.sh" "${BACKUP_DIR}/${NAME}.dump.enc" > "${BACKUP_DIR}/${NAME}.hmac"
 
 SIZE="$(du -h "${BACKUP_DIR}/${NAME}.dump.enc" | cut -f1)"
 echo "[$(date -u +%FT%TZ)] wrote ${NAME}.dump.enc (${SIZE})"

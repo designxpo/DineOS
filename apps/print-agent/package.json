@@ -12,7 +12,7 @@
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "build:download": "tsup && node -e \"const fs=require('fs');fs.mkdirSync('../web/public/agent',{recursive:true});fs.copyFileSync('dist/download/dineos-agent.mjs','../web/public/agent/dineos-agent.mjs')\""
+    "build:download": "tsup && node scripts/publish-download.mjs"
   },
   "dependencies": {
     "@dineos/shared": "*",

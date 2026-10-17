@@ -6,6 +6,7 @@ import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { accessibleOutletIds, assertCan, assertOutletAccess, isTenantWide, requireStaff, type StaffAuth } from '../../lib/auth';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
+import { detectImage } from '../../lib/images';
 import { idParams, parse } from '../../lib/validate';
 
 const station = z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9_-]{0,29}$/, 'Station names use letters, numbers, - and _');
@@ -230,9 +231,10 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       requireOwner(auth);
       const file = await req.file();
       if (!file) throw badRequest('file_required', 'Attach an image');
-      const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.mimetype];
-      if (!ext) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
-      const url = await ctx.storage.put(`${auth.tenantId}/branding/logo-${randomUUID().slice(0, 8)}.${ext}`, await file.toBuffer(), file.mimetype);
+      const body = await file.toBuffer();
+      const image = detectImage(body);
+      if (!image) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
+      const url = await ctx.storage.put(`${auth.tenantId}/branding/logo-${randomUUID().slice(0, 8)}.${image.ext}`, body, image.contentType);
       return ctx.tx(auth.tenantId, async (tx) => {
         const current = await tx.db.selectFrom('tenants').select('branding').where('id', '=', tx.tenantId).executeTakeFirstOrThrow();
         await tx.db

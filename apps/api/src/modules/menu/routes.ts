@@ -5,6 +5,7 @@ import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { assertCan, assertOutletAccess, requireAction, requireStaff } from '../../lib/auth';
 import { badRequest, notFound } from '../../lib/errors';
+import { detectImage } from '../../lib/images';
 import { idParams, outletQuery, parse } from '../../lib/validate';
 import { IMPORT_TEMPLATE_CSV, importMenu, readSpreadsheet } from './import';
 import { bumpMenu, loadMenu } from './service';
@@ -357,11 +358,12 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { id } = parse(idParams, req.params);
       const file = await req.file();
       if (!file) throw badRequest('file_required', 'Attach an image');
-      const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.mimetype];
-      if (!ext) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
+      // The type comes from the file's own bytes, never from what the browser says it is.
       const body = await file.toBuffer();
+      const image = detectImage(body);
+      if (!image) throw badRequest('invalid_file_type', 'Use a JPG, PNG or WebP image');
       return onEntity(req, 'menu_items', id, 'menu.manage', async (tx, outletId) => {
-        const url = await ctx.storage.put(`${tx.tenantId}/menu/${id}-${randomUUID().slice(0, 8)}.${ext}`, body, file.mimetype);
+        const url = await ctx.storage.put(`${tx.tenantId}/menu/${id}-${randomUUID().slice(0, 8)}.${image.ext}`, body, image.contentType);
         await tx.db.updateTable('menu_items').set({ photo_url: url }).where('id', '=', id).execute();
         await bumpMenu(tx, outletId);
         return { id, photo_url: url };

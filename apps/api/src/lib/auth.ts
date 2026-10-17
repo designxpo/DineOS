@@ -6,6 +6,7 @@ import type { AppContext, Tx } from '../context';
 import { sha256 } from './crypto';
 import { AppError, forbidden, unauthorized } from './errors';
 import { verifyGuestToken } from './tokens';
+import { TtlCache } from './ttl-cache';
 
 export interface StaffAuth {
   kind: 'staff';
@@ -45,19 +46,12 @@ declare module 'fastify' {
 }
 
 // Short cache so every request does not cost two extra queries. Logout evicts locally; other
-// nodes notice within the TTL.
+// nodes notice within the TTL. Bounded in time and size, so it cannot grow without limit.
 const CACHE_TTL_MS = 15_000;
-const cache = new Map<string, { auth: Auth; at: number }>();
-let lastSweep = 0;
+const cache = new TtlCache<Auth>(CACHE_TTL_MS, 20_000);
 
 function remember(hash: string, auth: Auth): void {
-  const now = Date.now();
-  // Drop expired entries now and then, or every token ever seen would stay in memory.
-  if (now - lastSweep > CACHE_TTL_MS) {
-    lastSweep = now;
-    for (const [key, entry] of cache) if (now - entry.at >= CACHE_TTL_MS) cache.delete(key);
-  }
-  cache.set(hash, { auth, at: now });
+  cache.set(hash, auth);
 }
 
 export function evictCachedAuth(token: string): void {
@@ -68,14 +62,14 @@ export function clearAuthCache(): void {
   cache.clear();
 }
 
-const tenantStatusCache = new Map<string, { status: string; at: number }>();
+const tenantStatusCache = new TtlCache<string>(CACHE_TTL_MS, 10_000);
 
 async function tenantStatus(ctx: AppContext, tenantId: string): Promise<string | null> {
   const hit = tenantStatusCache.get(tenantId);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.status;
+  if (hit) return hit;
   const { rows } = await sql<{ status: string | null }>`select auth_tenant_status(${tenantId}) as status`.execute(ctx.db);
   const status = rows[0]?.status ?? null;
-  if (status) tenantStatusCache.set(tenantId, { status, at: Date.now() });
+  if (status) tenantStatusCache.set(tenantId, status);
   return status;
 }
 
@@ -102,7 +96,7 @@ export async function authenticate(ctx: AppContext, token: string): Promise<Auth
 
   const hash = sha256(token);
   const hit = cache.get(hash);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.auth;
+  if (hit) return hit;
 
   let auth: Auth | null = null;
   if (token.startsWith('st_')) {

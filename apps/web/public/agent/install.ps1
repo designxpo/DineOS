@@ -20,6 +20,13 @@ function Install-DineosAgent {
     Write-Host 'Copy the full command from DineOS (Settings > Printers) and run it again.' -ForegroundColor Red
     return
   }
+  # The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
+  foreach ($url in @($web, $api)) {
+    if ($url -notmatch '^https://' -and $url -notmatch '^http://(localhost|127\.0\.0\.1)([:/]|$)') {
+      Write-Host "The DineOS address must start with https:// ($url)" -ForegroundColor Red
+      return
+    }
+  }
   $me = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
   if (-not $me.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host 'Close this window, open PowerShell with "Run as administrator", and paste the command again.' -ForegroundColor Red
@@ -54,9 +61,21 @@ function Install-DineosAgent {
   $dir = Join-Path $env:ProgramData 'DineOS'
   $task = 'DineOS Print Agent'
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
-  Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
   Write-Host "==> Downloading the DineOS print agent to $dir"
-  Invoke-WebRequest "$web/agent/dineos-agent.mjs" -OutFile (Join-Path $dir 'dineos-agent.mjs') -UseBasicParsing
+  $agent = Join-Path $dir 'dineos-agent.mjs'
+  $download = "$agent.new"
+  Invoke-WebRequest "$web/agent/dineos-agent.mjs" -OutFile $download -UseBasicParsing
+  # Install only the exact file published with the site (a damaged, cut-off or stale download is
+  # refused, and the running agent is left as it was).
+  $expected = ([string](Invoke-RestMethod "$web/agent/dineos-agent.mjs.sha256")).Trim().Split(' ')[0].ToLower()
+  $actual = (Get-FileHash -Algorithm SHA256 $download).Hash.ToLower()
+  if (-not $expected -or $expected -ne $actual) {
+    Remove-Item $download -Force
+    Write-Host 'The downloaded agent does not match its published checksum, so nothing was installed. Run the command again.' -ForegroundColor Red
+    return
+  }
+  Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+  Move-Item -Force $download $agent
 
   $config = [ordered]@{ api_url = $api; token = $token; log_file = 'agent.log' }
   if ($env:DINEOS_HUB -eq '1') { $config.hub = $true }

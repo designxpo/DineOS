@@ -9,6 +9,7 @@ import { createContext, type AppContext } from './context';
 import { bearerToken, registerAuth } from './lib/auth';
 import { registerErrorHandler } from './lib/errors';
 import { registerIdempotency } from './lib/idempotency';
+import { registerSecurityHeaders } from './lib/security-headers';
 import { registerFileRoute } from './lib/storage';
 import { modules } from './modules';
 import { registerPushAlerts } from './modules/push/alerts';
@@ -44,6 +45,7 @@ export async function buildApp(
   });
 
   registerErrorHandler(app);
+  registerSecurityHeaders(app, config);
   await app.register(cors, {
     origin: config.corsOrigins,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],

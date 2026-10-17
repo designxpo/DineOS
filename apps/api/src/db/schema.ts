@@ -764,7 +764,9 @@ export interface Users {
   name: string;
   password_hash: string;
   phone: string | null;
+  pin_failed_attempts: Generated<number>;
   pin_hash: string | null;
+  pin_locked_until: Timestamp | null;
   status: Generated<string>;
   tenant_id: string;
   updated_at: Generated<Timestamp>;

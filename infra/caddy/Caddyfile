@@ -5,6 +5,11 @@
 {$APP_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy web:3000
+	# The web app sets its own content policy; browsers must always use HTTPS.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
 }
 
 {$API_DOMAIN} {
