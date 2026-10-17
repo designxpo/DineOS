@@ -71,16 +71,36 @@ describe('bill', () => {
       bill: {
         id: 'b', outlet_id: 'o', table_session_id: 's', order_id: null, table_label: 'T4', parent_bill_id: null, split_label: null, tax_by_operator: false,
         status: 'finalised',
-        lines: [{ id: 'l', order_item_id: 'i', name: 'Paneer Tikka', qty: 2, unit_price_paise: 25000, gross_paise: 50000, item_discount_paise: 0, bill_discount_paise: 0, taxable_paise: 50000, tax_rate_bp: 500, cgst_paise: 1250, sgst_paise: 1250, amount_paise: 52500, hsn_sac: '996331', seat_no: null }],
+        lines: [{ id: 'l', order_item_id: 'i', name: 'Paneer Tikka', qty: 2, unit_price_paise: 25000, gross_paise: 50000, item_discount_paise: 0, bill_discount_paise: 0, taxable_paise: 50000, tax_rate_bp: 500, cgst_paise: 1250, sgst_paise: 1250, amount_paise: 52500, hsn_sac: '996331', seat_no: null, comp_qty: 0, comp_paise: 0, comps: [] }],
         bill_discount: null, discount_reason: null, service_charge_bp: 0, service_charge_waived: false,
         subtotal_paise: 50000, item_discount_paise: 0, bill_discount_paise: 0, service_charge_paise: 0, taxable_paise: 50000,
         cgst_paise: 1250, sgst_paise: 1250, tax_total_paise: 2500, round_off_paise: 0, total_paise: 52500, paid_paise: 0, balance_paise: 52500,
         amount_shares: null, invoice_no: 'AURM/2627/000123', invoice_date: '2026-10-15', customer_name: null, customer_gstin: null,
         payments: [], finalised_at: null, paid_at: null, voided_at: null, void_reason: null, created_at: '2026-10-15T07:00:00Z',
-        customer: null, loyalty_points_redeemed: 0, loyalty_discount_paise: 0, loyalty_points_earned: 0,
+        customer: null, loyalty_points_redeemed: 0, loyalty_discount_paise: 0, loyalty_points_earned: 0, comp_paise: 0,
       },
     },
   };
+
+  it('shows a free dish as complimentary, apart from discounts', () => {
+    const bill = doc.invoice.bill;
+    const comped: BillDoc = {
+      ...doc,
+      invoice: {
+        ...doc.invoice,
+        bill: {
+          ...bill,
+          lines: [{ ...bill.lines[0]!, comp_qty: 1, comp_paise: 25000, item_discount_paise: 25000 }],
+          item_discount_paise: 25000,
+          comp_paise: 25000,
+        },
+      },
+    };
+    const text = renderBill(comped, 42).preview.join('\n');
+    expect(text).toContain('Complimentary (1 of 2)');
+    expect(text).toMatch(/Complimentary\s+-250\.00/);
+    expect(text).not.toContain('Discount');
+  });
 
   it('prints a GST tax invoice with the CGST/SGST split and a UPI QR', () => {
     const text = renderBill(doc, 42).preview.join('\n');

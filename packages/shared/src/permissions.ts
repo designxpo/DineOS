@@ -15,6 +15,7 @@ export const ACTIONS = [
   'service_request.handle',
   'bill.manage', // create, discount, split, finalise
   'bill.discount_large', // discount above the cashier limit
+  'bill.comp', // give a dish or a whole bill free (complimentary)
   'payment.record',
   'bill.void',
   'payment.refund',
@@ -48,6 +49,7 @@ const MATRIX: Record<Role, readonly Action[]> = {
     'table.operate',
     'service_request.handle',
     'bill.manage',
+    'bill.comp',
     'payment.record',
     'customer.view',
     'customer.manage',
@@ -80,7 +82,7 @@ export const PIN_MAX_ATTEMPTS = 5;
 export const PIN_LOCK_MINUTES = 15;
 
 /** Actions that need a manager's PIN when a lower role performs them (spec §8: voids and refunds). */
-export const MANAGER_APPROVAL_ACTIONS = ['bill.void', 'payment.refund', 'order.cancel_after_accept', 'bill.discount_large'] as const;
+export const MANAGER_APPROVAL_ACTIONS = ['bill.void', 'payment.refund', 'order.cancel_after_accept', 'bill.discount_large', 'bill.comp'] as const;
 export type ApprovalAction = (typeof MANAGER_APPROVAL_ACTIONS)[number];
 
 /** Largest bill discount a cashier may give without approval, in basis points. */

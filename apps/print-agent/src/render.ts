@@ -77,11 +77,15 @@ export function renderBill(doc: BillDoc, width: number, opts: RenderOptions = {}
     const [first, ...rest] = wrap(l.name, nameW - 1);
     p.line(`${(first ?? '').padEnd(nameW)}${String(l.qty).padStart(qtyW)}${money(l.gross_paise).padStart(amtW)}`);
     for (const r of rest) p.line(`  ${r}`);
+    if (l.comp_qty) p.line(`  Complimentary${l.comp_qty < l.qty ? ` (${l.comp_qty} of ${l.qty})` : ''}`);
     if (l.hsn_sac) p.line(`  HSN/SAC ${l.hsn_sac} @ ${money(l.unit_price_paise)}`);
   }
   p.line(rule);
   p.line(columns('Subtotal', money(bill.subtotal_paise), width));
-  const discount = bill.item_discount_paise + bill.bill_discount_paise;
+  // Free dishes are part of the item discount; they are shown on their own line.
+  const free = bill.comp_paise ?? 0;
+  if (free) p.line(columns('Complimentary', `-${money(free)}`, width));
+  const discount = bill.item_discount_paise + bill.bill_discount_paise - free;
   if (discount) p.line(columns('Discount', `-${money(discount)}`, width));
   if (bill.loyalty_discount_paise) p.line(columns(`Points redeemed (${bill.loyalty_points_redeemed})`, `-${money(bill.loyalty_discount_paise)}`, width));
   if (bill.service_charge_paise) p.line(columns(`Service charge (${pct(bill.service_charge_bp)})`, money(bill.service_charge_paise), width));

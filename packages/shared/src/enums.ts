@@ -57,3 +57,10 @@ export type PrintJobKind = (typeof PRINT_JOB_KINDS)[number];
 
 export const TENANT_STATUSES = ['active', 'suspended', 'cancelled'] as const;
 export type TenantStatus = (typeof TENANT_STATUSES)[number];
+
+/**
+ * Why something was given free: making a mishap right, a special or owner's guest, a celebration,
+ * a staff meal, marketing (an influencer, a tasting), or something else (with a note).
+ */
+export const COMP_REASONS = ['mishap', 'special_guest', 'owners_guest', 'celebration', 'staff_meal', 'marketing', 'other'] as const;
+export type CompReason = (typeof COMP_REASONS)[number];

@@ -42,6 +42,7 @@ const outletFields = {
   delivery_commission_bp: z.object({ zomato: z.number().int().min(0).max(5000).optional(), swiggy: z.number().int().min(0).max(5000).optional() }),
   hub_url: z.string().trim().regex(/^https?:\/\/[^\s/]+(:\d+)?\/?$/, 'Address looks like http://192.168.1.20:4100').nullable(),
   auto_clean_minutes: z.number().int().min(0).max(240),
+  comp_alert_paise: z.number().int().min(0).max(100_000_000).nullable(),
   table_water_item_id: z.uuid().nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
@@ -53,7 +54,7 @@ export const OUTLET_COLUMNS = [
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
   'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled', 'delivery_commission_bp',
-  'auto_clean_minutes', 'table_water_item_id',
+  'auto_clean_minutes', 'table_water_item_id', 'comp_alert_paise',
 ] as const;
 
 export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {

@@ -148,9 +148,11 @@ function BillingForm() {
   const [sc, setSc] = useState('0');
   const [upi, setUpi] = useState({ vpa: '', name: '' });
   const [commission, setCommission] = useState({ zomato: '', swiggy: '' });
+  const [compAlert, setCompAlert] = useState('');
   useEffect(() => {
     if (!outlet) return;
     setSc(String(outlet.service_charge_bp / 100));
+    setCompAlert(outlet.comp_alert_paise == null ? '' : String(outlet.comp_alert_paise / 100));
     setUpi({ vpa: outlet.upi_vpa ?? '', name: outlet.upi_payee_name ?? '' });
     const pctOf = (bp: number | undefined) => (bp == null ? '' : String(bp / 100));
     setCommission({ zomato: pctOf(outlet.delivery_commission_bp.zomato), swiggy: pctOf(outlet.delivery_commission_bp.swiggy) });
@@ -198,6 +200,17 @@ function BillingForm() {
           <div className="flex gap-2">
             <Input value={sc} onChange={(e) => setSc(e.target.value)} className="w-20" inputMode="decimal" aria-label="Service charge percent" />
             <Button variant="outline" onClick={() => void save({ service_charge_bp: Math.round(Number(sc || 0) * 100) })}>
+              Save
+            </Button>
+          </div>
+        </Row>
+        <Row
+          title="Free food and drinks alert (₹)"
+          hint="Owners, managers and cashiers can give dishes free (a waiter needs a manager's PIN). Your phone hears about anything given free worth this much or more. Leave empty for no alerts; everything is in Reports → Free items either way."
+        >
+          <div className="flex gap-2">
+            <Input value={compAlert} onChange={(e) => setCompAlert(e.target.value)} className="w-24" inputMode="numeric" placeholder="Off" aria-label="Alert above rupees" />
+            <Button variant="outline" onClick={() => void save({ comp_alert_paise: compAlert.trim() ? Math.round(Number(compAlert) * 100) : null })}>
               Save
             </Button>
           </div>

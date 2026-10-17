@@ -62,6 +62,8 @@ export interface HubOrderItem {
   seat_no: number | null;
   cancelled_reason: string | null;
   position: number;
+  /** Given free in the cloud before an outage; billed at nothing offline too. */
+  comp_qty?: number;
 }
 
 export interface HubOrder {

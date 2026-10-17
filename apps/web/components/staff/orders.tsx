@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Ban, Clock, HandPlatter, Pencil, Printer, QrCode, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
+import { Ban, Clock, Gift, HandPlatter, Pencil, Printer, QrCode, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import type { OrderDTO } from '@dineos/shared/dto';
 import type { OrderStatus } from '@dineos/shared/enums';
@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/ui/overlay';
 import { Badge, Textarea, VegMark } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { useWithApproval } from './approval';
+import { CompSheet, type CompRequest } from './comp-sheet';
 import { EditOrderSheet } from './edit-order';
 
 export const STATUS_TONE: Record<OrderStatus, 'amber' | 'blue' | 'violet' | 'green' | 'neutral' | 'rose'> = {
@@ -106,12 +107,33 @@ export function useOrderActions() {
 }
 
 export function OrderCard({ order, highlight, compact }: { order: OrderDTO; highlight?: boolean; compact?: boolean }) {
-  const { can } = useStaff();
+  const { can, api } = useStaff();
   const { t } = useI18n();
   const { setStatus, serveReady, reprint, busy } = useOrderActions();
   const [rejecting, setRejecting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [giving, setGiving] = useState(false);
+  const qc = useQueryClient();
+  const toast = useToast();
+  const withApproval = useWithApproval();
+  // A waiter's free dish asks for a manager's PIN; owners, managers and cashiers give it directly.
+  const canComp = can('bill.comp') || can('order.edit_items');
+  const giveFree = async (req: CompRequest) => {
+    try {
+      const res = await withApproval((approvalToken) =>
+        api(`/order-items/${req.itemId}/comp`, { method: 'POST', body: { qty: req.qty, reason: req.reason, note: req.note, customer_id: req.customerId }, approvalToken }),
+      );
+      if (res === undefined) return false;
+      toast(t('comp.given'));
+      setGiving(false);
+      await qc.invalidateQueries({ queryKey: ['orders'] });
+      return true;
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+      return false;
+    }
+  };
   const [reason, setReason] = useState('');
   const mins = minutesSince(order.accepted_at ?? order.placed_at);
   const late = order.status !== 'placed' && order.status !== 'served' && mins >= 20;
@@ -182,6 +204,11 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
               {i.modifiers.length > 0 && <span className="block text-xs text-ink-faint">{i.modifiers.map((m) => m.name).join(', ')}</span>}
               {i.note && <span className="block text-xs font-medium text-amber-800">“{i.note}”</span>}
             </span>
+            {(i.comp_qty ?? 0) > 0 && i.status !== 'cancelled' && (
+              <Badge tone="green" className="text-[10px]">
+                <Gift className="size-3" /> {i.comp_qty === i.qty ? t('comp.free') : t('comp.free_badge', { n: i.comp_qty ?? 0 })}
+              </Badge>
+            )}
             {order.status !== 'placed' && i.status !== order.status && i.status !== 'cancelled' && (
               <Badge tone={STATUS_TONE[i.status as OrderStatus] ?? 'neutral'} className="text-[10px]">
                 {t(`item.${i.status}` as I18nKey)}
@@ -244,6 +271,11 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
                   <HandPlatter className="size-[18px]" />
                 </IconButton>
               )}
+              {canComp && (
+                <IconButton label={t('comp.title')} onClick={() => setGiving(true)}>
+                  <Gift className="size-[18px]" />
+                </IconButton>
+              )}
               <IconButton label={t('act.reprint')} onClick={() => void reprint(order)}>
                 <Printer className="size-[18px]" />
               </IconButton>
@@ -258,6 +290,17 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
       )}
 
       {editing && <EditOrderSheet order={order} open={editing} onClose={() => setEditing(false)} />}
+      {giving && (
+        <CompSheet
+          open
+          onClose={() => setGiving(false)}
+          title={`${t('comp.title')} · #${order.order_no}`}
+          items={order.items
+            .filter((i) => i.status !== 'cancelled')
+            .map((i) => ({ id: i.id, name: i.name, qty: i.qty, free: i.comp_qty ?? 0, unitPricePaise: i.unit_price_paise }))}
+          onGive={giveFree}
+        />
+      )}
       <ConfirmDialog
         open={rejecting}
         onClose={() => setRejecting(false)}

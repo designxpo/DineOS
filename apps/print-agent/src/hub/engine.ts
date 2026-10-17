@@ -862,6 +862,14 @@ export class HubEngine {
   }
 
   /** Accepted, uncancelled items in scope that no other bill already charges for. */
+  private orderItem(id: string): HubOrderItem | undefined {
+    for (const o of Object.values(this.state.orders)) {
+      const item = o.items.find((i) => i.id === id);
+      if (item) return item;
+    }
+    return undefined;
+  }
+
   private billableItems(b: Pick<HubBill, 'id' | 'table_session_id' | 'order_id'>) {
     const onOtherBills = new Set(
       Object.values(this.state.bills)
@@ -897,7 +905,8 @@ export class HubEngine {
     const outlet = this.snap.outlet;
     const items = this.billableItems(b);
     const totals = computeBill({
-      lines: items.map((i) => ({ key: i.id, qty: i.qty, unit_price_paise: i.unit_price_paise, tax_rate_bp: i.tax_rate_bp, item_discount_paise: 0 })),
+      // Dishes given free in the cloud before the outage are charged nothing here too.
+      lines: items.map((i) => ({ key: i.id, qty: i.qty, unit_price_paise: i.unit_price_paise, tax_rate_bp: i.tax_rate_bp, item_discount_paise: Math.min(i.qty, i.comp_qty ?? 0) * i.unit_price_paise })),
       bill_discount: null,
       service_charge_bp: b.service_charge_waived ? 0 : b.service_charge_bp,
       service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
@@ -967,7 +976,11 @@ export class HubEngine {
       split_label: null,
       status: b.status,
       tax_by_operator: b.tax_by_operator ?? false,
-      lines: b.lines.map((l) => ({ id: l.order_item_id, ...l })),
+      lines: b.lines.map((l) => {
+        const free = Math.min(l.qty, this.orderItem(l.order_item_id)?.comp_qty ?? 0);
+        return { id: l.order_item_id, ...l, comp_qty: free, comp_paise: Math.min(l.gross_paise, free * l.unit_price_paise), comps: [] };
+      }),
+      comp_paise: b.lines.reduce((sum, l) => sum + Math.min(l.gross_paise, Math.min(l.qty, this.orderItem(l.order_item_id)?.comp_qty ?? 0) * l.unit_price_paise), 0),
       bill_discount: null,
       discount_reason: null,
       service_charge_bp: b.service_charge_bp,

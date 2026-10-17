@@ -20,6 +20,7 @@ import { ConfirmDialog, Sheet } from '@/components/ui/overlay';
 import { Badge, Card, Field, Input, Segmented, Spinner, Switch } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { useWithApproval } from '@/components/staff/approval';
+import { CompForm, type CompRequest } from '@/components/staff/comp-sheet';
 import { NewCustomerSheet } from '@/components/staff/customer-sheet';
 import { ReasonPicker } from '@/components/staff/orders';
 
@@ -42,7 +43,7 @@ export default function BillPage() {
   const toast = useToast();
   const router = useRouter();
   const withApproval = useWithApproval();
-  const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void'>(null);
+  const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void' | 'comp'>(null);
   const [lineDiscount, setLineDiscount] = useState<BillLineDTO | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   // On the outlet hub (offline) only what needs no manager PIN or cloud lookup is offered.
@@ -85,7 +86,26 @@ export default function BillPage() {
 
   const draft = bill.status === 'draft';
   const finalised = bill.status === 'finalised';
-  const discount = bill.item_discount_paise + bill.bill_discount_paise;
+  // Free (complimentary) dishes are part of the item discounts; shown on their own row.
+  const free = bill.comp_paise ?? 0;
+  const discount = bill.item_discount_paise + bill.bill_discount_paise - free;
+  const guest = bill.customer ? { id: bill.customer.id, label: `${bill.customer.name ?? 'Guest'} (…${bill.customer.phone.slice(-4)})` } : null;
+  const giveFree = (req: CompRequest, wholeBill: boolean) =>
+    act(
+      'comp',
+      (approvalToken) =>
+        wholeBill
+          ? api(`/bills/${id}/comp`, { method: 'POST', body: { reason: req.reason, note: req.note, customer_id: req.customerId }, approvalToken })
+          : api(`/order-items/${req.itemId}/comp`, { method: 'POST', body: { qty: req.qty, reason: req.reason, note: req.note, customer_id: req.customerId }, approvalToken }),
+      t('comp.given'),
+    ).then((ok) => {
+      if (ok) {
+        setSheet(null);
+        setLineDiscount(null);
+      }
+      return ok;
+    });
+  const takeBack = (compId: string) => void act('uncomp', () => api(`/comps/${compId}`, { method: 'DELETE' }), t('comp.undone'));
   // Bottled water left on the table: someone counts the opened ones before the bill prints.
   const waterCheck = draft && !hub && !!outlet?.table_water_item_id && !!bill.table_session_id;
   const waterMissing = waterCheck && (bill.water_bottles ?? null) === null;
@@ -138,7 +158,17 @@ export default function BillPage() {
                       l.name
                     )}
                     {l.seat_no && <span className="ml-1 text-xs text-ink-faint">{t('bill.seat', { n: l.seat_no })}</span>}
-                    {l.item_discount_paise > 0 && <span className="block text-xs text-emerald-700">{t('bill.off', { amount: formatPaise(l.item_discount_paise) })}</span>}
+                    {l.comp_qty > 0 && (
+                      <span className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                        <Gift className="size-3" /> {l.comp_qty === l.qty ? t('comp.free') : t('comp.free_some', { n: l.comp_qty, qty: l.qty })}
+                        {draft && l.comps.length > 0 && (
+                          <button type="button" disabled={busy === 'uncomp'} onClick={() => takeBack(l.comps[l.comps.length - 1]!.id)} className="cursor-pointer text-ink-soft underline underline-offset-2 hover:text-ink">
+                            {t('comp.undo')}
+                          </button>
+                        )}
+                      </span>
+                    )}
+                    {l.item_discount_paise - l.comp_paise > 0 && <span className="block text-xs text-emerald-700">{t('bill.off', { amount: formatPaise(l.item_discount_paise - l.comp_paise) })}</span>}
                   </td>
                   <td className="px-2 py-2.5 text-right tabular">{l.qty}</td>
                   <td className="px-2 py-2.5 text-right tabular">{formatPaise(l.unit_price_paise)}</td>
@@ -150,6 +180,7 @@ export default function BillPage() {
           </table>
           <dl className="space-y-1.5 border-t border-line bg-stone-50/60 px-4 py-4 text-sm">
             <Row label={t('bill.subtotal')} value={formatPaise(bill.subtotal_paise)} />
+            {free > 0 && <Row label={t('comp.free')} value={`− ${formatPaise(free)}`} tone="text-emerald-700" />}
             {discount > 0 && <Row label={`${t('bill.discount')}${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
             {bill.loyalty_discount_paise > 0 && <Row label={t('bill.points_row', { n: bill.loyalty_points_redeemed })} value={`− ${formatPaise(bill.loyalty_discount_paise)}`} tone="text-emerald-700" />}
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
@@ -183,6 +214,11 @@ export default function BillPage() {
                     <Button variant="outline" onClick={() => setSheet('split')}>
                       <Scissors className="size-4" /> {t('bill.split')}
                     </Button>
+                    {can('bill.comp') && (
+                      <Button variant="outline" onClick={() => setSheet('comp')}>
+                        <Gift className="size-4" /> {t('comp.title')}
+                      </Button>
+                    )}
                   </>
                 )}
                 <Button variant="outline" onClick={() => setSheet('customer')}>
@@ -263,8 +299,12 @@ export default function BillPage() {
       </div>
 
       <DiscountSheet bill={bill} open={sheet === 'discount'} onClose={() => setSheet(null)} onSave={(body) => act('discount', (approval) => api(`/bills/${id}`, { method: 'PATCH', body, approvalToken: approval }), 'Discount applied').then((ok) => ok && setSheet(null))} />
+      {sheet === 'comp' && <BillCompSheet bill={bill} guest={guest} onClose={() => setSheet(null)} onGive={giveFree} />}
       {lineDiscount && (
         <LineDiscountSheet
+          canComp={can('bill.comp')}
+          guest={guest}
+          onGiveFree={(req) => giveFree(req, false)}
           bill={bill}
           line={lineDiscount}
           onClose={() => setLineDiscount(null)}
@@ -815,7 +855,25 @@ function VoidDialog({ open, onClose, onConfirm, busy }: { open: boolean; onClose
 }
 
 /** Discount one dish (spec §8 per-item discount). Larger than 10% of the bill in total needs a manager. */
-function LineDiscountSheet({ bill, line, onClose, onSave }: { bill: BillDTO; line: BillLineDTO; onClose: () => void; onSave: (body: object) => void }) {
+function LineDiscountSheet({
+  bill,
+  line,
+  canComp,
+  guest,
+  onClose,
+  onSave,
+  onGiveFree,
+}: {
+  bill: BillDTO;
+  line: BillLineDTO;
+  canComp: boolean;
+  guest: { id: string; label: string } | null;
+  onClose: () => void;
+  onSave: (body: object) => void;
+  onGiveFree: (req: CompRequest) => Promise<boolean>;
+}) {
+  const { t } = useI18n();
+  const [mode, setMode] = useState<'discount' | 'free'>('discount');
   const [kind, setKind] = useState<'percent' | 'amount'>('percent');
   const [value, setValue] = useState(line.item_discount_paise ? rupeesInput(line.item_discount_paise) : '');
   const [reason, setReason] = useState(bill.discount_reason ?? '');
@@ -835,20 +893,84 @@ function LineDiscountSheet({ bill, line, onClose, onSave }: { bill: BillDTO; lin
     onSave({ item_discounts, discount_reason: reason.trim() || null });
   };
   return (
-    <Sheet open onClose={onClose} title={`Discount: ${line.name}`} footer={<Button block onClick={save}>{paise ? `Take ${formatPaise(paise)} off` : 'Remove discount'}</Button>}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={line.name}
+      footer={mode === 'discount' ? <Button block onClick={save}>{paise ? `Take ${formatPaise(paise)} off` : 'Remove discount'}</Button> : undefined}
+    >
       <p className="mb-3 text-sm text-ink-soft">
         {line.qty} × {formatPaise(line.unit_price_paise)} = {formatPaise(line.gross_paise)}
       </p>
-      <Segmented value={kind} onChange={setKind} options={[{ value: 'percent', label: 'Percent' }, { value: 'amount', label: 'Amount (₹)' }]} />
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(kind === 'percent' ? ['10', '25', '50', '100'] : ['20', '50', '100']).map((v) => (
-          <button key={v} onClick={() => setValue(v)} className={cn('h-10 cursor-pointer rounded-xl border px-4 text-sm font-medium', value === v ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line')}>
-            {kind === 'percent' ? (v === '100' ? 'On the house' : `${v}%`) : `₹${v}`}
-          </button>
-        ))}
-      </div>
-      <Input className="mt-3" value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" aria-label="Discount value" />
-      <ReasonPicker reasons={['Dish was late', 'Not to taste', 'Complimentary', 'Staff meal']} value={reason} onChange={setReason} />
+      {canComp && (
+        <Segmented
+          className="mb-4"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'discount', label: 'Discount' },
+            { value: 'free', label: t('comp.title') },
+          ]}
+        />
+      )}
+      {mode === 'free' ? (
+        <CompForm
+          items={[{ id: line.order_item_id!, name: line.name, qty: line.qty, free: line.comp_qty, unitPricePaise: line.unit_price_paise }]}
+          customer={guest}
+          onGive={onGiveFree}
+        />
+      ) : (
+        <>
+          <Segmented value={kind} onChange={setKind} options={[{ value: 'percent', label: 'Percent' }, { value: 'amount', label: 'Amount (₹)' }]} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(kind === 'percent' ? ['10', '25', '50'] : ['20', '50', '100']).map((v) => (
+              <button key={v} onClick={() => setValue(v)} className={cn('h-10 cursor-pointer rounded-xl border px-4 text-sm font-medium', value === v ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line')}>
+                {kind === 'percent' ? `${v}%` : `₹${v}`}
+              </button>
+            ))}
+          </div>
+          <Input className="mt-3" value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" aria-label="Discount value" />
+          <ReasonPicker reasons={['Dish was late', 'Not to taste', 'Regular guest', 'Price match']} value={reason} onChange={setReason} />
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+/** "Give free" on a bill: one dish (or some of it), or everything still charged. */
+function BillCompSheet({
+  bill,
+  guest,
+  onClose,
+  onGive,
+}: {
+  bill: BillDTO;
+  guest: { id: string; label: string } | null;
+  onClose: () => void;
+  onGive: (req: CompRequest, wholeBill: boolean) => Promise<boolean>;
+}) {
+  const { t } = useI18n();
+  const [scope, setScope] = useState<'dish' | 'bill'>('dish');
+  const lines = bill.lines.filter((l) => l.order_item_id);
+  const charged = lines.reduce((sum, l) => sum + l.gross_paise - l.comp_paise, 0);
+  return (
+    <Sheet open onClose={onClose} title={t('comp.title')}>
+      <Segmented
+        className="mb-4"
+        value={scope}
+        onChange={setScope}
+        options={[
+          { value: 'dish', label: t('comp.one_dish') },
+          { value: 'bill', label: t('comp.whole_bill') },
+        ]}
+      />
+      <CompForm
+        key={scope}
+        items={scope === 'dish' ? lines.map((l) => ({ id: l.order_item_id!, name: l.name, qty: l.qty, free: l.comp_qty, unitPricePaise: l.unit_price_paise })) : undefined}
+        wholeBillPaise={scope === 'bill' ? charged : undefined}
+        customer={guest}
+        onGive={(req) => onGive(req, scope === 'bill')}
+      />
     </Sheet>
   );
 }

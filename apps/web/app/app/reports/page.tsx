@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { CameraDTO } from '@dineos/shared/dto';
+import type { CameraDTO, CompReportDTO } from '@dineos/shared/dto';
+import type { CompReason } from '@dineos/shared/enums';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { dateTime, formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -14,7 +15,7 @@ import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'day-end' | 'delivery' | 'vision' | 'room-charges';
+type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'comps' | 'day-end' | 'delivery' | 'vision' | 'room-charges';
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -94,6 +95,7 @@ export default function ReportsPage() {
             { value: 'insights', label: 'Insights' },
             { value: 'gst', label: 'GST' },
             { value: 'items', label: 'Dishes' },
+            { value: 'comps', label: 'Free items' },
             { value: 'day-end', label: 'Day end' },
             { value: 'delivery', label: 'Delivery' },
             ...(outlet?.room_charge_enabled ? [{ value: 'room-charges' as Tab, label: 'Room charges' }] : []),
@@ -139,6 +141,8 @@ export default function ReportsPage() {
           <Items data={q.data} />
         ) : tab === 'delivery' ? (
           <Delivery data={q.data} />
+        ) : tab === 'comps' ? (
+          <Comps data={q.data} />
         ) : (
           <DayEnd data={q.data} />
         )}
@@ -173,6 +177,7 @@ function Sales({ data }: { data: any }) {
         head={['', 'Amount']}
         rows={[
           ['Gross (menu prices)', formatPaise(t.gross_paise)],
+          ['Given free', `− ${formatPaise(t.complimentary_paise ?? 0)}`],
           ['Discounts', `− ${formatPaise(t.discount_paise)}`],
           ['Service charge', formatPaise(t.service_charge_paise)],
           ['Taxable value', formatPaise(t.taxable_paise)],
@@ -181,6 +186,59 @@ function Sales({ data }: { data: any }) {
           ['Net sales', formatPaise(t.net_paise)],
           ['Still unpaid', formatPaise(t.outstanding_paise)],
         ]}
+      />
+    </div>
+  );
+}
+
+const COMP_REASON: Record<CompReason, string> = {
+  mishap: 'Mishap made right',
+  special_guest: 'Special guest',
+  owners_guest: "Owner's guest",
+  celebration: 'Celebration',
+  staff_meal: 'Staff meal',
+  marketing: 'Marketing or tasting',
+  other: 'Other',
+};
+
+/** Free food and drinks: what went free and why, who gave and approved it, for whom, and the cost. */
+function Comps({ data }: { data: CompReportDTO }) {
+  const t = data.totals;
+  const share = t.net_sales_paise ? `${((t.value_paise / (t.net_sales_paise + t.value_paise)) * 100).toFixed(1)}% of food and drink served` : 'no sales in this period';
+  // Someone giving far more than the rest is worth a look.
+  const avg = data.by_staff.length > 1 ? data.by_staff.reduce((a, s) => a + s.value_paise, 0) / data.by_staff.length : 0;
+  const unusual = (v: number) => data.by_staff.length > 2 && v >= 50_000 && v > 2 * avg;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Given free" value={formatPaise(t.value_paise)} sub={`${t.items} items · ${share}`} />
+        <Stat label="Cost to you" value={formatPaise(t.cost_paise)} sub="Ingredients, from recipes" />
+        <Stat label="Times" value={String(t.count)} />
+        <Stat label="Top reason" value={data.by_reason[0] ? COMP_REASON[data.by_reason[0].reason] : '—'} sub={data.by_reason[0] ? formatPaise(data.by_reason[0].value_paise) : undefined} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Table title="By reason" head={['Reason', 'Items', 'Value', 'Cost']} rows={data.by_reason.map((r) => [COMP_REASON[r.reason], r.count, formatPaise(r.value_paise), formatPaise(r.cost_paise)])} />
+        <Table
+          title="Given by"
+          head={['Staff', 'Items', 'Value']}
+          rows={data.by_staff.map((s) => [unusual(s.value_paise) ? `${s.name} ⚑ well above others` : s.name, s.count, formatPaise(s.value_paise)])}
+        />
+        <Table title="Approved by (manager PIN)" head={['Manager', 'Items', 'Value']} rows={data.by_approver.map((s) => [s.name, s.count, formatPaise(s.value_paise)])} empty="Nothing needed a manager" />
+        <Table title="For guests" head={['Guest', 'Items', 'Value']} rows={data.by_guest.map((g) => [`${g.name ?? 'Guest'} (…${g.phone_last4})`, g.count, formatPaise(g.value_paise)])} empty="No guest linked" />
+      </div>
+      <Table
+        title="Every free item"
+        head={['When', 'Item', 'Value', 'Why', 'Given by', 'Where']}
+        textCols={[1, 3, 4, 5]}
+        rows={data.rows.map((c) => [
+          dateTime(c.created_at),
+          `${c.qty}× ${c.item_name}${c.whole_bill ? ' (whole bill)' : ''}${c.removed_at ? ' (undone)' : ''}`,
+          formatPaise(c.value_paise),
+          `${COMP_REASON[c.reason]}${c.note ? `: ${c.note}` : ''}`,
+          `${c.given_by}${c.approved_by ? ` (approved: ${c.approved_by})` : ''}`,
+          `${c.table_label ? `Table ${c.table_label}` : `Order #${c.order_no}`}${c.invoice_no ? ` · ${c.invoice_no}` : ''}`,
+        ])}
+        empty="Nothing given free in this period"
       />
     </div>
   );
@@ -573,7 +631,9 @@ function DayEnd({ data }: { data: any }) {
   );
 }
 
-function Table({ title, head, rows, empty = 'Nothing yet' }: { title: string; head: string[]; rows: (string | number)[][]; empty?: string }) {
+/** Columns after the first are numbers (right-aligned) unless listed in `textCols`. */
+function Table({ title, head, rows, empty = 'Nothing yet', textCols = [] }: { title: string; head: string[]; rows: (string | number)[][]; empty?: string; textCols?: number[] }) {
+  const numeric = (i: number) => i > 0 && !textCols.includes(i);
   return (
     <Card className="overflow-hidden">
       <h2 className="border-b border-line px-4 py-2.5 text-sm font-semibold">{title}</h2>
@@ -585,7 +645,7 @@ function Table({ title, head, rows, empty = 'Nothing yet' }: { title: string; he
             <thead className="text-left text-xs text-ink-faint">
               <tr>
                 {head.map((h, i) => (
-                  <th key={h + i} className={`px-4 py-2 font-medium ${i > 0 ? 'text-right' : ''}`}>
+                  <th key={h + i} className={`px-4 py-2 font-medium ${numeric(i) ? 'text-right' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -595,7 +655,7 @@ function Table({ title, head, rows, empty = 'Nothing yet' }: { title: string; he
               {rows.map((r, i) => (
                 <tr key={i}>
                   {r.map((c, j) => (
-                    <td key={j} className={`px-4 py-2 capitalize-first ${j > 0 ? 'text-right tabular' : ''}`}>
+                    <td key={j} className={`px-4 py-2 capitalize-first ${numeric(j) ? 'text-right tabular' : ''}`}>
                       {c}
                     </td>
                   ))}

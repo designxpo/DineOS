@@ -4,6 +4,7 @@ import admin from './admin/routes';
 import approvals from './approvals/routes';
 import auth from './auth/routes';
 import billing from './billing/routes';
+import comps from './comps/routes';
 import customers from './customers/routes';
 import devices from './devices/routes';
 import events from './events/routes';
@@ -35,6 +36,7 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   guest,
   orders,
   billing,
+  comps,
   customers,
   reservations,
   inventory,

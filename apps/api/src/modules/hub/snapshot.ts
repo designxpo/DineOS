@@ -3,6 +3,7 @@ import type { MeDTO, ModifierSnapshot } from '@dineos/shared/dto';
 import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@dineos/shared/enums';
 import type { HubBill, HubOrder, HubSession, HubSnapshot, HubStaff, HubTable } from '@dineos/shared/hub';
 import type { Tx } from '../../context';
+import { compQtyByItem } from '../billing/service';
 import { loadMenu } from '../menu/service';
 import { loadOutlet } from '../outlets/routes';
 
@@ -15,6 +16,8 @@ export async function loadHubOrders(tx: Tx, ids: readonly string[]): Promise<Hub
     tx.db.selectFrom('orders').selectAll().where('id', 'in', ids).orderBy('placed_at').execute(),
     tx.db.selectFrom('order_items').selectAll().where('order_id', 'in', ids).orderBy('position').execute(),
   ]);
+  // Dishes already given free stay free if the outlet bills them on the hub during an outage.
+  const free = await compQtyByItem(tx, items.map((i) => i.id));
   return orders.map((o) => ({
     id: o.id,
     table_session_id: o.table_session_id,
@@ -57,6 +60,7 @@ export async function loadHubOrders(tx: Tx, ids: readonly string[]): Promise<Hub
         seat_no: i.seat_no,
         cancelled_reason: i.cancelled_reason,
         position: i.position,
+        comp_qty: free.get(i.id) ?? 0,
       })),
   }));
 }

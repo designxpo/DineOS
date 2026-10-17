@@ -7,6 +7,7 @@ import { badRequest } from '../../lib/errors';
 import { parse } from '../../lib/validate';
 import { inventoryReport } from '../inventory/report';
 import { roomCharges } from '../billing/rooms';
+import { compReport } from '../comps/service';
 import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
 import { dashboard, dayEnd, deliveryReport, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
@@ -86,6 +87,36 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       assertCan(auth, r.outletId, 'report.view');
       const data = await ctx.tx(auth.tenantId, (tx) => deliveryReport(tx, r));
       return format === 'csv' ? sendCsv(reply, `delivery-${r.from}-${r.to}`, data.channels) : data;
+    });
+
+    /** Free food and drinks: what, why, for whom, who gave and approved it, and what it cost. */
+    app.get('/reports/comps', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { r, format } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      const data = await ctx.tx(auth.tenantId, (tx) => compReport(tx, r));
+      if (format !== 'csv') return data;
+      return sendCsv(
+        reply,
+        `complimentary-${r.from}-${r.to}`,
+        data.rows.map((c) => ({
+          date: c.created_at,
+          item: c.item_name,
+          qty: c.qty,
+          value_paise: c.value_paise,
+          cost_paise: c.cost_paise ?? '',
+          reason: c.reason,
+          note: c.note ?? '',
+          whole_bill: c.whole_bill ? 'yes' : '',
+          guest: c.customer ? `${c.customer.name ?? ''} (…${c.customer.phone_last4})` : '',
+          given_by: c.given_by,
+          approved_by: c.approved_by ?? '',
+          table: c.table_label ?? '',
+          order_no: c.order_no,
+          invoice_no: c.invoice_no ?? '',
+          undone: c.removed_at ? 'yes' : '',
+        })),
+      );
     });
 
     app.get('/reports/insights', async (req) => {

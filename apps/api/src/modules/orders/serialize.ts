@@ -23,6 +23,18 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
     .orderBy('created_at')
     .execute();
 
+  // How many of each dish were given free (complimentary).
+  const free = items.length
+    ? await tx.db
+        .selectFrom('comps')
+        .select((eb) => ['order_item_id', eb.fn.sum<number>('qty').as('qty')])
+        .where('order_item_id', 'in', items.map((i) => i.id))
+        .where('removed_at', 'is', null)
+        .groupBy('order_item_id')
+        .execute()
+    : [];
+  const freeQty = new Map(free.map((f) => [f.order_item_id, Number(f.qty)]));
+
   const byOrder = new Map<string, OrderItemDTO[]>();
   for (const i of items) {
     const dto: OrderItemDTO = {
@@ -38,6 +50,7 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
       seat_no: i.seat_no,
       is_veg: i.is_veg,
       cancelled_reason: i.cancelled_reason,
+      comp_qty: freeQty.get(i.id) ?? 0,
     };
     const list = byOrder.get(i.order_id) ?? [];
     list.push(dto);
@@ -74,7 +87,7 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
         items: orderItems,
         subtotal_paise: orderItems
           .filter((i) => i.status !== 'cancelled')
-          .reduce((sum, i) => sum + i.qty * i.unit_price_paise, 0),
+          .reduce((sum, i) => sum + (i.qty - Math.min(i.qty, i.comp_qty ?? 0)) * i.unit_price_paise, 0),
         // Guests follow counter and takeaway orders by link; table guests see theirs on the menu.
         track_code: o.type === 'takeaway' || o.type === 'counter' ? o.track_code : null,
       };

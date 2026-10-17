@@ -38,6 +38,17 @@ export async function salesSummary(tx: Tx, r: Range) {
     .where('invoice_date', '<=', r.to)
     .executeTakeFirstOrThrow();
 
+  // Free (complimentary) dishes are part of the item discounts; reported apart.
+  const free = await tx.db
+    .selectFrom('bill_lines')
+    .innerJoin('bills', 'bills.id', 'bill_lines.bill_id')
+    .select((eb) => eb.fn.sum<number>('bill_lines.comp_paise').as('comp_paise'))
+    .where('bills.outlet_id', '=', r.outletId)
+    .where('bills.status', 'in', LIVE)
+    .where('bills.invoice_date', '>=', r.from)
+    .where('bills.invoice_date', '<=', r.to)
+    .executeTakeFirstOrThrow();
+
   const byDay = await tx.db
     .selectFrom('bills')
     .select((eb) => ['invoice_date', eb.fn.countAll<number>().as('bills'), eb.fn.sum<number>('total_paise').as('net_paise')])
@@ -94,7 +105,8 @@ export async function salesSummary(tx: Tx, r: Range) {
     totals: {
       bills,
       gross_paise: n(totals.gross_paise),
-      discount_paise: n(totals.item_discount_paise) + n(totals.bill_discount_paise),
+      discount_paise: n(totals.item_discount_paise) + n(totals.bill_discount_paise) - n(free.comp_paise),
+      complimentary_paise: n(free.comp_paise),
       service_charge_paise: n(totals.service_charge_paise),
       taxable_paise: n(totals.taxable_paise),
       cgst_paise: n(totals.cgst_paise),

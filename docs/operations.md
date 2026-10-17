@@ -244,3 +244,14 @@ Counter and takeaway orders get a number guests collect with:
 
 - The bill (printed and on screen) shows **ORDER 23** and a QR. Guests scan it to follow the order on their phone (`/o/<code>`): received, being made, ready. The phone chimes and vibrates when it is ready, if they tapped "Play a sound".
 - **Settings → Ordering → Pickup screen** gives a link for a TV or tablet by the counter. It shows the numbers being made and ready to collect (delivery orders show the platform), and chimes when one turns ready. Mark the order served when it is handed over and it leaves the screen; ready orders also drop off after 30 minutes. **New link** stops old screens.
+
+## Free food and drinks (complimentary)
+
+When a dish has to be made right, or a special guest, the owner's guest, a birthday, a staff meal or a food blogger gets something on the house:
+
+- **Give free** on an order card (gift icon) or on a bill: one dish, some of a line (one of two coffees), or the whole bill on the house. Pick why (mishap made right, special guest, owner's guest, celebration, staff meal, marketing or tasting, other with a note), add a note, and link the guest if they are on the customer list.
+- Owners, managers and cashiers give it directly. A waiter asks for a manager's PIN, and the manager is recorded as the approver.
+- The dish still goes to the kitchen and comes out of stock. The bill shows it as **Complimentary** and charges nothing (no GST) for it; free items are shown apart from discounts on screen, on printed bills and in the sales report. Undo is possible until the bill prints; the record stays, marked undone.
+- Every free item is kept with its menu value, its ingredient cost (from the recipe), why, for whom, who gave it, who approved it, the table or order and the invoice. **Reports → Free items** shows the totals, by reason, by staff (flagging anyone giving far more than the others), by approver and by guest, with a CSV.
+- **Settings → Billing → Free food and drinks alert**: the owner's phone hears about anything given free worth this much or more (₹1,000 by default; empty for none).
+- A free hotel *room night* belongs in the hotel's own system; food and drinks for hotel guests, including bills charged to a room, are covered here.

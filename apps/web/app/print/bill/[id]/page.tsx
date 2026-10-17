@@ -25,7 +25,9 @@ export default function PrintBill() {
   if (error) return <p className="p-6">{error}</p>;
   if (!data) return <p className="p-6">Loading…</p>;
   const { bill, outlet, tax_summary } = data;
-  const discount = bill.item_discount_paise + bill.bill_discount_paise;
+  // Free (complimentary) dishes are part of the item discounts; printed on their own line.
+  const free = bill.comp_paise ?? 0;
+  const discount = bill.item_discount_paise + bill.bill_discount_paise - free;
 
   return (
     <Receipt>
@@ -50,11 +52,13 @@ export default function PrintBill() {
       {bill.lines.map((l) => (
         <div key={l.id}>
           <Line left={l.name} right={`${l.qty}  ${money(l.gross_paise).padStart(9)}`} />
+          {l.comp_qty > 0 && <p className="pl-2 text-[11px]">Complimentary{l.comp_qty < l.qty ? ` (${l.comp_qty} of ${l.qty})` : ''}</p>}
           {l.hsn_sac && <p className="pl-2 text-[11px]">HSN/SAC {l.hsn_sac} @ {money(l.unit_price_paise)}</p>}
         </div>
       ))}
       <Rule />
       <Line left="Subtotal" right={money(bill.subtotal_paise)} />
+      {free > 0 && <Line left="Complimentary" right={`-${money(free)}`} />}
       {discount > 0 && <Line left="Discount" right={`-${money(discount)}`} />}
       {bill.loyalty_discount_paise > 0 && <Line left={`Points redeemed (${bill.loyalty_points_redeemed})`} right={`-${money(bill.loyalty_discount_paise)}`} />}
       {bill.service_charge_paise > 0 && <Line left={`Service charge (${formatRate(bill.service_charge_bp)})`} right={money(bill.service_charge_paise)} />}

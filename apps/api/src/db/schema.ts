@@ -105,6 +105,8 @@ export interface BillLines {
   bill_discount_paise: Generated<number>;
   bill_id: string;
   cgst_paise: number;
+  comp_paise: Generated<number>;
+  comp_qty: Generated<number>;
   created_at: Generated<Timestamp>;
   gross_paise: number;
   hsn_sac: string | null;
@@ -195,6 +197,26 @@ export interface Cameras {
   status: Generated<string>;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
+}
+
+export interface Comps {
+  approved_by: string | null;
+  cost_paise: number | null;
+  created_at: Generated<Timestamp>;
+  customer_id: string | null;
+  given_by: string;
+  id: Generated<string>;
+  note: string | null;
+  order_item_id: string;
+  outlet_id: string;
+  qty: number;
+  reason: string;
+  removed_at: Timestamp | null;
+  removed_by: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  value_paise: number;
+  whole_bill: Generated<boolean>;
 }
 
 export interface Counters {
@@ -460,6 +482,7 @@ export interface Outlets {
   auto_accept: Generated<boolean>;
   auto_clean_minutes: Generated<number>;
   city: string | null;
+  comp_alert_paise: Generated<number | null>;
   created_at: Generated<Timestamp>;
   default_tax_rate_bp: Generated<number>;
   delivery_commission_bp: Generated<Json>;
@@ -813,6 +836,7 @@ export interface DB {
   bill_lines: BillLines;
   bills: Bills;
   cameras: Cameras;
+  comps: Comps;
   counters: Counters;
   customers: Customers;
   devices: Devices;

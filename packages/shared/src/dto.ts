@@ -3,6 +3,7 @@
 
 import type {
   BillStatus,
+  CompReason,
   DeliveryChannel,
   ItemStatus,
   OrderSource,
@@ -85,6 +86,8 @@ export interface OutletDTO {
   auto_clean_minutes: number;
   /** Bottled water left on tables: the menu item billed per opened bottle; null: no water check. */
   table_water_item_id: string | null;
+  /** The owner's phone hears about free items worth at least this much; null: never. */
+  comp_alert_paise: number | null;
 }
 
 // ---------- Menu ----------
@@ -281,6 +284,8 @@ export interface OrderItemDTO {
   seat_no: number | null;
   is_veg: boolean;
   cancelled_reason: string | null;
+  /** How many of this line were given free. */
+  comp_qty?: number;
 }
 
 /**
@@ -327,7 +332,7 @@ export interface OrderDTO {
   cancelled_reason: string | null;
   created_by_name: string | null;
   items: OrderItemDTO[];
-  /** Sum of active items before tax and discounts. */
+  /** Sum of active items before tax and discounts, leaving out dishes given free. */
   subtotal_paise: number;
   /** Code of the link that lets the guest follow a counter or takeaway order (/o/{code}). */
   track_code?: string | null;
@@ -447,6 +452,40 @@ export interface BillLineDTO {
   amount_paise: number;
   hsn_sac: string | null;
   seat_no: number | null;
+  /** Free (complimentary) part of the line: how many, their value, and the records behind it. */
+  comp_qty: number;
+  comp_paise: number;
+  comps: { id: string; qty: number; reason: CompReason }[];
+}
+
+/** One free dish (or part of a line) and the record of why, for whom and who gave it. */
+export interface CompDTO {
+  id: string;
+  order_item_id: string;
+  item_name: string;
+  qty: number;
+  /** Menu value given away, and the ingredient cost from the recipe (null with no recipe). */
+  value_paise: number;
+  cost_paise: number | null;
+  reason: CompReason;
+  note: string | null;
+  whole_bill: boolean;
+  customer: { id: string; name: string | null; phone_last4: string } | null;
+  given_by: string;
+  approved_by: string | null;
+  created_at: string;
+  removed_at: string | null;
+}
+
+export interface CompReportDTO {
+  from: string;
+  to: string;
+  totals: { count: number; items: number; value_paise: number; cost_paise: number; net_sales_paise: number };
+  by_reason: { reason: CompReason; count: number; value_paise: number; cost_paise: number }[];
+  by_staff: { user_id: string; name: string; count: number; value_paise: number }[];
+  by_approver: { user_id: string; name: string; count: number; value_paise: number }[];
+  by_guest: { customer_id: string; name: string | null; phone_last4: string; count: number; value_paise: number }[];
+  rows: (CompDTO & { order_no: number; table_label: string | null; invoice_no: string | null })[];
 }
 
 export interface PaymentDTO {
@@ -474,6 +513,8 @@ export interface BillDTO {
   table_label: string | null;
   /** Table bills: bottled water opened at the table, as counted; null until asked. */
   water_bottles?: number | null;
+  /** Value of the free (complimentary) items on the bill; part of the item discounts. */
+  comp_paise: number;
   /** Counter and takeaway bills: the order number the guest collects with, and the code of the
    *  link that lets them follow the order (/o/{code}). */
   pickup_no?: number | null;

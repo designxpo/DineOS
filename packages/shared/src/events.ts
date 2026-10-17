@@ -22,6 +22,7 @@ export const EVENT_TYPES = [
   'waitlist.updated',
   'inventory.low',
   'staff.pin_locked',
+  'comp.given',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 

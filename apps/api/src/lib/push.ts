@@ -127,6 +127,20 @@ export function pushFor(event: OutletEvent): PushAlert | null {
       },
     };
   }
+  if (event.type === 'comp.given') {
+    const p = event.payload as { alert: boolean; value_paise: number; items: string; where: string | null };
+    if (!p.alert) return null;
+    return {
+      action: 'report.view',
+      roles: ['owner'],
+      message: {
+        title: `Given free: ${rupees(p.value_paise)}`,
+        body: `${p.items}${p.where ? ` · ${/^#/.test(p.where) ? `order ${p.where}` : `table ${p.where}`}` : ''}`,
+        url: '/app/reports',
+        tag: `comp-${event.seq}`,
+      },
+    };
+  }
   if (event.type === 'staff.pin_locked') {
     const p = event.payload as { user_name: string; requested_by_name: string | null };
     return {

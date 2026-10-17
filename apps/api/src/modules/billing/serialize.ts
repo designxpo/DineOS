@@ -1,6 +1,6 @@
 import { splitEvenly } from '@dineos/shared/billing';
 import type { BillDTO, BillLineDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
-import type { BillStatus, PaymentMethod } from '@dineos/shared/enums';
+import type { BillStatus, CompReason, PaymentMethod } from '@dineos/shared/enums';
 import type { Tx } from '../../context';
 
 export type AmountSplit = { count: number } | { amounts: number[] };
@@ -43,6 +43,17 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
     .orderBy('created_at')
     .orderBy('id')
     .execute();
+  // The free (complimentary) records behind each line, so staff can see and undo them.
+  const itemIds = [...new Set(lines.map((l) => l.order_item_id).filter((x): x is string => !!x))];
+  const comps = itemIds.length
+    ? await tx.db
+        .selectFrom('comps')
+        .select(['id', 'order_item_id', 'qty', 'reason'])
+        .where('order_item_id', 'in', itemIds)
+        .where('removed_at', 'is', null)
+        .orderBy('created_at')
+        .execute()
+    : [];
   const payments = await tx.db
     .selectFrom('payments')
     .leftJoin('users', 'users.id', 'payments.confirmed_by')
@@ -65,6 +76,7 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         status: b.status as BillStatus,
         tax_by_operator: b.tax_by_operator,
         water_bottles: b.water_bottles ?? null,
+        comp_paise: lines.filter((l) => l.bill_id === b.id).reduce((sum, l) => sum + l.comp_paise, 0),
         pickup_no: b.order_type === 'takeaway' || b.order_type === 'counter' ? b.pickup_order_no : null,
         track_code: b.order_type === 'takeaway' || b.order_type === 'counter' ? b.track_code : null,
         lines: lines
@@ -86,6 +98,9 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
               amount_paise: l.amount_paise,
               hsn_sac: l.hsn_sac,
               seat_no: l.seat_no,
+              comp_qty: l.comp_qty,
+              comp_paise: l.comp_paise,
+              comps: comps.filter((c) => c.order_item_id === l.order_item_id).map((c) => ({ id: c.id, qty: c.qty, reason: c.reason as CompReason })),
             }),
           ),
         bill_discount: (b.bill_discount ?? null) as BillDTO['bill_discount'],

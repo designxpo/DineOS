@@ -38,13 +38,14 @@ async function outletFor(tx: Tx, outletId: string) {
  * Order items this bill can charge for: in its scope (table session or single order), from orders
  * the outlet accepted, not cancelled, and not already on another live bill.
  */
-async function billableItems(tx: Tx, bill: Pick<BillRow, 'id' | 'table_session_id' | 'order_id' | 'item_scope'>) {
+export async function billableItems(tx: Tx, bill: Pick<BillRow, 'id' | 'table_session_id' | 'order_id' | 'item_scope'>) {
   let q = tx.db
     .selectFrom('order_items')
     .innerJoin('orders', 'orders.id', 'order_items.order_id')
     .select([
       'order_items.id',
       'order_items.order_id',
+      'order_items.item_id',
       'order_items.name_snapshot',
       'order_items.qty',
       'order_items.unit_price_paise',
@@ -78,6 +79,19 @@ async function billableItems(tx: Tx, bill: Pick<BillRow, 'id' | 'table_session_i
   return q.orderBy('orders.placed_at').orderBy('order_items.position').execute();
 }
 
+/** How many of each order item were given free (complimentary), not counting undone ones. */
+export async function compQtyByItem(tx: Tx, orderItemIds: readonly string[]): Promise<Map<string, number>> {
+  if (orderItemIds.length === 0) return new Map();
+  const rows = await tx.db
+    .selectFrom('comps')
+    .select((eb) => ['order_item_id', eb.fn.sum<number>('qty').as('qty')])
+    .where('order_item_id', 'in', [...orderItemIds])
+    .where('removed_at', 'is', null)
+    .groupBy('order_item_id')
+    .execute();
+  return new Map(rows.map((r) => [r.order_item_id, Number(r.qty)]));
+}
+
 function lineName(name: string, modifiers: unknown): string {
   const mods = Array.isArray(modifiers) ? (modifiers as { name: string }[]).map((m) => m.name) : [];
   return mods.length ? `${name} (${mods.join(', ')})` : name;
@@ -90,6 +104,10 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
   const outlet = await outletFor(tx, bill.outlet_id);
   const items = await billableItems(tx, bill);
   const discounts = (bill.item_discounts ?? {}) as Record<string, number>;
+  // Free (complimentary) dishes are charged nothing: their value is part of the item discount, so
+  // no tax falls on them, and the line remembers how much of it was free.
+  const freeQty = await compQtyByItem(tx, items.map((i) => i.id));
+  const freePaise = (i: (typeof items)[number]) => Math.min(i.qty, freeQty.get(i.id) ?? 0) * i.unit_price_paise;
   const input = {
     lines: items.map((i) => ({
       key: i.id,
@@ -97,7 +115,7 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
       unit_price_paise: i.unit_price_paise,
       // Zomato and Swiggy pay the GST on their orders (s. 9(5)); the outlet charges none.
       tax_rate_bp: bill.tax_by_operator ? 0 : i.tax_rate_bp,
-      item_discount_paise: discounts[i.id] ?? 0,
+      item_discount_paise: Math.min(i.qty * i.unit_price_paise, (discounts[i.id] ?? 0) + freePaise(i)),
     })),
     bill_discount: (bill.bill_discount ?? null) as BillDiscount | null,
     service_charge_bp: bill.service_charge_waived ? 0 : bill.service_charge_bp,
@@ -137,6 +155,8 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
             amount_paise: l.amount_paise,
             hsn_sac: item.hsn_sac,
             seat_no: item.seat_no,
+            comp_qty: Math.min(item.qty, freeQty.get(item.id) ?? 0),
+            comp_paise: Math.min(l.gross_paise, freePaise(item)),
             // Keep the display order stable within one recompute.
             created_at: new Date(Date.now() + idx),
           };
@@ -317,7 +337,9 @@ export async function updateBill(
 
   if (touchesDiscount) {
     const after = await lockBill(tx, billId);
-    const discount = after.item_discount_paise + after.bill_discount_paise;
+    // Free dishes have their own permission and record; they do not count towards the limit.
+    const free = await tx.db.selectFrom('bill_lines').select((eb) => eb.fn.sum<number>('comp_paise').as('paise')).where('bill_id', '=', billId).executeTakeFirst();
+    const discount = after.item_discount_paise + after.bill_discount_paise - Number(free?.paise ?? 0);
     // Cashiers may give up to 10% without a manager.
     const limit = Math.round((after.subtotal_paise * CASHIER_DISCOUNT_LIMIT_BP) / 10000);
     let approvedBy: string | null = null;
