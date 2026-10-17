@@ -31,9 +31,14 @@ function tone(freq: number, start: number, duration: number, gain = 0.18) {
   osc.stop(ctx.currentTime + start + duration + 0.05);
 }
 
-/** Two rising notes for a new order; three for a waiter call. */
-export function chime(kind: 'order' | 'call' = 'order'): void {
+/** Two rising notes for a new order; three for a waiter call; a double ding for food at the pass. */
+export function chime(kind: 'order' | 'call' | 'ready' = 'order'): void {
   if (!soundReady()) return;
+  if (kind === 'ready') {
+    tone(1568, 0, 0.3);
+    tone(1568, 0.2, 0.45);
+    return;
+  }
   tone(880, 0, 0.35);
   tone(1320, 0.18, 0.5);
   if (kind === 'call') tone(1760, 0.36, 0.45, 0.14);

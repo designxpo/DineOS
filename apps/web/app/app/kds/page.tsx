@@ -72,14 +72,23 @@ export default function KdsPage() {
     }
   };
 
+  // One request for the ticket on screen (only this station's items when a station is picked), so
+  // the floor hears "bar ready" once, not once per drink.
   const allReady = async (order: OrderDTO) => {
     const pending = order.items.filter((i) => i.status === 'accepted' || i.status === 'preparing');
-    for (const item of pending) {
-      try {
-        await send(token, `/order-items/${item.id}/status`, { method: 'PATCH', body: { status: 'ready' }, label: `${item.name} → ready` });
-      } catch (err) {
-        toast(errorMessage(err), 'error');
-      }
+    if (pending.length === 0) return;
+    const ids = new Set(pending.map((i) => i.id));
+    qc.setQueryData<OrderDTO[]>(['kds', outletId, station], (list) =>
+      list?.map((o) => (o.id === order.id ? { ...o, items: o.items.map((i) => (ids.has(i.id) ? { ...i, status: 'ready' as const } : i)) } : o)),
+    );
+    try {
+      await send(token, `/orders/${order.id}/items/status`, {
+        method: 'PATCH',
+        body: { item_ids: [...ids], status: 'ready' },
+        label: `#${order.order_no} → ${t('kds.all_ready')}`,
+      });
+    } catch (err) {
+      toast(errorMessage(err), 'error');
     }
     void qc.invalidateQueries({ queryKey: ['kds'] });
   };

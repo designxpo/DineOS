@@ -182,7 +182,11 @@ Limits: three codes per number in fifteen minutes and a hundred per outlet an ho
 
 ## Phone alerts (Web Push)
 
-With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) DineOS must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them. Signing out turns the device's alerts off.
+With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) DineOS must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them, and food or drinks ready to serve to waiters (and counter staff, for takeaway and delivery). A table with an assigned waiter alerts that waiter, not the others. Signing out turns the device's alerts off.
+
+## Bar and kitchen
+
+Guests order drinks and food from one menu, and each dish goes to its own station. Set the stations under **Settings** and each dish's station in **Menu**. When an order is accepted it splits into one kitchen ticket per station, printed on that station's printer, and a kitchen screen set to **Bar** shows only drinks. Each station marks its own part ready. When the bar's part of an order is ready while the kitchen still cooks, the waiter hears a double ding and sees "Table C4: Bar ready", and so does their phone. The order card offers **Mark N served** for what is at the pass, and the floor tile shows how many items are waiting. The bar's ticket leaves the bar screen once its drinks are served, and the whole order moves to **Ready to serve** when the food is done.
 
 ## Delivery orders
 

@@ -5,6 +5,8 @@ import {
   cancelNeedsManager,
   deriveOrderStatus,
   itemStatusForOrder,
+  readyNews,
+  type ReadyItem,
 } from './order-state';
 
 describe('order transitions', () => {
@@ -45,5 +47,40 @@ describe('item status', () => {
     expect(itemStatusForOrder('placed', 'accepted')).toBe('accepted');
     expect(itemStatusForOrder('ready', 'preparing')).toBe('ready');
     expect(itemStatusForOrder('ready', 'rejected')).toBe('cancelled');
+  });
+});
+
+describe('ready to serve', () => {
+  const item = (id: string, station: string, status: ReadyItem['status']): ReadyItem => ({ id, station, status, name: id, qty: 1 });
+
+  it('tells the floor when one station has finished its part', () => {
+    const items = [item('mojito', 'bar', 'ready'), item('soda', 'bar', 'ready'), item('biryani', 'kitchen', 'preparing')];
+    expect(readyNews(items, new Set(['soda']))).toEqual({
+      stations: ['bar'],
+      complete: false,
+      items: [
+        { name: 'mojito', qty: 1, station: 'bar' },
+        { name: 'soda', qty: 1, station: 'bar' },
+      ],
+    });
+  });
+
+  it('stays quiet while the station still has dishes to make', () => {
+    const items = [item('mojito', 'bar', 'ready'), item('soda', 'bar', 'preparing'), item('biryani', 'kitchen', 'preparing')];
+    expect(readyNews(items, new Set(['mojito']))).toBeNull();
+  });
+
+  it('calls the whole order ready and lists only what is still waiting', () => {
+    const items = [item('mojito', 'bar', 'served'), item('biryani', 'kitchen', 'ready'), item('naan', 'tandoor', 'cancelled')];
+    expect(readyNews(items, new Set(['biryani']))).toEqual({
+      stations: ['kitchen'],
+      complete: true,
+      items: [{ name: 'biryani', qty: 1, station: 'kitchen' }],
+    });
+  });
+
+  it('says nothing when nothing became ready', () => {
+    expect(readyNews([item('mojito', 'bar', 'served')], new Set())).toBeNull();
+    expect(readyNews([item('mojito', 'bar', 'served')], new Set(['mojito']))).toBeNull();
   });
 });

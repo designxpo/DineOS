@@ -99,6 +99,7 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 | Walkout watch | The floor map flags a table served 30+ minutes ago with no bill, or with a bill asked for or printed 20+ minutes ago and unpaid. Day end lists every order that never reached a bill, and whether its table was cleared | `billing.test.ts`, `table-state.test.ts` |
 | Delivery orders | Zomato, Swiggy or own riders, entered at the POS with the platform's order number. Zomato and Swiggy pay the GST on their orders (CGST Act s. 9(5)), so those bills carry none, say so on the invoice, are settled by a "platform" payment and are listed apart in the GST report. Reports → Delivery shows commission and the payout to expect | `delivery.test.ts`, `render.test.ts` |
 | Phone alerts | Web Push to staff who turn it on: new orders to accept, waiter calls, bill requests, at their outlet only | `push.test.ts` |
+| Bar and kitchen | One menu, one bill; each station gets its own ticket and screen. When the bar's drinks are ready before the food, waiters hear it (screen and phone), serve the drinks with one tap, and the floor shows what is waiting at the pass. The table's assigned waiter is the one alerted. Works on the outlet hub offline too | `ready.test.ts`, `hub.test.ts` |
 | Limits across servers | With Redis set, sign-in, PIN and order limits are counted in Redis, so they hold when Vercel runs several API copies; if Redis is down, requests still go through | `rate-limit.test.ts` |
 
 ## Decisions that differ from the spec

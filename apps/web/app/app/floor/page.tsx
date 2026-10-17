@@ -1,7 +1,7 @@
 'use client';
 
 import { usePersistedQuery } from '@/lib/persisted-query';
-import { BellRing, CalendarClock, Cctv, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
+import { BellRing, CalendarClock, Cctv, HandPlatter, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
@@ -11,6 +11,7 @@ import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
 import { Segmented, Spinner } from '@/components/ui/primitives';
+import { useReadyAlerts } from '@/components/staff/ready-alerts';
 import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
 import { StaleBanner } from '@/components/staff/stale-banner';
@@ -21,6 +22,7 @@ export default function FloorPage() {
   const { api, outletId } = useStaff();
   const { t } = useI18n();
   useServiceRequestAlerts();
+  useReadyAlerts();
   const [zone, setZone] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
   const { data: tables, isLoading, stale } = usePersistedQuery(['tables', outletId], () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`), { refetchInterval: 60_000 });
@@ -130,6 +132,11 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           </p>
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}
+        {table.ready_items > 0 && (
+          <p className="mt-1 flex items-center gap-1 font-semibold text-emerald-700">
+            <HandPlatter className="size-3 shrink-0" /> {t('floor.ready', { n: table.ready_items })}
+          </p>
+        )}
         {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { time: duration(Math.max(1, waiting)) })}</p>}
         {money && <p className="mt-1 font-semibold text-rose-700">{t(money.kind === 'not_billed' ? 'floor.not_billed' : 'floor.not_paid', { time: duration(money.minutes) })}</p>}
         {table.next_reservation && table.session?.status !== 'open' && (

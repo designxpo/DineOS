@@ -1,14 +1,13 @@
 import { waitUntil } from '@vercel/functions';
 import type { Role } from '@dineos/shared/enums';
-import { roleCan } from '@dineos/shared/permissions';
 import type { AppContext } from '../../context';
-import { pushFor, type PushDevice, type PushMessage, type PushSender } from '../../lib/push';
-import type { Action } from '@dineos/shared/permissions';
+import { pushFor, wantsAlert, type PushAlert, type PushDevice, type PushSender } from '../../lib/push';
 
 /**
- * Sends committed outlet events that need a person (a guest order, a waiter call, a bill request)
- * to the phones of staff who can act on them. Runs after commit; on Vercel, waitUntil keeps the
- * function alive until the sends finish. Returns the unsubscribe function.
+ * Sends committed outlet events that need a person (a guest order, a waiter call, a bill request,
+ * food ready at the pass) to the phones of staff who can act on them. Runs after commit; on
+ * Vercel, waitUntil keeps the function alive until the sends finish. Returns the unsubscribe
+ * function.
  */
 export function registerPushAlerts(ctx: AppContext): () => void {
   return ctx.bus.subscribe((tenantId, events) => {
@@ -22,25 +21,37 @@ export function registerPushAlerts(ctx: AppContext): () => void {
   });
 }
 
-async function deliver(ctx: AppContext, sender: PushSender, tenantId: string, outletId: string, alert: { message: PushMessage; action: Action }) {
+async function deliver(ctx: AppContext, sender: PushSender, tenantId: string, outletId: string, alert: PushAlert) {
   const rows = await ctx.tx(tenantId, (tx) =>
     tx.db
       .selectFrom('push_subscriptions')
       .innerJoin('users', 'users.id', 'push_subscriptions.user_id')
       .innerJoin('user_outlet_roles', 'user_outlet_roles.user_id', 'push_subscriptions.user_id')
-      .select(['push_subscriptions.id', 'push_subscriptions.endpoint', 'push_subscriptions.p256dh', 'push_subscriptions.auth', 'user_outlet_roles.role', 'user_outlet_roles.outlet_id as role_outlet_id'])
+      .select([
+        'push_subscriptions.id',
+        'push_subscriptions.user_id',
+        'push_subscriptions.endpoint',
+        'push_subscriptions.p256dh',
+        'push_subscriptions.auth',
+        'user_outlet_roles.role',
+        'user_outlet_roles.outlet_id as role_outlet_id',
+      ])
       .where('push_subscriptions.outlet_id', '=', outletId)
       .where('users.status', '=', 'active')
       .execute(),
   );
   // A role counts at this outlet, or everywhere when it has no outlet (the owner).
-  const devices = new Map<string, PushDevice>();
+  const subscribers = new Map<string, PushDevice & { userId: string; roles: Role[] }>();
   for (const r of rows) {
-    if ((r.role_outlet_id === null || r.role_outlet_id === outletId) && roleCan(r.role as Role, alert.action)) devices.set(r.id, r);
+    if (r.role_outlet_id !== null && r.role_outlet_id !== outletId) continue;
+    const s = subscribers.get(r.id) ?? { endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth, userId: r.user_id, roles: [] };
+    s.roles.push(r.role as Role);
+    subscribers.set(r.id, s);
   }
+  const devices = [...subscribers].filter(([, s]) => wantsAlert(alert, s.userId, s.roles));
   const gone: string[] = [];
   await Promise.all(
-    [...devices].map(async ([id, device]) => {
+    devices.map(async ([id, device]) => {
       const result = await sender.send(device, alert.message).catch((err) => {
         ctx.log.warn({ err }, 'push send failed');
         return 'ok' as const;

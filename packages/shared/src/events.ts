@@ -5,6 +5,7 @@ export const EVENT_TYPES = [
   'order.placed',
   'order.status_changed',
   'order.updated',
+  'order.items_ready',
   'item.stock_changed',
   'menu.updated',
   'table.state_changed',

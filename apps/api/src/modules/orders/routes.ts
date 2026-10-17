@@ -11,7 +11,7 @@ import { hasPrintAgent, queuePrintJob } from '../print/jobs';
 import { getOrCreateSession } from '../tables/sessions';
 import { editOrderItems } from './edit';
 import { loadOrder, loadOrders } from './serialize';
-import { createOrder, setItemStatus, transitionOrder } from './service';
+import { createOrder, setItemStatus, setItemsStatus, transitionOrder } from './service';
 
 const line = z.object({
   item_id: z.uuid(),
@@ -142,6 +142,14 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       return ctx.tx(auth.tenantId, (tx) => setItemStatus(tx, auth, id, body.status));
     });
 
+    /** Several items of one order at once: a station's "all ready", or serving the drinks first. */
+    app.patch('/orders/:id/items/status', async (req) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      const body = parse(z.object({ item_ids: z.array(z.uuid()).min(1).max(100), status: z.enum(ITEM_STATUSES) }), req.body);
+      return ctx.tx(auth.tenantId, (tx) => setItemsStatus(tx, auth, id, body.item_ids, body.status));
+    });
+
     /** Orders the kitchen is working on, optionally only one station's items. */
     app.get('/kds', async (req) => {
       const auth = requireStaff(req);
@@ -161,7 +169,9 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (!q.station) return orders;
         return orders
           .map((o) => ({ ...o, items: o.items.filter((i) => i.station === q.station) }))
-          .filter((o) => o.items.some((i) => i.status !== 'cancelled'));
+          // A station's ticket leaves its screen once its own items are served (the drinks went
+          // out), even while the rest of the order is still cooking.
+          .filter((o) => o.items.some((i) => i.status !== 'cancelled' && i.status !== 'served'));
       });
     });
 

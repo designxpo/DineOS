@@ -70,6 +70,28 @@ export function useOrderActions() {
     }
   }
 
+  /** The drinks went out while the food still cooks: only the ready items become served. */
+  async function serveReady(order: OrderDTO) {
+    const ids = order.items.filter((i) => i.status === 'ready').map((i) => i.id);
+    if (ids.length === 0) return;
+    setBusy(`${order.id}:serve-ready`);
+    try {
+      const res = await send<OrderDTO>(token, `/orders/${order.id}/items/status`, {
+        method: 'PATCH',
+        body: { item_ids: ids, status: 'served' },
+        label: t('outbox.order_label', { n: order.order_no, status: t('act.serve_ready', { n: ids.length }) }),
+      });
+      if (res.queued) toast(t('offline.saved_order', { n: order.order_no }), 'info');
+      await qc.invalidateQueries({ queryKey: ['orders'] });
+      await qc.invalidateQueries({ queryKey: ['kds'] });
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+      if (err instanceof ApiError && err.code === 'invalid_transition') void qc.invalidateQueries({ queryKey: ['orders'] });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function reprint(order: OrderDTO) {
     try {
       const res = await api<{ queued: number; message?: string }>(`/orders/${order.id}/reprint-kot`, { method: 'POST', body: {} });
@@ -80,13 +102,13 @@ export function useOrderActions() {
     }
   }
 
-  return { setStatus, reprint, busy };
+  return { setStatus, serveReady, reprint, busy };
 }
 
 export function OrderCard({ order, highlight, compact }: { order: OrderDTO; highlight?: boolean; compact?: boolean }) {
   const { can } = useStaff();
   const { t } = useI18n();
-  const { setStatus, reprint, busy } = useOrderActions();
+  const { setStatus, serveReady, reprint, busy } = useOrderActions();
   const [rejecting, setRejecting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -96,7 +118,11 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
   const Source = SOURCE[order.source];
   const isBusy = (s: OrderStatus) => busy === `${order.id}:${s}`;
 
-  const primary: { status: OrderStatus; label: string; variant?: 'primary' | 'success' } | null =
+  // Part of the order is at the pass (the bar's drinks) while the rest still cooks.
+  const readyItems = order.items.filter((i) => i.status === 'ready').reduce((n, i) => n + i.qty, 0);
+  const serveSome = readyItems > 0 && (order.status === 'accepted' || order.status === 'preparing') && can('order.serve');
+
+  const kitchenOrServe: { status: OrderStatus; label: string; variant?: 'primary' | 'success' } | null =
     order.status === 'placed' && can('order.accept')
       ? { status: 'accepted', label: t('act.accept') }
       : order.status === 'accepted' && can('order.kitchen')
@@ -108,6 +134,9 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
             : (order.status === 'accepted' || order.status === 'preparing') && can('order.serve')
               ? { status: 'served', label: t('act.served') }
               : null;
+  // Serving what is ready comes first; marking the whole order served would also tick off the
+  // dishes still cooking (that stays one tap away as "skip kitchen steps").
+  const primary = serveSome && kitchenOrServe?.status === 'served' ? null : kitchenOrServe;
 
   return (
     <article
@@ -172,8 +201,24 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
       {!compact && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status) && (
         // Narrow columns wrap the less-used actions onto their own row instead of pushing them out.
         <footer className="flex flex-wrap items-center gap-2 border-t border-line p-3">
+          {serveSome && (
+            <Button
+              className="min-w-32 flex-1"
+              variant="success"
+              title={t('act.serve_ready_hint')}
+              loading={busy === `${order.id}:serve-ready`}
+              onClick={() => void serveReady(order)}
+            >
+              {t('act.serve_ready', { n: readyItems })}
+            </Button>
+          )}
           {primary && (
-            <Button className="min-w-32 flex-1" variant={primary.variant ?? 'primary'} loading={isBusy(primary.status)} onClick={() => void setStatus(order, primary.status)}>
+            <Button
+              className="min-w-32 flex-1"
+              variant={serveSome ? 'outline' : (primary.variant ?? 'primary')}
+              loading={isBusy(primary.status)}
+              onClick={() => void setStatus(order, primary.status)}
+            >
               {primary.label}
             </Button>
           )}

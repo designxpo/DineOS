@@ -6,12 +6,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { computeBill } from '@dineos/shared/billing';
 import { businessDate, financialYear } from '@dineos/shared/dates';
-import type { BillDTO, InvoiceDTO, MeDTO, MenuDTO, ModifierSnapshot, OrderDTO, OutletDTO, PaymentDTO, TableDTO } from '@dineos/shared/dto';
+import type { BillDTO, InvoiceDTO, ItemsReadyDTO, MeDTO, MenuDTO, ModifierSnapshot, OrderDTO, OutletDTO, PaymentDTO, TableDTO } from '@dineos/shared/dto';
 import { ACTIVE_ORDER_STATUSES, type ItemStatus, type OrderSource, type OrderStatus, type OrderType, type PaymentMethod, type Role } from '@dineos/shared/enums';
 import type { EventType, OutletEvent } from '@dineos/shared/events';
 import { formatHubInvoiceNo, type HubBill, type HubOrder, type HubOrderItem, type HubSession, type HubSnapshot, type HubSyncPayload, type HubSyncResult } from '@dineos/shared/hub';
 import { checkModifierSelection, isScheduleOpen } from '@dineos/shared/menu';
-import { canItemTransition, cancelNeedsManager, canTransition, deriveOrderStatus, itemStatusForOrder } from '@dineos/shared/order-state';
+import { canItemTransition, cancelNeedsManager, canTransition, deriveOrderStatus, itemStatusForOrder, readyNews } from '@dineos/shared/order-state';
 import { rolesCan, type Action } from '@dineos/shared/permissions';
 import type { BillDoc, KotDoc, PrintDoc } from '@dineos/shared/print';
 import { deriveTableState } from '@dineos/shared/table-state';
@@ -342,6 +342,10 @@ export class HubEngine {
         running_total_paise: counted.reduce((a, o) => a + this.orderSubtotal(o), 0),
         last_served_at: served.at(-1) ?? null,
         unpaid_bill_since: unpaid[0] ?? null,
+        ready_items: orders
+          .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status))
+          .flatMap((o) => o.items)
+          .reduce((n, i) => n + (i.status === 'ready' ? i.qty : 0), 0),
         open_requests: [],
         is_active: t.is_active,
         next_reservation: null,
@@ -515,7 +519,9 @@ export class HubEngine {
       .sort((a, b) => (a.accepted_at ?? a.placed_at).localeCompare(b.accepted_at ?? b.placed_at))
       .map((o) => this.orderDto(o));
     if (!station) return orders;
-    return orders.map((o) => ({ ...o, items: o.items.filter((i) => i.station === station) })).filter((o) => o.items.some((i) => i.status !== 'cancelled'));
+    return orders
+      .map((o) => ({ ...o, items: o.items.filter((i) => i.station === station) }))
+      .filter((o) => o.items.some((i) => i.status !== 'cancelled' && i.status !== 'served'));
   }
 
   /** Same checks as the cloud: on the menu, in stock, served now, valid choices. */
@@ -702,8 +708,10 @@ export class HubEngine {
     if (to === 'served') o.served_at = now;
     if (to === 'rejected') o.rejected_reason = why;
     if (to === 'cancelled') o.cancelled_reason = why;
+    const justReady = new Set<string>();
     for (const item of o.items) {
       const next = itemStatusForOrder(item.status, to);
+      if (next === 'ready' && next !== item.status) justReady.add(item.id);
       if (next !== item.status) {
         item.status = next;
         if (next === 'cancelled' && why) item.cancelled_reason = why;
@@ -714,21 +722,51 @@ export class HubEngine {
     if (to === 'cancelled' && from !== 'placed') this.printKots(o, o.items.map((i) => i.id), { cancelled: true });
     const dto = this.orderDto(o);
     this.emit('order.status_changed', { order_id: o.id, status: o.status, order: dto });
+    this.announceReady(dto, justReady);
     if (o.table_id) this.emit('tables.updated', {});
     this.commit();
     return dto;
   }
 
+  /** Same as the cloud: a station's part of an order, or the whole order, waiting at the pass. */
+  private announceReady(dto: OrderDTO, justReady: ReadonlySet<string>): void {
+    const news = readyNews(dto.items, justReady);
+    if (!news) return;
+    const payload: ItemsReadyDTO = {
+      order_id: dto.id,
+      order_no: dto.order_no,
+      order_type: dto.type,
+      channel: dto.channel,
+      channel_ref: dto.channel_ref,
+      table_id: dto.table_id,
+      table_label: dto.table_label,
+      assigned_waiter_id: this.snap.tables.find((t) => t.id === dto.table_id)?.assigned_waiter_id ?? null,
+      ...news,
+    };
+    this.emit('order.items_ready', payload);
+  }
+
   setItemStatus(user: HubUser, itemId: string, to: ItemStatus): OrderDTO {
-    this.assertWritable();
-    if (to === 'cancelled' || to === 'placed') throw badRequest('invalid_transition', 'Use the order item edit endpoint to cancel items');
     const o = Object.values(this.state.orders).find((x) => x.items.some((i) => i.id === itemId));
     if (!o) throw notFound('Order item');
-    const item = o.items.find((i) => i.id === itemId)!;
+    return this.setItemsStatus(user, o.id, [itemId], to);
+  }
+
+  /** Several items of one order at once; items already at or past `to` stay as they are. */
+  setItemsStatus(user: HubUser, orderId: string, itemIds: readonly string[], to: ItemStatus): OrderDTO {
+    this.assertWritable();
+    if (to === 'cancelled' || to === 'placed') throw badRequest('invalid_transition', 'Use the order item edit endpoint to cancel items');
+    const o = this.order(orderId);
     if (o.status === 'placed') throw conflict('order_not_accepted', 'Accept the order first');
     this.assertCan(user, this.actionFor(to as OrderStatus));
-    if (!canItemTransition(item.status, to)) throw conflict('invalid_transition', `Cannot move an item from ${item.status} to ${to}`);
-    item.status = to;
+    const wanted = new Set(itemIds);
+    const chosen = o.items.filter((i) => wanted.has(i.id));
+    if (chosen.length !== wanted.size) throw notFound('Order item');
+    const moving = chosen.filter((i) => canItemTransition(i.status, to));
+    if (moving.length === 0) {
+      throw conflict('invalid_transition', chosen.length === 1 ? `Cannot move an item from ${chosen[0]!.status} to ${to}` : `Those items are already ${to} or further along`);
+    }
+    for (const item of moving) item.status = to;
     const derived = deriveOrderStatus(o.items);
     if (derived !== o.status && derived !== 'cancelled' && canTransition(o.status, derived)) {
       const now = this.now().toISOString();
@@ -739,6 +777,7 @@ export class HubEngine {
     this.bump(o);
     const dto = this.orderDto(o);
     this.emit('order.status_changed', { order_id: o.id, status: o.status, order: dto });
+    if (to === 'ready') this.announceReady(dto, new Set(moving.map((i) => i.id)));
     if (o.table_id) this.emit('tables.updated', {});
     this.commit();
     return dto;

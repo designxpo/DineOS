@@ -61,3 +61,33 @@ export function itemStatusForOrder(current: ItemStatus, to: OrderStatus): ItemSt
   const target = to as ItemStatus;
   return RANK[target] > RANK[current] ? target : current;
 }
+
+export interface ReadyItem {
+  id: string;
+  status: ItemStatus;
+  station: string;
+  name: string;
+  qty: number;
+}
+
+/**
+ * What a change made ready to serve: the stations whose whole part of the order is now ready
+ * (the bar's drinks while the kitchen still cooks), and whether the whole order is. Null when
+ * nothing new is waiting, e.g. one of three dishes from the same station.
+ * `justReady`: the items this change moved to `ready`.
+ */
+export function readyNews(
+  items: readonly ReadyItem[],
+  justReady: ReadonlySet<string>,
+): { stations: string[]; complete: boolean; items: { name: string; qty: number; station: string }[] } | null {
+  const active = items.filter((i) => i.status !== 'cancelled');
+  const done = (i: ReadyItem) => i.status === 'ready' || i.status === 'served';
+  if (!active.some((i) => i.status === 'ready' && justReady.has(i.id))) return null;
+  const complete = active.every(done);
+  const stations = [...new Set(active.filter((i) => justReady.has(i.id)).map((i) => i.station))].filter((s) =>
+    active.filter((i) => i.station === s).every(done),
+  );
+  if (!complete && stations.length === 0) return null;
+  const waiting = active.filter((i) => i.status === 'ready' && (complete || stations.includes(i.station)));
+  return { stations, complete, items: waiting.map((i) => ({ name: i.name, qty: i.qty, station: i.station })) };
+}

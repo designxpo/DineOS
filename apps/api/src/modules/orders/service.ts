@@ -2,7 +2,7 @@
 // Used by the guest module (QR orders), the staff inbox, KDS and POS.
 
 import { businessDate } from '@dineos/shared/dates';
-import type { AvailabilitySchedule, ModifierSnapshot, OrderDTO } from '@dineos/shared/dto';
+import type { AvailabilitySchedule, ItemsReadyDTO, ModifierSnapshot, OrderDTO } from '@dineos/shared/dto';
 import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
 import { checkModifierSelection, isScheduleOpen, type ModifierGroupRule } from '@dineos/shared/menu';
 import {
@@ -11,6 +11,7 @@ import {
   cancelNeedsManager,
   deriveOrderStatus,
   itemStatusForOrder,
+  readyNews,
 } from '@dineos/shared/order-state';
 import type { Action } from '@dineos/shared/permissions';
 import type { KotDoc } from '@dineos/shared/print';
@@ -435,6 +436,31 @@ export async function announceOrder(tx: Tx, order: OrderDTO, type: 'order.status
   }
 }
 
+/**
+ * Tells the floor when something is waiting at the pass: one station's part of an order (the
+ * bar's drinks while the kitchen still cooks) or the whole order. `justReady`: items this change
+ * moved to ready.
+ */
+async function announceReady(tx: Tx, order: OrderDTO, justReady: ReadonlySet<string>): Promise<void> {
+  const news = readyNews(order.items, justReady);
+  if (!news) return;
+  const table = order.table_id
+    ? await tx.db.selectFrom('tables').select('assigned_waiter_id').where('id', '=', order.table_id).executeTakeFirst()
+    : undefined;
+  const payload: ItemsReadyDTO = {
+    order_id: order.id,
+    order_no: order.order_no,
+    order_type: order.type,
+    channel: order.channel,
+    channel_ref: order.channel_ref,
+    table_id: order.table_id,
+    table_label: order.table_label,
+    assigned_waiter_id: table?.assigned_waiter_id ?? null,
+    ...news,
+  };
+  await tx.emit({ outletId: order.outlet_id, type: 'order.items_ready', channels: ['outlet'], payload });
+}
+
 function actionForStatus(to: OrderStatus): Action {
   switch (to) {
     case 'accepted':
@@ -508,8 +534,10 @@ export async function transitionOrder(
     .execute();
 
   const items = await tx.db.selectFrom('order_items').select(['id', 'status']).where('order_id', '=', orderId).execute();
+  const justReady = new Set<string>();
   for (const item of items) {
     const next = itemStatusForOrder(item.status as ItemStatus, to);
+    if (next === 'ready' && next !== item.status) justReady.add(item.id);
     if (next !== item.status) {
       await tx.db
         .updateTable('order_items')
@@ -539,34 +567,42 @@ export async function transitionOrder(
     });
   }
   await announceOrder(tx, dto, 'order.status_changed');
+  await announceReady(tx, dto, justReady);
   return dto;
 }
 
-/**
- * KDS per-item progress (one dish ready before another). The order's status follows its
- * least-advanced active item.
- */
+/** KDS per-item progress: one dish at a time. */
 export async function setItemStatus(tx: Tx, auth: StaffAuth, orderItemId: string, to: ItemStatus): Promise<OrderDTO> {
+  const item = await tx.db.selectFrom('order_items').select(['order_id']).where('id', '=', orderItemId).executeTakeFirst();
+  if (!item) throw notFound('Order item');
+  return setItemsStatus(tx, auth, item.order_id, [orderItemId], to);
+}
+
+/**
+ * Moves some of an order's items at once: a station's "all ready" on the KDS, or a waiter serving
+ * the drinks while the food still cooks. Items already at or past `to` are left as they are; the
+ * order's status follows its least-advanced active item.
+ */
+export async function setItemsStatus(tx: Tx, auth: StaffAuth, orderId: string, itemIds: readonly string[], to: ItemStatus): Promise<OrderDTO> {
   if (to === 'cancelled' || to === 'placed') {
     throw badRequest('invalid_transition', 'Use the order item edit endpoint to cancel items');
   }
-  const item = await tx.db
-    .selectFrom('order_items')
-    .innerJoin('orders', 'orders.id', 'order_items.order_id')
-    .select(['order_items.id', 'order_items.order_id', 'order_items.status', 'orders.outlet_id', 'orders.status as order_status'])
-    .where('order_items.id', '=', orderItemId)
-    .executeTakeFirst();
-  if (!item) throw notFound('Order item');
-  const order = await lockOrder(tx, item.order_id);
+  const order = await lockOrder(tx, orderId);
   if (order.status === 'placed') throw conflict('order_not_accepted', 'Accept the order first');
-  if (!can(auth, item.outlet_id, actionForStatus(to as OrderStatus))) throw forbidden();
-  if (!canItemTransition(item.status as ItemStatus, to)) {
-    throw conflict('invalid_transition', `Cannot move an item from ${item.status} to ${to}`);
+  if (!can(auth, order.outlet_id, actionForStatus(to as OrderStatus))) throw forbidden();
+  const items = await tx.db.selectFrom('order_items').select(['id', 'status']).where('order_id', '=', orderId).execute();
+  const wanted = new Set(itemIds);
+  const chosen = items.filter((i) => wanted.has(i.id));
+  if (chosen.length !== wanted.size) throw notFound('Order item');
+  const moving = chosen.filter((i) => canItemTransition(i.status as ItemStatus, to)).map((i) => i.id);
+  if (moving.length === 0) {
+    const from = chosen.length === 1 ? chosen[0]!.status : null;
+    throw conflict('invalid_transition', from ? `Cannot move an item from ${from} to ${to}` : `Those items are already ${to} or further along`);
   }
-  await tx.db.updateTable('order_items').set({ status: to }).where('id', '=', orderItemId).execute();
+  await tx.db.updateTable('order_items').set({ status: to }).where('id', 'in', moving).execute();
 
-  const items = await tx.db.selectFrom('order_items').select('status').where('order_id', '=', item.order_id).execute();
-  const derived = deriveOrderStatus(items.map((i) => ({ status: i.status as ItemStatus })));
+  const moved = new Set(moving);
+  const derived = deriveOrderStatus(items.map((i) => ({ status: (moved.has(i.id) ? to : i.status) as ItemStatus })));
   const current = order.status as OrderStatus;
   const changed = derived !== current && derived !== 'cancelled' && canTransition(current, derived);
   if (changed) {
@@ -574,11 +610,12 @@ export async function setItemStatus(tx: Tx, auth: StaffAuth, orderItemId: string
     await tx.db
       .updateTable('orders')
       .set({ status: derived, ...(stamp ? { [stamp]: new Date() } : {}) })
-      .where('id', '=', item.order_id)
+      .where('id', '=', orderId)
       .execute();
   }
-  const dto = (await loadOrder(tx, item.order_id))!;
+  const dto = (await loadOrder(tx, orderId))!;
   await announceOrder(tx, dto, changed ? 'order.status_changed' : 'order.updated');
+  if (to === 'ready') await announceReady(tx, dto, moved);
   return dto;
 }
 

@@ -197,6 +197,8 @@ export interface TableDTO {
   last_served_at: string | null;
   /** When the oldest printed, still unpaid bill of this visit was printed (walkout watch). */
   unpaid_bill_since: string | null;
+  /** Dishes and drinks of this visit sitting ready at the pass, not yet served. */
+  ready_items: number;
   open_requests: ServiceRequestDTO[];
   is_active: boolean;
   /** Next booked reservation on this table today, within the next few hours. */
@@ -266,6 +268,24 @@ export interface OrderItemDTO {
   seat_no: number | null;
   is_veg: boolean;
   cancelled_reason: string | null;
+}
+
+/**
+ * `order.items_ready`: a station finished its part of an order (the bar's drinks), or the whole
+ * order is ready to serve. `items` are the ones waiting at the pass.
+ */
+export interface ItemsReadyDTO {
+  order_id: string;
+  order_no: number;
+  order_type: OrderType;
+  channel: DeliveryChannel | null;
+  channel_ref: string | null;
+  table_id: string | null;
+  table_label: string | null;
+  assigned_waiter_id: string | null;
+  stations: string[];
+  complete: boolean;
+  items: { name: string; qty: number; station: string }[];
 }
 
 export interface OrderDTO {

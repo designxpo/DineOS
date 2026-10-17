@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { io as ioClient } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { businessDate, financialYear } from '@dineos/shared/dates';
-import type { BillDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
+import type { BillDTO, ItemsReadyDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import { formatHubInvoiceNo, type HubSyncPayload } from '@dineos/shared/hub';
 import { OutletHub } from '../../print-agent/src/hub/hub';
 import { addStaff, api, connectSocket, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
@@ -144,7 +144,6 @@ describe('outlet hub', () => {
     expect(order.status).toBe('accepted');
     expect(order.subtotal_paise).toBe(2 * (18000 + 6000));
     expect((await placedEvent).seq).toBeGreaterThan(0);
-    socket.close();
 
     // Menu rules still apply offline.
     const bad = await waiter('POST', '/orders', { ...body, lines: [{ item_id: menu.coldCoffee, qty: 1, modifier_ids: [] }] });
@@ -157,8 +156,15 @@ describe('outlet hub', () => {
     expect(printed.length).toBeGreaterThanOrEqual(1);
     const kitchen = hubApi(kitchenToken);
     expect((await waiter('PATCH', `/order-items/${order.items[0]!.id}/status`, { status: 'ready' })).status).toBe(403);
-    for (const item of order.items) expect((await kitchen('PATCH', `/order-items/${item.id}/status`, { status: 'ready' })).status).toBe(200);
-    expect((await waiter('PATCH', `/orders/${order.id}/status`, { status: 'served' })).json.status).toBe('served');
+    // The bar marks its ticket ready in one go and the floor hears about it, offline too.
+    const readyEvent = new Promise<{ payload: ItemsReadyDTO }>((r) => socket.on('event', (e) => e.type === 'order.items_ready' && r(e)));
+    const ids = order.items.map((i) => i.id);
+    expect((await kitchen('PATCH', `/orders/${order.id}/items/status`, { item_ids: ids, status: 'ready' })).json.status).toBe('ready');
+    expect((await readyEvent).payload).toMatchObject({ stations: ['bar'], complete: true, table_label: 'H2', items: [{ name: 'Cold Coffee', qty: 2 }] });
+    socket.close();
+    const atPass: TableDTO[] = (await waiter('GET', `/tables?outlet_id=${tenant.outletId}`)).json;
+    expect(atPass.find((x) => x.id === tables.H2)?.ready_items).toBe(2);
+    expect((await waiter('PATCH', `/orders/${order.id}/items/status`, { item_ids: ids, status: 'served' })).json.status).toBe('served');
     expect((await waiter('PATCH', `/orders/${cloudOrder.id}/status`, { status: 'served' })).json.status).toBe('served');
 
     const floor: TableDTO[] = (await waiter('GET', `/tables?outlet_id=${tenant.outletId}`)).json;

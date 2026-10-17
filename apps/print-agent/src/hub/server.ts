@@ -172,6 +172,10 @@ export class HubServer {
           .parse(body),
       ),
     );
+    this.on('PATCH', '/v1/orders/:id/items/status', ({ user, params, body }) => {
+      const b = z.object({ item_ids: z.array(uuid).min(1).max(100), status: z.enum(ITEM_STATUSES) }).parse(body);
+      return e.setItemsStatus(user, params.id!, b.item_ids, b.status);
+    });
     this.on('PATCH', '/v1/order-items/:id/status', ({ user, params, body }) => e.setItemStatus(user, params.id!, z.object({ status: z.enum(ITEM_STATUSES) }).parse(body).status));
     this.on('POST', '/v1/orders/:id/reprint-kot', ({ user, params, body }) => e.reprintKot(user, params.id!, z.object({ station: z.string().max(30).optional() }).parse(body ?? {}).station));
     this.on('GET', '/v1/kds', ({ query }) => e.kds(q(query, 'outlet_id') ?? '', q(query, 'station') || undefined));

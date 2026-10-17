@@ -101,6 +101,18 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
         .groupBy('table_session_id')
         .execute()
     : [];
+  // Dishes and drinks sitting at the pass, so the floor sees which tables to carry to.
+  const readyCounts = sessionIds.length
+    ? await tx.db
+        .selectFrom('orders')
+        .innerJoin('order_items', 'order_items.order_id', 'orders.id')
+        .select((eb) => ['orders.table_session_id', eb.fn.sum<number>('order_items.qty').as('n')])
+        .where('orders.table_session_id', 'in', sessionIds)
+        .where('orders.status', 'in', [...ACTIVE_ORDER_STATUSES])
+        .where('order_items.status', '=', 'ready')
+        .groupBy('orders.table_session_id')
+        .execute()
+    : [];
   const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
   const requests = await loadServiceRequests(tx, outletId, rows.map((r) => r.id));
   // The next booking per table, from slightly in the past (late arrivals) to a few hours ahead.
@@ -145,6 +157,7 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       running_total_paise: Number(totals.find((t) => t.table_session_id === sid)?.total ?? 0),
       last_served_at: live ? iso(lastServed.find((x) => x.table_session_id === sid)?.at) : null,
       unpaid_bill_since: live ? iso(unpaidBills.find((x) => x.table_session_id === sid)?.at) : null,
+      ready_items: live ? Number(readyCounts.find((x) => x.table_session_id === sid)?.n ?? 0) : 0,
       open_requests: requests.filter((q) => q.table_id === r.id),
       is_active: r.is_active,
       camera:

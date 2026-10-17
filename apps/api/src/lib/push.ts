@@ -1,6 +1,7 @@
-import type { OrderDTO, ServiceRequestDTO } from '@dineos/shared/dto';
+import type { ItemsReadyDTO, OrderDTO, ServiceRequestDTO } from '@dineos/shared/dto';
+import type { Role } from '@dineos/shared/enums';
 import type { OutletEvent } from '@dineos/shared/events';
-import type { Action } from '@dineos/shared/permissions';
+import { roleCan, type Action } from '@dineos/shared/permissions';
 
 /** What a staff phone shows. `tag` lets a newer alert for the same thing replace the older one. */
 export interface PushMessage {
@@ -46,10 +47,40 @@ export function webPushSender(cfg: { publicKey: string; privateKey: string; subj
 const rupees = (paise: number) => `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 /**
- * The alert for an outlet event, and who may get it, or null when nobody needs a phone buzz:
- * guests' orders (staff entering their own do not), waiter calls and bill requests.
+ * An alert and who should get it: staff who can do `action` at the outlet, only these `roles`
+ * when given, and, for a table with an assigned waiter, not the other floor-only waiters.
  */
-export function pushFor(event: OutletEvent): { message: PushMessage; action: Action } | null {
+export interface PushAlert {
+  message: PushMessage;
+  action: Action;
+  roles?: readonly Role[];
+  assignedWaiterId?: string | null;
+}
+
+/** Whether a staff member with these roles at the outlet should get the alert on their phone. */
+export function wantsAlert(alert: PushAlert, userId: string, roles: readonly Role[]): boolean {
+  if (!roles.some((r) => roleCan(r, alert.action) && (!alert.roles || alert.roles.includes(r)))) return false;
+  // Waiters with no other duties handle their own tables and unassigned ones, as on screen.
+  const floorOnly = roles.length > 0 && roles.every((r) => r === 'waiter');
+  return !floorOnly || !alert.assignedWaiterId || alert.assignedWaiterId === userId;
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const ORDER_KIND: Record<ItemsReadyDTO['order_type'], string> = { dine_in: 'Order', takeaway: 'Takeaway', counter: 'Counter', delivery: 'Delivery' };
+const CHANNEL: Record<NonNullable<ItemsReadyDTO['channel']>, string> = { zomato: 'Zomato', swiggy: 'Swiggy', own: 'Delivery' };
+
+/** What staff call an order: "Table C4", "Zomato #4821", "Takeaway #12". */
+function orderWhere(o: Pick<ItemsReadyDTO, 'table_label' | 'order_type' | 'order_no' | 'channel' | 'channel_ref'>): string {
+  if (o.table_label) return `Table ${o.table_label}`;
+  if (o.order_type === 'delivery' && o.channel) return `${CHANNEL[o.channel]} #${o.channel_ref ?? o.order_no}`;
+  return `${ORDER_KIND[o.order_type]} #${o.order_no}`;
+}
+
+/**
+ * The alert for an outlet event, or null when nobody needs a phone buzz: guests' orders (staff
+ * entering their own do not), waiter calls, bill requests, and food or drinks ready to serve.
+ */
+export function pushFor(event: OutletEvent): PushAlert | null {
   if (event.type === 'order.placed') {
     const order = (event.payload as { order: OrderDTO }).order;
     if (order.source !== 'guest_qr') return null;
@@ -69,11 +100,30 @@ export function pushFor(event: OutletEvent): { message: PushMessage; action: Act
     const request = (event.payload as { request: ServiceRequestDTO }).request;
     return {
       action: 'service_request.handle',
+      assignedWaiterId: request.assigned_waiter_id,
       message: {
         title: event.type === 'waiter.called' ? `Table ${request.table_label} is calling a waiter` : `Table ${request.table_label} asked for the bill`,
         body: 'Tap to open the floor',
         url: '/app/floor',
         tag: `request-${request.id}`,
+      },
+    };
+  }
+  if (event.type === 'order.items_ready') {
+    const ready = event.payload as ItemsReadyDTO;
+    const where = orderWhere(ready);
+    const what = ready.complete ? 'order ready' : `${ready.stations.map(capital).join(' and ')} ready`;
+    return {
+      action: 'order.serve',
+      // The people who carry it out: waiters for tables, the counter too for parcels.
+      roles: ready.table_id ? ['waiter'] : ['waiter', 'cashier'],
+      assignedWaiterId: ready.assigned_waiter_id,
+      message: {
+        title: `${where} · ${capital(what)}`,
+        body: ready.items.map((i) => `${i.qty}× ${i.name}`).join(', '),
+        url: '/app/inbox',
+        // The whole order being ready replaces the earlier "drinks ready" on the lock screen.
+        tag: `ready-${ready.order_id}`,
       },
     };
   }

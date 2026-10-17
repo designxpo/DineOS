@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, Segmented, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { OrderCard } from '@/components/staff/orders';
+import { useReadyAlerts } from '@/components/staff/ready-alerts';
 import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
 import { StaleBanner } from '@/components/staff/stale-banner';
@@ -51,6 +52,7 @@ export default function InboxPage() {
   );
 
   useServiceRequestAlerts();
+  useReadyAlerts();
   // New orders: chime, toast and a pulsing card for a few seconds (spec §7).
   useOutletEvents((e) => {
     if (e.type === 'order.placed') {
@@ -66,10 +68,16 @@ export default function InboxPage() {
     }
   });
 
+  // In the kitchen column, orders with something already at the pass (the drinks) come first.
+  const partReady = (o: OrderDTO) => (o.items.some((i) => i.status === 'ready') ? 0 : 1);
   const byColumn = (c: (typeof COLUMNS)[number]) =>
     (orders ?? [])
       .filter((o) => c.statuses.includes(o.status))
-      .sort((a, b) => (c.key === 'served' ? b.placed_at.localeCompare(a.placed_at) : a.placed_at.localeCompare(b.placed_at)));
+      .sort((a, b) =>
+        c.key === 'served'
+          ? b.placed_at.localeCompare(a.placed_at)
+          : (c.key === 'kitchen' ? partReady(a) - partReady(b) : 0) || a.placed_at.localeCompare(b.placed_at),
+      );
 
   return (
     <div>
