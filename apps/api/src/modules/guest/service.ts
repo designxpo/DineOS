@@ -9,6 +9,8 @@ import { loadOrders, toGuestOrder } from '../orders/serialize';
 import { createOrder, prepareLines, type OrderLineInput } from '../orders/service';
 import { upsertCustomer } from '../customers/service';
 import { lockLiveSession } from '../tables/sessions';
+import { openRewards, programSummary } from '../loyalty/engine';
+import { activeProgram } from '../loyalty/program';
 
 export const MAX_CART_LINES = 50;
 /** Spec §6: rate-limit orders per table. */
@@ -112,14 +114,13 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth, otpEnabled = fal
     .where('table_session_id', '=', s.id)
     .where('status', '<>', 'void')
     .execute();
-  const outlet = await tx.db
-    .selectFrom('outlets')
-    .select(['event_seq', 'loyalty_enabled', 'loyalty_earn_bp'])
-    .where('id', '=', auth.outletId)
-    .executeTakeFirstOrThrow();
+  const outlet = await tx.db.selectFrom('outlets').select(['event_seq']).where('id', '=', auth.outletId).executeTakeFirstOrThrow();
+  const program = await activeProgram(tx);
   const customer = s.customer_id
-    ? await tx.db.selectFrom('customers').select(['phone', 'name', 'points']).where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
+    ? await tx.db.selectFrom('customers').select(['id', 'phone', 'name', 'points', 'stamps', 'level']).where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
     : undefined;
+  const rewards = customer && s.customer_verified_at && program ? await openRewards(tx, customer.id) : [];
+  const earn = program?.config.earn;
   const finalised = bills.filter((b) => b.status !== 'draft');
   return {
     context,
@@ -136,10 +137,25 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth, otpEnabled = fal
     // A typed number shows only its last four digits; a number proved by SMS shows its name and points.
     customer: customer
       ? s.customer_verified_at
-        ? { phone_last4: customer.phone.slice(-4), verified: true, name: customer.name, points: customer.points }
+        ? {
+            phone_last4: customer.phone.slice(-4),
+            verified: true,
+            name: customer.name,
+            points: customer.points,
+            stamps: customer.stamps,
+            level: customer.level,
+            rewards: rewards.filter((r) => r.status === 'available').map((r) => ({ label: r.label, valid_to: r.valid_to })),
+          }
         : { phone_last4: customer.phone.slice(-4), verified: false }
       : null,
-    loyalty: { enabled: outlet.loyalty_enabled, earn_bp: outlet.loyalty_earn_bp, otp: otpEnabled },
+    loyalty: {
+      enabled: !!program,
+      earn: earn?.kind ?? 'none',
+      earn_bp: earn?.kind === 'points' ? earn.earn_bp : 0,
+      stamp_goal: earn?.kind === 'stamps' ? earn.goal : null,
+      summary: program ? await programSummary(tx, program) : null,
+      otp: otpEnabled,
+    },
     bill: finalised.length
       ? {
           total_paise: finalised.reduce((a, b) => a + b.total_paise, 0),

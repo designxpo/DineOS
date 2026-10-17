@@ -198,6 +198,7 @@ const COMP_REASON: Record<CompReason, string> = {
   celebration: 'Celebration',
   staff_meal: 'Staff meal',
   marketing: 'Marketing or tasting',
+  loyalty: 'Loyalty reward',
   other: 'Other',
 };
 

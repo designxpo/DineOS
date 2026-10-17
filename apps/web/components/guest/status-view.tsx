@@ -169,23 +169,57 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const member = g.session?.customer;
   const otp = g.session?.loyalty.otp ?? false;
-  const pct = ((g.session?.loyalty.earn_bp ?? 0) / 100).toString();
+  const loyalty = g.session?.loyalty;
+  const pct = ((loyalty?.earn_bp ?? 0) / 100).toString();
+  const goal = loyalty?.stamp_goal ?? 0;
+  const earn = loyalty?.earn ?? 'points';
   const restaurant = g.context?.outlet.name ?? '';
 
   if (member) {
+    const greeting = !member.verified
+      ? t('guest.loyalty_member', { last4: member.phone_last4 })
+      : earn === 'points'
+        ? member.name
+          ? t('guest.loyalty_verified', { name: member.name, points: member.points })
+          : t('guest.loyalty_verified_no_name', { points: member.points })
+        : earn === 'stamps'
+          ? member.name
+            ? t('guest.loyalty_verified_stamps', { name: member.name, n: member.stamps, goal })
+            : t('guest.loyalty_verified_stamps_no_name', { n: member.stamps, goal })
+          : member.name
+            ? t('guest.loyalty_hi', { name: member.name })
+            : t('guest.loyalty_hi_no_name');
     return (
-      <section className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-        <Gift className="mt-0.5 size-5 shrink-0 text-emerald-700" />
-        <div>
-          <p className="font-medium text-ink">
-            {member.verified
-              ? member.name
-                ? t('guest.loyalty_verified', { name: member.name, points: member.points })
-                : t('guest.loyalty_verified_no_name', { points: member.points })
-              : t('guest.loyalty_member', { last4: member.phone_last4 })}
-          </p>
-          <p className="mt-0.5 text-sm text-ink-soft">{t('guest.loyalty_member_hint')}</p>
+      <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+        <div className="flex items-start gap-3">
+          <Gift className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+          <div>
+            <p className="font-medium text-ink">
+              {greeting}
+              {member.verified && member.level && <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">{member.level}</span>}
+            </p>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              {t(earn === 'points' ? 'guest.loyalty_member_hint' : earn === 'stamps' ? 'guest.loyalty_member_hint_stamps' : 'guest.loyalty_member_hint_rewards')}
+            </p>
+          </div>
         </div>
+        {member.verified && earn === 'stamps' && goal > 0 && (
+          <div className="flex gap-1 pl-8" aria-hidden>
+            {Array.from({ length: goal }, (_, i) => (
+              <span key={i} className={cn('h-2 flex-1 rounded-full', i < member.stamps ? 'bg-emerald-600' : 'bg-emerald-100')} />
+            ))}
+          </div>
+        )}
+        {member.verified && member.rewards.length > 0 && (
+          <div className="pl-8">
+            <p className="text-xs font-semibold tracking-wide text-emerald-800 uppercase">{t('guest.loyalty_rewards')}</p>
+            <ul className="mt-1 space-y-1 text-sm">
+              {member.rewards.map((r) => (
+                <li key={r.label}>{r.label}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
     );
   }
@@ -221,8 +255,9 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
       <button className="flex w-full cursor-pointer items-start gap-3 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <Gift className="mt-0.5 size-5 shrink-0 text-[var(--brand)]" />
         <span>
-          <span className="block font-semibold text-ink">{t('guest.loyalty_title', { pct })}</span>
-          <span className="mt-0.5 block text-sm text-ink-soft">{t('guest.loyalty_hint')}</span>
+          <span className="block font-semibold text-ink">{earn === 'points' ? t('guest.loyalty_title', { pct }) : t(earn === 'stamps' ? 'guest.loyalty_title_stamps' : 'guest.loyalty_title_moments')}</span>
+          <span className="mt-0.5 block text-sm text-ink-soft">{t(earn === 'points' ? 'guest.loyalty_hint' : earn === 'stamps' ? 'guest.loyalty_hint_stamps' : 'guest.loyalty_hint_moments')}</span>
+          {loyalty?.summary && <span className="mt-1 block text-xs text-ink-faint">{loyalty.summary}</span>}
         </span>
       </button>
       {open && (

@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
-import type { BillDTO, BillLineDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
+import type { BillDTO, BillLineDTO, BillLoyaltyDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
 import { errorMessage, onHub } from '@/lib/api';
 import { dateTime, formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
@@ -160,7 +160,14 @@ export default function BillPage() {
                     {l.seat_no && <span className="ml-1 text-xs text-ink-faint">{t('bill.seat', { n: l.seat_no })}</span>}
                     {l.comp_qty > 0 && (
                       <span className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-                        <Gift className="size-3" /> {l.comp_qty === l.qty ? t('comp.free') : t('comp.free_some', { n: l.comp_qty, qty: l.qty })}
+                        <Gift className="size-3" />{' '}
+                        {l.comps.every((c) => c.reason === 'loyalty')
+                          ? l.comp_qty === l.qty
+                            ? t('loy.line_free')
+                            : t('loy.line_free_some', { n: l.comp_qty, qty: l.qty })
+                          : l.comp_qty === l.qty
+                            ? t('comp.free')
+                            : t('comp.free_some', { n: l.comp_qty, qty: l.qty })}
                         {draft && l.comps.length > 0 && (
                           <button type="button" disabled={busy === 'uncomp'} onClick={() => takeBack(l.comps[l.comps.length - 1]!.id)} className="cursor-pointer text-ink-soft underline underline-offset-2 hover:text-ink">
                             {t('comp.undo')}
@@ -182,7 +189,10 @@ export default function BillPage() {
             <Row label={t('bill.subtotal')} value={formatPaise(bill.subtotal_paise)} />
             {free > 0 && <Row label={t('comp.free')} value={`− ${formatPaise(free)}`} tone="text-emerald-700" />}
             {discount > 0 && <Row label={`${t('bill.discount')}${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
-            {bill.loyalty_discount_paise > 0 && <Row label={t('bill.points_row', { n: bill.loyalty_points_redeemed })} value={`− ${formatPaise(bill.loyalty_discount_paise)}`} tone="text-emerald-700" />}
+            {bill.reward_discount_paise > 0 && <Row label={t('bill.reward_row')} value={`− ${formatPaise(bill.reward_discount_paise)}`} tone="text-emerald-700" />}
+            {bill.loyalty_discount_paise - bill.reward_discount_paise > 0 && (
+              <Row label={t('bill.points_row', { n: bill.loyalty_points_redeemed })} value={`− ${formatPaise(bill.loyalty_discount_paise - bill.reward_discount_paise)}`} tone="text-emerald-700" />
+            )}
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
               <Row label={`${t('bill.sc')} ${bill.service_charge_waived ? t('bill.sc_removed') : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
             )}
@@ -270,6 +280,7 @@ export default function BillPage() {
               bill={bill}
               editable={draft && can('customer.manage')}
               onUpdate={(body, done) => act('loyalty', () => api(`/bills/${id}`, { method: 'PATCH', body }), done)}
+              onReward={(fn, done) => act('reward', fn, done)}
             />
           )}
 
@@ -332,41 +343,69 @@ export default function BillPage() {
   );
 }
 
-/** Member on the bill: attach by phone, redeem points while the bill is a draft. */
-function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: boolean; onUpdate: (body: object, done: string) => Promise<boolean> }) {
-  const { api, outletId, outlet } = useStaff();
+/**
+ * Member on the bill: attach by phone, see their stamp card and level, use their rewards and
+ * redeem points while the bill is a draft.
+ */
+function LoyaltyCard({
+  bill,
+  editable,
+  onUpdate,
+  onReward,
+}: {
+  bill: BillDTO;
+  editable: boolean;
+  onUpdate: (body: object, done: string) => Promise<boolean>;
+  onReward: (fn: () => Promise<unknown>, done: string) => Promise<boolean>;
+}) {
+  const { api, outletId } = useStaff();
   const { t } = useI18n();
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
   const [points, setPoints] = useState('');
+  const [picking, setPicking] = useState<string | null>(null);
   const digits = phone.replace(/\D/g, '');
+  const c = bill.customer;
   const matches = useQuery({
     queryKey: ['customers', outletId, 'bill-search', digits],
-    enabled: editable && !bill.customer && digits.length >= 4,
+    enabled: editable && !c && digits.length >= 4,
     queryFn: () => api<CustomerDTO[]>(`/customers?outlet_id=${outletId}&q=${digits}&limit=5`),
   });
-  const loyalty = outlet?.loyalty_enabled;
-  const value = outlet?.loyalty_point_value_paise ?? 100;
-  const c = bill.customer;
+  const standing = useQuery({
+    queryKey: ['bill-loyalty', bill.id, c?.id, bill.status, bill.total_paise, bill.rewards.length, bill.lines.length],
+    enabled: !!c,
+    queryFn: () => api<{ loyalty: BillLoyaltyDTO | null }>(`/bills/${bill.id}/loyalty`),
+  });
+  const l = standing.data?.loyalty ?? null;
+  const program = l?.program ?? null;
+  const usesPoints = program?.earn === 'points';
+  const value = program?.point_value_paise ?? 100;
   // Points cannot take the bill below zero; the API caps it the same way.
-  const room = bill.subtotal_paise - bill.item_discount_paise - bill.bill_discount_paise;
-  const max = c ? Math.min(c.points, Math.floor(room / value)) : 0;
-  const canRedeem = loyalty && c && max >= (outlet?.loyalty_min_redeem_points ?? 0) && max > 0;
+  const room = bill.subtotal_paise - bill.item_discount_paise - bill.bill_discount_paise - bill.reward_discount_paise;
+  const max = c && usesPoints ? Math.min(c.points, Math.floor(room / value)) : 0;
+  const canRedeem = usesPoints && max >= (program?.min_redeem_points ?? 0) && max > 0;
+  const pointsOff = bill.loyalty_discount_paise - bill.reward_discount_paise;
+  const use = (rewardId: string, orderItemId?: string) =>
+    void onReward(() => api(`/bills/${bill.id}/rewards`, { method: 'POST', body: { reward_id: rewardId, order_item_id: orderItemId ?? null } }), t('loy.reward_used')).then(() => setPicking(null));
+  const undo = (rewardId: string) => void onReward(() => api(`/bills/${bill.id}/rewards/${rewardId}`, { method: 'DELETE' }), t('loy.reward_back'));
 
   return (
     <Card className="space-y-3 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <Gift className="size-4 text-[var(--brand)]" /> {loyalty ? t('loy.title') : t('loy.customer')}
+        <Gift className="size-4 text-[var(--brand)]" /> {program ? program.name : t('loy.customer')}
       </p>
       {c ? (
         <>
           <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-3 py-2.5">
             <UserRound className="size-5 shrink-0 text-ink-faint" />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{c.name ?? t('loy.guest')}</p>
+              <p className="flex items-center gap-2 truncate font-medium">
+                {c.name ?? t('loy.guest')}
+                {l?.level && <Badge tone="violet">{l.level.name}</Badge>}
+              </p>
               <p className="text-xs text-ink-faint tabular">
                 {c.phone}
-                {loyalty && ` · ${t('loy.points', { n: c.points })}`}
+                {usesPoints && ` · ${t('loy.points', { n: c.points })}`}
               </p>
             </div>
             {editable && (
@@ -375,11 +414,64 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
               </button>
             )}
           </div>
+          {program?.stamp_goal != null && l && (
+            <div>
+              <div className="flex gap-1" aria-label={t('loy.stamps', { n: l.stamps, goal: program.stamp_goal })}>
+                {Array.from({ length: program.stamp_goal }, (_, i) => (
+                  <span key={i} className={cn('h-2 flex-1 rounded-full', i < l.stamps ? 'bg-[var(--brand)]' : 'bg-stone-200')} />
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-ink-faint">
+                {t('loy.stamps', { n: l.stamps, goal: program.stamp_goal })} · {t('loy.stamps_toward', { reward: program.stamp_reward ?? '' })}
+              </p>
+            </div>
+          )}
+          {l && l.rewards.length > 0 && (
+            <ul className="space-y-2">
+              {l.rewards.map((r) => {
+                const onThis = r.bill_id === bill.id;
+                const fits = l.eligible[r.id] ?? [];
+                const isDish = r.reward.kind === 'free_item';
+                return (
+                  <li key={r.id} className={cn('rounded-xl border px-3 py-2', onThis ? 'border-emerald-200 bg-emerald-50/60' : 'border-line')}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Gift className="size-4 shrink-0 text-emerald-700" />
+                      <span className="min-w-0 flex-1">{r.label}</span>
+                      {onThis ? (
+                        editable && (
+                          <Button size="sm" variant="ghost" onClick={() => undo(r.id)}>
+                            {t('loy.undo')}
+                          </Button>
+                        )
+                      ) : (
+                        editable && (
+                          <Button size="sm" variant="outline" disabled={isDish && fits.length === 0} onClick={() => (isDish && fits.length > 1 ? setPicking(picking === r.id ? null : r.id) : use(r.id, fits[0]))}>
+                            {t('loy.use')}
+                          </Button>
+                        )
+                      )}
+                    </div>
+                    {onThis && <p className="mt-0.5 pl-6 text-xs text-emerald-800">{t('loy.on_bill')}</p>}
+                    {!onThis && editable && isDish && fits.length === 0 && <p className="mt-0.5 pl-6 text-xs text-ink-faint">{t('loy.no_dish')}</p>}
+                    {picking === r.id && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 pl-6" role="group" aria-label={t('loy.pick_dish')}>
+                        {bill.lines
+                          .filter((line) => line.order_item_id && fits.includes(line.order_item_id))
+                          .map((line) => (
+                            <button key={line.id} type="button" onClick={() => use(r.id, line.order_item_id!)} className="min-h-9 cursor-pointer rounded-full border border-line px-3 text-sm hover:bg-stone-50">
+                              {line.name}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {bill.loyalty_points_redeemed > 0 && (
             <div className="flex items-center justify-between text-sm">
-              <span>
-                {t('loy.using', { n: bill.loyalty_points_redeemed, amount: formatPaise(bill.loyalty_discount_paise) })}
-              </span>
+              <span>{t('loy.using', { n: bill.loyalty_points_redeemed, amount: formatPaise(pointsOff) })}</span>
               {editable && (
                 <Button size="sm" variant="ghost" onClick={() => void onUpdate({ redeem_points: 0 }, t('loy.unused'))}>
                   {t('loy.undo')}
@@ -398,11 +490,9 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
               </Button>
             </div>
           )}
-          {editable && loyalty && !canRedeem && bill.loyalty_points_redeemed === 0 && c.points > 0 && (
-            <p className="text-xs text-ink-faint">{t('loy.min', { n: outlet?.loyalty_min_redeem_points ?? 0 })}</p>
-          )}
+          {editable && usesPoints && !canRedeem && bill.loyalty_points_redeemed === 0 && c.points > 0 && <p className="text-xs text-ink-faint">{t('loy.min', { n: program?.min_redeem_points ?? 0 })}</p>}
           {bill.loyalty_points_earned > 0 && <p className="text-sm text-emerald-700">{t('loy.earned', { n: bill.loyalty_points_earned })}</p>}
-          {loyalty && bill.status === 'draft' && <p className="text-xs text-ink-faint">{t('loy.earn_on_pay')}</p>}
+          {program && program.earn !== 'none' && bill.status === 'draft' && <p className="text-xs text-ink-faint">{t(program.earn === 'stamps' ? 'loy.earn_on_pay_stamps' : 'loy.earn_on_pay')}</p>}
         </>
       ) : editable ? (
         <>
@@ -420,7 +510,7 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
                 <span className="block truncate font-medium">{m.name ?? t('loy.guest')}</span>
                 <span className="text-xs text-ink-faint tabular">{m.phone}</span>
               </span>
-              {loyalty && <span className="text-xs font-semibold tabular">{t('loy.pts', { n: m.points })}</span>}
+              {m.points > 0 && <span className="text-xs font-semibold tabular">{t('loy.pts', { n: m.points })}</span>}
             </button>
           ))}
           {digits.length >= 10 && matches.data && !matches.data.length && (
@@ -428,7 +518,7 @@ function LoyaltyCard({ bill, editable, onUpdate }: { bill: BillDTO; editable: bo
               {t('loy.save_new')}
             </Button>
           )}
-          {digits.length < 10 && <p className="text-xs text-ink-faint">{loyalty ? t('loy.hint_points') : t('loy.hint_visits')}</p>}
+          {digits.length < 10 && <p className="text-xs text-ink-faint">{t('loy.hint_points')}</p>}
         </>
       ) : null}
       {adding && (

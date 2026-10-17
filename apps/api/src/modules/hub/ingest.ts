@@ -13,7 +13,8 @@ import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict } from '../../lib/errors';
 import { announceBill, markFullyBilledOrders, syncDraft } from '../billing/service';
 import { loadBill } from '../billing/serialize';
-import { earnOnPaid } from '../billing/loyalty';
+import { detachRewards } from '../loyalty/bill-hooks';
+import { earnOnPaid } from '../loyalty/engine';
 import { syncStock } from '../inventory/stock';
 import { closeSession, refreshTableStates } from '../tables/sessions';
 
@@ -329,12 +330,15 @@ async function applyGroup(tx: Tx, outlet: { id: string; prices_include_tax: bool
   if (sessionId) {
     const drafts = await tx.db.selectFrom('bills').select('id').where('table_session_id', '=', sessionId).where('status', '=', 'draft').execute();
     for (const d of drafts) await syncDraft(tx, d.id);
-    await tx.db
-      .deleteFrom('bills')
+    const empty = await tx.db
+      .selectFrom('bills')
+      .select('id')
       .where('table_session_id', '=', sessionId)
       .where('status', '=', 'draft')
       .where(({ not, exists, selectFrom }) => not(exists(selectFrom('bill_lines').select('bill_lines.id').whereRef('bill_lines.bill_id', '=', 'bills.id'))))
       .execute();
+    for (const d of empty) await detachRewards(tx, d.id);
+    if (empty.length) await tx.db.deleteFrom('bills').where('id', 'in', empty.map((d) => d.id)).execute();
   }
   if (g.session) {
     const s = await tx.db.selectFrom('table_sessions').select(['status', 'table_id']).where('id', '=', g.session.id).executeTakeFirstOrThrow();

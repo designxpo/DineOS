@@ -16,13 +16,15 @@ type Row = {
   visits: number;
   total_spend_paise: number;
   points: number;
+  stamps: number;
+  level: string | null;
   last_visit_at: Date | null;
   created_at: Date;
 };
 
 export const CUSTOMER_COLUMNS = [
   'id', 'phone', 'name', 'email', 'birthday', 'notes', 'consent_at', 'consent_source', 'marketing_opt_in',
-  'visits', 'total_spend_paise', 'points', 'last_visit_at', 'created_at',
+  'visits', 'total_spend_paise', 'points', 'stamps', 'level', 'last_visit_at', 'created_at',
 ] as const;
 
 export function customerDto(r: Row): CustomerDTO {

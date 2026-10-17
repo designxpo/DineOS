@@ -54,6 +54,13 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         .orderBy('created_at')
         .execute()
     : [];
+  const rewards = await tx.db
+    .selectFrom('customer_rewards')
+    .select(['id', 'bill_id', 'label'])
+    .where('bill_id', 'in', [...ids])
+    .where('status', 'in', ['applied', 'used'])
+    .orderBy('created_at')
+    .execute();
   const payments = await tx.db
     .selectFrom('payments')
     .leftJoin('users', 'users.id', 'payments.confirmed_by')
@@ -124,6 +131,8 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         loyalty_points_redeemed: b.loyalty_points_redeemed,
         loyalty_discount_paise: b.loyalty_discount_paise,
         loyalty_points_earned: b.loyalty_points_earned,
+        reward_discount_paise: b.reward_discount_paise,
+        rewards: rewards.filter((r) => r.bill_id === b.id).map((r) => ({ id: r.id, label: r.label })),
         invoice_no: b.invoice_no,
         invoice_date: b.invoice_date,
         customer_name: b.customer_name,

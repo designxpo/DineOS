@@ -77,7 +77,7 @@ describe('bill', () => {
         cgst_paise: 1250, sgst_paise: 1250, tax_total_paise: 2500, round_off_paise: 0, total_paise: 52500, paid_paise: 0, balance_paise: 52500,
         amount_shares: null, invoice_no: 'AURM/2627/000123', invoice_date: '2026-10-15', customer_name: null, customer_gstin: null,
         payments: [], finalised_at: null, paid_at: null, voided_at: null, void_reason: null, created_at: '2026-10-15T07:00:00Z',
-        customer: null, loyalty_points_redeemed: 0, loyalty_discount_paise: 0, loyalty_points_earned: 0, comp_paise: 0,
+        customer: null, loyalty_points_redeemed: 0, loyalty_discount_paise: 0, loyalty_points_earned: 0, reward_discount_paise: 0, rewards: [], comp_paise: 0,
       },
     },
   };

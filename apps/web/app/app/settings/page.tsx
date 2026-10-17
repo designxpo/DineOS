@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { OutletDTO } from '@dineos/shared/dto';
 import { API_URL, errorMessage } from '@/lib/api';
@@ -234,54 +235,20 @@ function BillingForm() {
 function GuestsForm() {
   const { outlet } = useStaff();
   const save = useSaveOutlet();
-  const [form, setForm] = useState({ earn: '5', value: '1', min: '100', minutes: '90' });
+  const [form, setForm] = useState({ minutes: '90' });
   useEffect(() => {
     if (!outlet) return;
-    setForm({
-      earn: String(outlet.loyalty_earn_bp / 100),
-      value: String(outlet.loyalty_point_value_paise / 100),
-      min: String(outlet.loyalty_min_redeem_points),
-      minutes: String(outlet.reservation_minutes),
-    });
+    setForm({ minutes: String(outlet.reservation_minutes) });
   }, [outlet]);
   if (!outlet) return <Spinner />;
-  const earn = Number(form.earn);
-  const value = Number(form.value);
-  const example = earn > 0 && value > 0 ? Math.floor((1000 * earn) / 100 / value) : 0;
   return (
     <div className="space-y-4">
       <Card className="divide-y divide-line">
-        <Row title="Loyalty points" hint="Guests who share their number (with consent) earn points on paid bills and spend them as a discount.">
-          <Switch label="Loyalty points" checked={outlet.loyalty_enabled} onChange={(v) => void save({ loyalty_enabled: v })} />
+        <Row title="Loyalty programme" hint="Points, stamp cards, levels, birthday and comeback rewards: set up from a template or build your own.">
+          <Link href="/app/loyalty" className="inline-flex h-10 items-center rounded-xl border border-line px-4 text-sm font-medium hover:bg-stone-50">
+            Open Loyalty
+          </Link>
         </Row>
-        {outlet.loyalty_enabled && (
-          <div className="space-y-4 p-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Points back (%)" hint="Of the bill total">
-                {(id) => <Input id={id} value={form.earn} onChange={(e) => setForm({ ...form, earn: e.target.value })} inputMode="decimal" />}
-              </Field>
-              <Field label="1 point is worth (₹)">{(id) => <Input id={id} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} inputMode="decimal" />}</Field>
-              <Field label="Use from (points)" hint="Smallest redemption">
-                {(id) => <Input id={id} value={form.min} onChange={(e) => setForm({ ...form, min: e.target.value })} inputMode="numeric" />}
-              </Field>
-            </div>
-            <p className="rounded-xl bg-stone-50 px-3 py-2 text-sm text-ink-soft">
-              A ₹1,000 bill earns <span className="font-semibold text-ink">{example} points</span>, worth ₹{(example * value).toFixed(0)} on a later visit.
-            </p>
-            <Button
-              onClick={() =>
-                void save({
-                  loyalty_earn_bp: Math.round(earn * 100),
-                  loyalty_point_value_paise: Math.round(value * 100),
-                  loyalty_min_redeem_points: Math.round(Number(form.min) || 0),
-                })
-              }
-              disabled={!(earn >= 0 && earn <= 50 && value > 0)}
-            >
-              Save loyalty rules
-            </Button>
-          </div>
-        )}
       </Card>
       <Card className="divide-y divide-line">
         <Row title="Default booking length" hint="How long a table is held for a reservation, unless changed on the booking.">

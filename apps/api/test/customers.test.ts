@@ -174,14 +174,21 @@ describe('customer book', () => {
     expect((await saveCustomer('9876500040', 'Asha')).id).not.toBe(c.id);
   });
 
-  it('refuses loyalty actions while the programme is off', async () => {
-    await setOutlet(t, tenant.outletId, { loyalty_enabled: false });
+  it('carries an outlet that ran points before programmes into a Cashback programme', async () => {
+    const { program } = (await owner({ method: 'GET', url: `/v1/loyalty/program?outlet_id=${outlet()}` })).json();
+    expect(program).toMatchObject({ name: 'Cashback points', template: 'cashback', status: 'active', config: { earn: { kind: 'points', earn_bp: 1000, point_value_paise: 100, min_redeem_points: 50 } } });
+  });
+
+  it('refuses loyalty actions while the programme is paused', async () => {
+    const { program } = (await owner({ method: 'GET', url: `/v1/loyalty/program?outlet_id=${outlet()}` })).json();
+    const save = (status: string) => owner({ method: 'PUT', url: '/v1/loyalty/program', payload: { outlet_id: outlet(), name: program.name, template: program.template, status, config: program.config } });
+    expect((await save('paused')).statusCode).toBe(200);
     try {
       const c = await saveCustomer('9876500050');
       const bill = await billFor(1);
       expect((await cashier({ method: 'PATCH', url: `/v1/bills/${bill.id}`, payload: { customer_id: c.id, redeem_points: 50 } })).json().error.code).toBe('loyalty_disabled');
     } finally {
-      await setOutlet(t, tenant.outletId, { loyalty_enabled: true });
+      expect((await save('active')).statusCode).toBe(200);
     }
   });
 });

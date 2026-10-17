@@ -13,6 +13,7 @@ import { loadMenu } from '../menu/service';
 import { sendLoyaltyCode, verifyLoyaltyCode } from './otp';
 import { createServiceRequest } from '../tables/floor';
 import { getOrCreateSession, noteGuestsHere } from '../tables/sessions';
+import { activeProgram } from '../loyalty/program';
 import {
   addCartLine,
   guestContext,
@@ -34,9 +35,8 @@ const cartLine = z.object({
   note: z.string().max(200).nullable().optional(),
 });
 
-async function assertLoyalty(tx: Tx, outletId: string): Promise<void> {
-  const o = await tx.db.selectFrom('outlets').select('loyalty_enabled').where('id', '=', outletId).executeTakeFirstOrThrow();
-  if (!o.loyalty_enabled) throw conflict('loyalty_disabled', 'This restaurant does not run a loyalty programme');
+async function assertLoyalty(tx: Tx): Promise<void> {
+  if (!(await activeProgram(tx))) throw conflict('loyalty_disabled', 'This restaurant does not run a loyalty programme');
 }
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
@@ -175,7 +175,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       // With codes by SMS set up, a typed number is not enough: the guest proves it first.
       if (ctx.otp) throw conflict('verify_phone', 'Enter the code we text to your number');
       return ctx.tx(auth.tenantId, async (tx) => {
-        await assertLoyalty(tx, auth.outletId);
+        await assertLoyalty(tx);
         return joinLoyalty(tx, auth, body);
       });
     });
@@ -187,7 +187,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const sender = ctx.otp;
       if (!sender) throw new AppError(404, 'otp_unavailable', 'Codes by SMS are not set up here');
       return ctx.tx(auth.tenantId, async (tx) => {
-        await assertLoyalty(tx, auth.outletId);
+        await assertLoyalty(tx);
         return sendLoyaltyCode(tx, auth, ctx.config.TOKEN_SECRET, sender, body.phone);
       });
     });
@@ -207,7 +207,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       );
       if (!ctx.otp) throw new AppError(404, 'otp_unavailable', 'Codes by SMS are not set up here');
       const result = await ctx.tx(auth.tenantId, async (tx) => {
-        await assertLoyalty(tx, auth.outletId);
+        await assertLoyalty(tx);
         return verifyLoyaltyCode(tx, auth, ctx.config.TOKEN_SECRET, body);
       });
       if (result.ok) return { phone_last4: result.phone_last4, name: result.name, points: result.points };

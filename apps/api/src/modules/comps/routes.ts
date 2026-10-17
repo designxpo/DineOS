@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { COMP_REASONS } from '@dineos/shared/enums';
+import { MANUAL_COMP_REASONS } from '@dineos/shared/enums';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
 import { requireStaff } from '../../lib/auth';
@@ -8,7 +8,7 @@ import { idParams, parse } from '../../lib/validate';
 import { compBill, compItem, removeComp } from './service';
 
 const compBody = z.object({
-  reason: z.enum(COMP_REASONS),
+  reason: z.enum(MANUAL_COMP_REASONS),
   note: z.string().max(300).nullable().optional(),
   customer_id: z.uuid().nullable().optional(),
 });

@@ -1002,6 +1002,8 @@ export class HubEngine {
       loyalty_points_redeemed: 0,
       loyalty_discount_paise: b.loyalty_discount_paise,
       loyalty_points_earned: 0,
+      reward_discount_paise: 0,
+      rewards: [],
       invoice_no: b.invoice_no,
       invoice_date: b.invoice_date,
       customer_name: b.customer_name,

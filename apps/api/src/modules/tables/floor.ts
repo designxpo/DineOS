@@ -6,6 +6,7 @@ import { CAMERA_FRESH_MS, cleaningLapsed, deriveTableState, guestsPresent, type 
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest, conflict, notFound } from '../../lib/errors';
+import { detachRewards } from '../loyalty/bill-hooks';
 import {
   closeSession,
   getOrCreateSession,
@@ -353,6 +354,8 @@ export async function mergeTables(tx: Tx, tableIds: string[]): Promise<string> {
       const other = await tx.db.selectFrom('table_sessions').select(['cart']).where('id', '=', sid).executeTakeFirstOrThrow();
       if (Array.isArray(other.cart)) cart = [...cart, ...other.cart];
       await tx.db.updateTable('orders').set({ table_session_id: primarySessionId }).where('table_session_id', '=', sid).execute();
+      const drafts = await tx.db.selectFrom('bills').select('id').where('table_session_id', '=', sid).where('status', '=', 'draft').execute();
+      for (const d of drafts) await detachRewards(tx, d.id);
       await tx.db.deleteFrom('bills').where('table_session_id', '=', sid).where('status', '=', 'draft').execute();
       await tx.db
         .updateTable('service_requests')

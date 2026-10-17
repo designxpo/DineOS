@@ -10,11 +10,13 @@ import type {
   OrderStatus,
   OrderType,
   PaymentMethod,
+  RewardSource,
   Role,
   ServiceRequestKind,
   SessionStatus,
   TableState,
 } from './enums';
+import type { EarnRule, LoyaltyConfig, ProgramTemplateKey, Reward } from './loyalty';
 import type { CameraState } from './table-state';
 
 export interface ApiErrorBody {
@@ -428,9 +430,12 @@ export interface GuestSessionDTO {
    * shown: guests are anonymous, so a typed number must not reveal whose it is or their balance.
    */
   /** Name and points only once the guest proved the number with a code sent by SMS. */
-  customer: { phone_last4: string; verified: false } | { phone_last4: string; verified: true; name: string | null; points: number } | null;
-  /** `otp`: joining loyalty takes a code sent by SMS (MSG91 is set up). */
-  loyalty: { enabled: boolean; earn_bp: number; otp: boolean };
+  customer:
+    | { phone_last4: string; verified: false }
+    | { phone_last4: string; verified: true; name: string | null; points: number; stamps: number; level: string | null; rewards: { label: string; valid_to: string | null }[] }
+    | null;
+  /** `otp`: joining loyalty takes a code sent by SMS (MSG91 is set up). `summary`: the programme in a sentence. */
+  loyalty: { enabled: boolean; earn: EarnRule['kind']; earn_bp: number; stamp_goal: number | null; summary: string | null; otp: boolean };
   bill: { total_paise: number; paid_paise: number; status: BillStatus } | null;
 }
 
@@ -545,8 +550,12 @@ export interface BillDTO {
   amount_shares: number[] | null;
   customer: { id: string; name: string | null; phone: string; points: number } | null;
   loyalty_points_redeemed: number;
+  /** All loyalty money off: points redeemed plus rewards (reward_discount_paise). */
   loyalty_discount_paise: number;
   loyalty_points_earned: number;
+  reward_discount_paise: number;
+  /** Rewards used on this bill: money off, and free dishes (also shown on their lines). */
+  rewards: { id: string; label: string }[];
   invoice_no: string | null;
   invoice_date: string | null;
   customer_name: string | null;
@@ -589,18 +598,83 @@ export interface CustomerDTO {
   visits: number;
   total_spend_paise: number;
   points: number;
+  /** Towards the stamp card, when the programme has one. */
+  stamps: number;
+  /** Level name, when the programme has levels. */
+  level: string | null;
   last_visit_at: string | null;
   created_at: string;
 }
 
 export interface LoyaltyEntryDTO {
   id: string;
-  kind: 'earn' | 'redeem' | 'reverse' | 'adjust';
+  kind: 'earn' | 'redeem' | 'reverse' | 'adjust' | 'expire' | 'bonus';
   points: number;
+  stamps: number;
   note: string | null;
   bill_id: string | null;
   invoice_no: string | null;
   created_at: string;
+}
+
+export type ProgramStatus = 'draft' | 'active' | 'paused';
+
+export interface LoyaltyProgramDTO {
+  id: string;
+  name: string;
+  template: ProgramTemplateKey | null;
+  status: ProgramStatus;
+  config: LoyaltyConfig;
+  activated_at: string | null;
+  updated_at: string;
+  /** Guests holding points or stamps now: what switching the way guests earn would leave behind. */
+  holders: { points_guests: number; points: number; stamps_guests: number };
+}
+
+export interface RewardDTO {
+  id: string;
+  source: RewardSource;
+  label: string;
+  reward: Reward;
+  valid_from: string;
+  valid_to: string | null;
+  status: 'available' | 'applied' | 'used' | 'cancelled';
+  bill_id: string | null;
+}
+
+/** Where a guest stands in the programme, for staff screens. */
+export interface CustomerLoyaltyDTO {
+  program: {
+    name: string;
+    earn: EarnRule['kind'];
+    point_value_paise: number | null;
+    min_redeem_points: number | null;
+    stamp_goal: number | null;
+    stamp_reward: string | null;
+  } | null;
+  points: number;
+  stamps: number;
+  level: { name: string; next: { name: string; visits: number | null; spend_paise: number | null } | null } | null;
+  /** Ready to use now, or already on a draft bill. */
+  rewards: RewardDTO[];
+}
+
+/** The loyalty card on a bill: the guest's standing, and which lines each free-dish reward fits. */
+export interface BillLoyaltyDTO extends CustomerLoyaltyDTO {
+  eligible: Record<string, string[]>;
+}
+
+export interface LoyaltyReportDTO {
+  from: string;
+  to: string;
+  members: { total: number; new: number; visited: number; repeat: number };
+  /** Share of paid bills with a member on them, in basis points. */
+  member_bill_share_bp: number;
+  member_avg_bill_paise: number;
+  guest_avg_bill_paise: number;
+  points: { earned: number; redeemed: number; outstanding: number; outstanding_paise: number | null };
+  rewards: { source: RewardSource; issued: number; used: number; value_paise: number; cost_paise: number }[];
+  levels: { name: string; guests: number }[];
 }
 
 // ---------- Reservations and waitlist (Phase 2) ----------

@@ -18,7 +18,10 @@ import { badRequest, conflict, notFound } from '../../lib/errors';
 import { createOrder, markOrdersBilled } from '../orders/service';
 import { canPrint, openCashDrawer, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
-import { earnOnPaid, lockCustomer, redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
+import { detachRewards, releaseRewards, rewardMoneyOff, rewardsOnPrint, rewardsOnVoid } from '../loyalty/bill-hooks';
+import { earnOnPaid, lockCustomer, refreshCustomer } from '../loyalty/engine';
+import { pointsRule } from '../loyalty/program';
+import { redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
 import { paymentAdapterFor } from './payment-adapter';
 import { loadBill, loadBills, loadInvoice, shares, upiUri, type AmountSplit } from './serialize';
 
@@ -122,14 +125,13 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
     service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
     prices_include_tax: outlet.prices_include_tax,
   };
-  // Redeemed points can only cover what is left after other discounts, in whole points.
-  let points = bill.loyalty_points_redeemed;
-  if (points > 0) {
-    const pre = computeBill(input);
-    const room = pre.subtotal_paise - pre.item_discount_paise - pre.bill_discount_paise;
-    points = Math.min(points, Math.floor(room / outlet.loyalty_point_value_paise));
-  }
-  const totals = computeBill({ ...input, loyalty_paise: points * outlet.loyalty_point_value_paise });
+  // Loyalty comes off what is left after other discounts: rewards first, then points in whole points.
+  const pre = computeBill(input);
+  const room = pre.subtotal_paise - pre.item_discount_paise - pre.bill_discount_paise;
+  const rewardOff = bill.customer_id ? await rewardMoneyOff(tx, billId, room) : 0;
+  const rule = bill.loyalty_points_redeemed > 0 ? await pointsRule(tx) : null;
+  const points = rule ? Math.min(bill.loyalty_points_redeemed, Math.floor((room - rewardOff) / rule.point_value_paise)) : 0;
+  const totals = computeBill({ ...input, loyalty_paise: rewardOff + points * (rule?.point_value_paise ?? 0) });
 
   await tx.db.deleteFrom('bill_lines').where('bill_id', '=', billId).execute();
   if (items.length) {
@@ -180,6 +182,7 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
       total_paise: totals.total_paise,
       loyalty_points_redeemed: points,
       loyalty_discount_paise: totals.loyalty_discount_paise,
+      reward_discount_paise: rewardOff,
     })
     .where('id', '=', billId)
     .execute();
@@ -279,6 +282,8 @@ export async function createBill(
     })
     .returning('id')
     .executeTakeFirstOrThrow();
+  // Birthday, comeback and this month's perk are found when the guest turns up.
+  if (customerId) await refreshCustomer(tx, customerId, outletId);
   const dto = await getBill(tx, bill.id);
   await announceBill(tx, dto);
   return dto;
@@ -309,9 +314,14 @@ export async function updateBill(
   if (input.customer_id !== undefined || input.redeem_points !== undefined) {
     assertCan(auth, bill.outlet_id, 'customer.manage');
     const customerId = input.customer_id !== undefined ? input.customer_id : bill.customer_id;
+    if (customerId !== bill.customer_id) {
+      // Another guest (or none): the last guest's rewards leave the bill, free dishes included.
+      await releaseRewards(tx, billId, auth.userId, { freeDishes: true });
+      if (customerId) await refreshCustomer(tx, customerId, bill.outlet_id);
+    }
     if (input.customer_id) await lockCustomer(tx, input.customer_id);
     const points = input.customer_id === null ? 0 : (input.redeem_points ?? (input.customer_id !== undefined ? 0 : bill.loyalty_points_redeemed));
-    await validateRedemption(tx, bill.outlet_id, customerId, points);
+    await validateRedemption(tx, customerId, points);
     await tx.db.updateTable('bills').set({ customer_id: customerId, loyalty_points_redeemed: points }).where('id', '=', billId).execute();
   }
 
@@ -443,7 +453,9 @@ export async function splitBill(tx: Tx, auth: StaffAuth, billId: string, input: 
       .executeTakeFirstOrThrow();
     created.push(row.id);
   }
-  // The unsplit draft never had an invoice number, so it can simply go.
+  // The unsplit draft never had an invoice number, so it can simply go. Money-off rewards on it go
+  // back to the guest, to use on one of the parts.
+  await detachRewards(tx, billId);
   await tx.db.deleteFrom('bills').where('id', '=', billId).execute();
   for (const id of created) await syncDraft(tx, id);
   const dtos = await loadBills(tx, created);
@@ -514,6 +526,7 @@ export async function discardDraft(tx: Tx, auth: StaffAuth, billId: string): Pro
   const bill = await lockBill(tx, billId);
   assertCan(auth, bill.outlet_id, 'bill.manage');
   if (bill.status !== 'draft') throw conflict('bill_finalised', 'A printed bill must be voided, not discarded');
+  await detachRewards(tx, billId);
   await tx.db.deleteFrom('bills').where('id', '=', billId).execute();
   await tx.emit({ outletId: bill.outlet_id, type: 'bill.updated', channels: ['outlet'], payload: { bill_id: billId, status: 'discarded', table_session_id: bill.table_session_id } });
 }
@@ -573,6 +586,7 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
     .execute();
 
   await redeemOnFinalise(tx, bill, auth.userId);
+  await rewardsOnPrint(tx, billId);
   await markFullyBilledOrders(tx, billId);
   if (await canPrint(tx, outlet.id, 'bill')) await printBill(tx, billId, false);
   if (bill.total_paise === 0) {
@@ -759,6 +773,7 @@ export async function voidBill(tx: Tx, auth: StaffAuth, billId: string, reason: 
     .where('id', '=', billId)
     .execute();
   await reverseOnVoid(tx, bill, auth.userId);
+  await rewardsOnVoid(tx, billId);
   // Orders marked billed by this bill go back to served so their items can be billed again.
   const orderIds = await tx.db
     .selectFrom('bill_lines')

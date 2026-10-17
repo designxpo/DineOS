@@ -1,39 +1,19 @@
-// Loyalty points (spec Phase 2): earned on paid bills, redeemed as a discount at billing.
-// Points are tenant-wide; the earn rate and point value are outlet settings.
+// Points redeemed at billing: a discount on the draft, taken off the balance when the bill prints
+// and given back if it is voided. Points are tenant-wide; the running programme sets their value.
 
 import { sql } from 'kysely';
 import type { Tx } from '../../context';
 import { badRequest, conflict } from '../../lib/errors';
+import { lockCustomer } from '../loyalty/engine';
+import { pointsRule } from '../loyalty/program';
 
-/** Visits closer together than this count as one (split bills, a second round of drinks). */
-const VISIT_WINDOW_MS = 3 * 3600_000;
-
-export async function loyaltySettings(tx: Tx, outletId: string) {
-  return tx.db
-    .selectFrom('outlets')
-    .select(['loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points'])
-    .where('id', '=', outletId)
-    .executeTakeFirstOrThrow();
-}
-
-export async function lockCustomer(tx: Tx, customerId: string) {
-  const c = await tx.db
-    .selectFrom('customers')
-    .select(['id', 'points', 'erased_at', 'last_visit_at'])
-    .where('id', '=', customerId)
-    .forUpdate()
-    .executeTakeFirst();
-  if (!c || c.erased_at) throw badRequest('invalid_customer', 'Customer not found');
-  return c;
-}
-
-/** Checks a redemption request against the customer's balance and the outlet's rules. */
-export async function validateRedemption(tx: Tx, outletId: string, customerId: string | null, points: number): Promise<void> {
+/** Checks a redemption request against the customer's balance and the programme's rules. */
+export async function validateRedemption(tx: Tx, customerId: string | null, points: number): Promise<void> {
   if (points === 0) return;
   if (!customerId) throw badRequest('customer_required', 'Attach the customer before redeeming points');
-  const s = await loyaltySettings(tx, outletId);
-  if (!s.loyalty_enabled) throw badRequest('loyalty_disabled', 'Loyalty is switched off for this outlet');
-  if (points < s.loyalty_min_redeem_points) throw badRequest('below_minimum', `Redeem at least ${s.loyalty_min_redeem_points} points`);
+  const rule = await pointsRule(tx);
+  if (!rule) throw badRequest('loyalty_disabled', 'The loyalty programme does not run on points now');
+  if (points < rule.min_redeem_points) throw badRequest('below_minimum', `Redeem at least ${rule.min_redeem_points} points`);
   const c = await lockCustomer(tx, customerId);
   if (c.points < points) throw badRequest('not_enough_points', `The customer has ${c.points} points`, { points: c.points });
 }
@@ -73,32 +53,4 @@ export async function reverseOnVoid(
     .insertInto('loyalty_ledger')
     .values({ tenant_id: tx.tenantId, customer_id: bill.customer_id, outlet_id: bill.outlet_id, bill_id: bill.id, kind: 'reverse', points: bill.loyalty_points_redeemed, note: 'Bill voided', created_by: userId })
     .execute();
-}
-
-/** Once paid: count the visit and spend, and award points if the outlet runs loyalty. */
-export async function earnOnPaid(tx: Tx, billId: string, userId: string | null): Promise<void> {
-  const bill = await tx.db.selectFrom('bills').select(['id', 'outlet_id', 'customer_id', 'total_paise']).where('id', '=', billId).executeTakeFirstOrThrow();
-  if (!bill.customer_id) return;
-  const s = await loyaltySettings(tx, bill.outlet_id);
-  const c = await lockCustomer(tx, bill.customer_id);
-  const now = new Date();
-  const newVisit = !c.last_visit_at || now.getTime() - c.last_visit_at.getTime() > VISIT_WINDOW_MS;
-  const earned = s.loyalty_enabled ? Math.floor((bill.total_paise * s.loyalty_earn_bp) / 10000 / s.loyalty_point_value_paise) : 0;
-  await tx.db
-    .updateTable('customers')
-    .set({
-      points: c.points + earned,
-      total_spend_paise: sql`total_spend_paise + ${bill.total_paise}`,
-      visits: newVisit ? sql`visits + 1` : sql`visits`,
-      last_visit_at: now,
-    })
-    .where('id', '=', c.id)
-    .execute();
-  if (earned > 0) {
-    await tx.db
-      .insertInto('loyalty_ledger')
-      .values({ tenant_id: tx.tenantId, customer_id: c.id, outlet_id: bill.outlet_id, bill_id: bill.id, kind: 'earn', points: earned, created_by: userId })
-      .execute();
-    await tx.db.updateTable('bills').set({ loyalty_points_earned: earned }).where('id', '=', bill.id).execute();
-  }
 }

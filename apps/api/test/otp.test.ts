@@ -51,7 +51,7 @@ describe('loyalty one-time codes', () => {
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ phone_last4: '0070', name: 'Asha', points: 300 });
     const session: GuestSessionDTO = (await guest({ method: 'GET', url: '/v1/guest/session' })).json();
-    expect(session.customer).toEqual({ phone_last4: '0070', verified: true, name: 'Asha', points: 300 });
+    expect(session.customer).toEqual({ phone_last4: '0070', verified: true, name: 'Asha', points: 300, stamps: 0, level: null, rewards: [] });
     expect(session.loyalty.otp).toBe(true);
 
     // While codes are on, typing a number without one is not accepted.

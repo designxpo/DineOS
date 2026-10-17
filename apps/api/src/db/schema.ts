@@ -158,6 +158,7 @@ export interface Bills {
   paid_at: Timestamp | null;
   paid_paise: Generated<number>;
   parent_bill_id: string | null;
+  reward_discount_paise: Generated<number>;
   round_off_paise: Generated<number>;
   service_charge_bp: Generated<number>;
   service_charge_paise: Generated<number>;
@@ -227,6 +228,24 @@ export interface Counters {
   value: Generated<number>;
 }
 
+export interface CustomerRewards {
+  bill_id: string | null;
+  comp_id: string | null;
+  created_at: Generated<Timestamp>;
+  customer_id: string;
+  id: Generated<string>;
+  label: string;
+  program_id: string | null;
+  reward: Json;
+  source: string;
+  status: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  used_at: Timestamp | null;
+  valid_from: Generated<Timestamp>;
+  valid_to: Timestamp | null;
+}
+
 export interface Customers {
   birthday: string | null;
   consent_at: Timestamp;
@@ -236,11 +255,13 @@ export interface Customers {
   erased_at: Timestamp | null;
   id: Generated<string>;
   last_visit_at: Timestamp | null;
+  level: string | null;
   marketing_opt_in: Generated<boolean>;
   name: string | null;
   notes: string | null;
   phone: string;
   points: Generated<number>;
+  stamps: Generated<number>;
   tenant_id: string;
   total_spend_paise: Generated<number>;
   updated_at: Generated<Timestamp>;
@@ -319,6 +340,20 @@ export interface LoyaltyLedger {
   note: string | null;
   outlet_id: string | null;
   points: number;
+  stamps: Generated<number>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface LoyaltyPrograms {
+  activated_at: Timestamp | null;
+  config: Json;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  name: string;
+  status: Generated<string>;
+  template: string | null;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
 }
@@ -840,6 +875,7 @@ export interface DB {
   cameras: Cameras;
   comps: Comps;
   counters: Counters;
+  customer_rewards: CustomerRewards;
   customers: Customers;
   devices: Devices;
   idempotency_keys: IdempotencyKeys;
@@ -847,6 +883,7 @@ export interface DB {
   item_modifier_groups: ItemModifierGroups;
   kots: Kots;
   loyalty_ledger: LoyaltyLedger;
+  loyalty_programs: LoyaltyPrograms;
   menu_categories: MenuCategories;
   menu_items: MenuItems;
   modifier_groups: ModifierGroups;

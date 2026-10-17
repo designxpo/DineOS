@@ -65,7 +65,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         const ledger = await tx.db
           .selectFrom('loyalty_ledger')
           .leftJoin('bills', 'bills.id', 'loyalty_ledger.bill_id')
-          .select(['loyalty_ledger.id', 'loyalty_ledger.kind', 'loyalty_ledger.points', 'loyalty_ledger.note', 'loyalty_ledger.bill_id', 'bills.invoice_no', 'loyalty_ledger.created_at'])
+          .select(['loyalty_ledger.id', 'loyalty_ledger.kind', 'loyalty_ledger.points', 'loyalty_ledger.stamps', 'loyalty_ledger.note', 'loyalty_ledger.bill_id', 'bills.invoice_no', 'loyalty_ledger.created_at'])
           .where('loyalty_ledger.customer_id', '=', id)
           .orderBy('loyalty_ledger.created_at', 'desc')
           .limit(50)

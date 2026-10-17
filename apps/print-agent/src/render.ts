@@ -87,7 +87,11 @@ export function renderBill(doc: BillDoc, width: number, opts: RenderOptions = {}
   if (free) p.line(columns('Complimentary', `-${money(free)}`, width));
   const discount = bill.item_discount_paise + bill.bill_discount_paise - free;
   if (discount) p.line(columns('Discount', `-${money(discount)}`, width));
-  if (bill.loyalty_discount_paise) p.line(columns(`Points redeemed (${bill.loyalty_points_redeemed})`, `-${money(bill.loyalty_discount_paise)}`, width));
+  // Loyalty money off is points redeemed plus rewards; each has its own line.
+  const rewardOff = bill.reward_discount_paise ?? 0;
+  const pointsOff = bill.loyalty_discount_paise - rewardOff;
+  if (pointsOff) p.line(columns(`Points redeemed (${bill.loyalty_points_redeemed})`, `-${money(pointsOff)}`, width));
+  if (rewardOff) p.line(columns('Loyalty reward', `-${money(rewardOff)}`, width));
   if (bill.service_charge_paise) p.line(columns(`Service charge (${pct(bill.service_charge_bp)})`, money(bill.service_charge_paise), width));
   for (const t of tax_summary) {
     const half = pct(t.tax_rate_bp / 2);

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Gift, Minus, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { CustomerDTO } from '@dineos/shared/dto';
-import { COMP_REASONS, type CompReason } from '@dineos/shared/enums';
+import { MANUAL_COMP_REASONS, type CompReason } from '@dineos/shared/enums';
 import { formatPaise } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -20,6 +20,7 @@ export const COMP_REASON_LABEL: Record<CompReason, I18nKey> = {
   celebration: 'comp.r.celebration',
   staff_meal: 'comp.r.staff_meal',
   marketing: 'comp.r.marketing',
+  loyalty: 'comp.r.loyalty',
   other: 'comp.r.other',
 };
 
@@ -131,7 +132,7 @@ export function CompForm({
       <div>
         <p className="mb-2 text-sm font-medium">{t('comp.why')}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label={t('comp.why')}>
-          {COMP_REASONS.map((r) => (
+          {MANUAL_COMP_REASONS.map((r) => (
             <button
               key={r}
               type="button"

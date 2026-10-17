@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookUser, Download, Gift, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { useDeferredValue, useState } from 'react';
-import type { CustomerDTO, LoyaltyEntryDTO } from '@dineos/shared/dto';
+import type { CustomerDTO, CustomerLoyaltyDTO, LoyaltyEntryDTO } from '@dineos/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { date, formatPaise } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -21,10 +21,10 @@ interface CustomerDetail {
   bills: { id: string; invoice_no: string | null; invoice_date: string | null; total_paise: number; status: string }[];
 }
 
-const KIND_LABEL: Record<LoyaltyEntryDTO['kind'], string> = { earn: 'Earned', redeem: 'Redeemed', reverse: 'Returned (void)', adjust: 'Correction' };
+const KIND_LABEL: Record<LoyaltyEntryDTO['kind'], string> = { earn: 'Earned', redeem: 'Redeemed', reverse: 'Returned (void)', adjust: 'Correction', expire: 'Lapsed (no visit)', bonus: 'Welcome gift' };
 
 export default function CustomersPage() {
-  const { api, outletId, outlet, can, token } = useStaff();
+  const { api, outletId, can, token } = useStaff();
   const toast = useToast();
   const [q, setQ] = useState('');
   const term = useDeferredValue(q.trim());
@@ -53,11 +53,7 @@ export default function CustomersPage() {
     <div className="pb-12">
       <PageHeader
         title="Customers"
-        subtitle={
-          outlet?.loyalty_enabled
-            ? `Loyalty on: ${(outlet.loyalty_earn_bp / 100).toFixed(outlet.loyalty_earn_bp % 100 ? 1 : 0)}% back in points, 1 point = ${formatPaise(outlet.loyalty_point_value_paise)}`
-            : 'Guests who agreed to share their number. Turn on loyalty points in Settings.'
-        }
+        subtitle="Guests who agreed to share their number. Points, stamps and rewards are set up in Loyalty."
         actions={
           <>
             {can('customer.adjust') && (
@@ -124,6 +120,50 @@ export default function CustomersPage() {
   );
 }
 
+/** Where the guest stands in the programme: level, stamp card and rewards waiting for them. */
+function Standing({ customerId }: { customerId: string }) {
+  const { api, outletId } = useStaff();
+  const { data: l } = useQuery({ queryKey: ['customers', 'loyalty', customerId], queryFn: () => api<CustomerLoyaltyDTO>(`/customers/${customerId}/loyalty?outlet_id=${outletId}`) });
+  if (!l?.program) return null;
+  const next = l.level?.next;
+  return (
+    <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{l.program.name}</span>
+        {l.level && <Badge tone="violet">{l.level.name}</Badge>}
+        {next && (
+          <span className="text-xs text-ink-faint">
+            {next.name}: {[next.visits !== null && `${next.visits} more visits`, next.spend_paise !== null && `${formatPaise(next.spend_paise)} more`].filter(Boolean).join(' or ')}
+          </span>
+        )}
+      </div>
+      {l.program.stamp_goal !== null && (
+        <div>
+          <div className="flex gap-1" aria-label={`${l.stamps} of ${l.program.stamp_goal} stamps`}>
+            {Array.from({ length: l.program.stamp_goal }, (_, i) => (
+              <span key={i} className={cn('h-2 flex-1 rounded-full', i < l.stamps ? 'bg-[var(--brand)]' : 'bg-stone-200')} />
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-ink-faint">
+            {l.stamps} of {l.program.stamp_goal} stamps towards {l.program.stamp_reward}
+          </p>
+        </div>
+      )}
+      {l.rewards.length > 0 && (
+        <ul className="space-y-1">
+          {l.rewards.map((r) => (
+            <li key={r.id} className="flex items-center gap-2">
+              <Gift className="size-3.5 shrink-0 text-emerald-700" />
+              <span className="flex-1">{r.label}</span>
+              {r.valid_to && <span className="text-xs text-ink-faint">until {date(r.valid_to)}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function CustomerSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { api, outletId, can } = useStaff();
   const qc = useQueryClient();
@@ -171,12 +211,13 @@ function CustomerSheet({ id, onClose }: { id: string; onClose: () => void }) {
             Consent given {date(c.consent_at)} {c.consent_source === 'guest' ? 'by the guest at the table' : 'to staff'}
             {c.marketing_opt_in && ' · wants offers'}
           </p>
+          <Standing customerId={c.id} />
           <Segmented
             value={tab}
             onChange={setTab}
             options={[
               { value: 'profile', label: 'Profile' },
-              { value: 'points', label: 'Points', count: data.ledger.length },
+              { value: 'points', label: 'History', count: data.ledger.length },
               { value: 'bills', label: 'Bills', count: data.bills.length },
             ]}
           />
@@ -189,7 +230,7 @@ function CustomerSheet({ id, onClose }: { id: string; onClose: () => void }) {
                 </Button>
               )}
               {!data.ledger.length ? (
-                <p className="py-6 text-center text-sm text-ink-faint">No points yet.</p>
+                <p className="py-6 text-center text-sm text-ink-faint">Nothing earned yet.</p>
               ) : (
                 <ul className="divide-y divide-line rounded-xl border border-line">
                   {data.ledger.map((l) => (
@@ -198,10 +239,18 @@ function CustomerSheet({ id, onClose }: { id: string; onClose: () => void }) {
                         <p className="font-medium">{KIND_LABEL[l.kind]}</p>
                         <p className="truncate text-xs text-ink-faint">{[date(l.created_at), l.invoice_no, l.note].filter(Boolean).join(' · ')}</p>
                       </div>
-                      <span className={cn('font-semibold tabular', l.points > 0 ? 'text-emerald-700' : 'text-rose-700')}>
-                        {l.points > 0 ? '+' : ''}
-                        {l.points}
-                      </span>
+                      {l.points !== 0 && (
+                        <span className={cn('font-semibold tabular', l.points > 0 ? 'text-emerald-700' : 'text-rose-700')}>
+                          {l.points > 0 ? '+' : ''}
+                          {l.points}
+                        </span>
+                      )}
+                      {l.stamps !== 0 && (
+                        <span className={cn('text-xs font-semibold tabular', l.stamps > 0 ? 'text-emerald-700' : 'text-rose-700')}>
+                          {l.stamps > 0 ? '+' : ''}
+                          {l.stamps} {Math.abs(l.stamps) === 1 ? 'stamp' : 'stamps'}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

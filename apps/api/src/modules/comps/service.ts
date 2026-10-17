@@ -185,6 +185,37 @@ export async function compItem(tx: Tx, auth: StaffAuth, orderItemId: string, inp
   return (await loadComps(tx, [id]))[0]!;
 }
 
+/**
+ * One of a dish free as a guest's loyalty reward (reason 'loyalty'). The guest earned it, so no
+ * manager approves it and the owner is not alerted; the reward keeps the link.
+ */
+export async function compForReward(tx: Tx, auth: StaffAuth, orderItemId: string, label: string, customerId: string): Promise<string> {
+  const item = await tx.db
+    .selectFrom('order_items')
+    .innerJoin('orders', 'orders.id', 'order_items.order_id')
+    .select(['order_items.id', 'order_items.item_id', 'order_items.qty', 'order_items.unit_price_paise', 'order_items.modifiers_snapshot', 'orders.id as order_id', 'orders.outlet_id'])
+    .where('order_items.id', '=', orderItemId)
+    .forUpdate()
+    .executeTakeFirstOrThrow();
+  const unitCost = await portionCost(tx, item.item_id, modifierIds(item.modifiers_snapshot));
+  const id = await insertComp(tx, {
+    outletId: item.outlet_id,
+    orderItemId: item.id,
+    qty: 1,
+    valuePaise: item.unit_price_paise,
+    costPaise: unitCost,
+    reason: 'loyalty',
+    note: label,
+    wholeBill: false,
+    customerId,
+    givenBy: auth.userId,
+    approvedBy: null,
+  });
+  await audit(tx, auth, { outletId: item.outlet_id, action: 'comp.give', entity: 'order_item', entityId: item.id, after: { qty: 1, value_paise: item.unit_price_paise, reason: 'loyalty', note: label } });
+  await refreshAfter(tx, item.order_id);
+  return id;
+}
+
 /** Puts everything still charged on an unprinted bill on the house. */
 export async function compBill(tx: Tx, auth: StaffAuth, billId: string, input: CompInput, approvalToken: string | null | undefined): Promise<CompDTO[]> {
   const bill = await tx.db.selectFrom('bills').selectAll().where('id', '=', billId).forUpdate().executeTakeFirst();
@@ -248,6 +279,8 @@ export async function removeComp(tx: Tx, auth: StaffAuth, compId: string): Promi
   if (comp.given_by !== auth.userId && !can(auth, comp.outlet_id, 'bill.manage')) throw forbidden();
   if (await onPrintedBill(tx, comp.order_item_id)) throw conflict('already_billed', 'This dish is on a printed bill. Void that bill to change it.');
   await tx.db.updateTable('comps').set({ removed_at: new Date(), removed_by: auth.userId }).where('id', '=', compId).execute();
+  // A free dish that was a loyalty reward gives the guest the reward back.
+  await tx.db.updateTable('customer_rewards').set({ status: 'available', bill_id: null, comp_id: null, used_at: null }).where('comp_id', '=', compId).execute();
   await audit(tx, auth, { outletId: comp.outlet_id, action: 'comp.remove', entity: 'order_item', entityId: comp.order_item_id, before: { qty: comp.qty, value_paise: comp.value_paise } });
   await refreshAfter(tx, comp.order_id);
 }

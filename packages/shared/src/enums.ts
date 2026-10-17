@@ -62,5 +62,11 @@ export type TenantStatus = (typeof TENANT_STATUSES)[number];
  * Why something was given free: making a mishap right, a special or owner's guest, a celebration,
  * a staff meal, marketing (an influencer, a tasting), or something else (with a note).
  */
-export const COMP_REASONS = ['mishap', 'special_guest', 'owners_guest', 'celebration', 'staff_meal', 'marketing', 'other'] as const;
+/** Reasons staff pick when giving something free. */
+export const MANUAL_COMP_REASONS = ['mishap', 'special_guest', 'owners_guest', 'celebration', 'staff_meal', 'marketing', 'other'] as const;
+/** Plus 'loyalty': a free dish redeemed as a reward, never picked by hand. */
+export const COMP_REASONS = [...MANUAL_COMP_REASONS, 'loyalty'] as const;
 export type CompReason = (typeof COMP_REASONS)[number];
+
+export const REWARD_SOURCES = ['stamps', 'level', 'welcome', 'birthday', 'comeback'] as const;
+export type RewardSource = (typeof REWARD_SOURCES)[number];

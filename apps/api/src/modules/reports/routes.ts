@@ -10,6 +10,7 @@ import { roomCharges } from '../billing/rooms';
 import { compReport } from '../comps/service';
 import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
+import { loyaltyReport } from '../loyalty/report';
 import { dashboard, dayEnd, deliveryReport, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
 
 const rangeQuery = z.object({
@@ -90,6 +91,13 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     });
 
     /** Free food and drinks: what, why, for whom, who gave and approved it, and what it cost. */
+    app.get('/reports/loyalty', async (req) => {
+      const auth = requireStaff(req);
+      const { r } = await range(req, auth.tenantId);
+      assertCan(auth, r.outletId, 'report.view');
+      return ctx.tx(auth.tenantId, (tx) => loyaltyReport(tx, r));
+    });
+
     app.get('/reports/comps', async (req, reply) => {
       const auth = requireStaff(req);
       const { r, format } = await range(req, auth.tenantId);
