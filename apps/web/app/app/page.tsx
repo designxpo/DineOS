@@ -1,15 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, CreditCard, Smartphone, Wallet } from 'lucide-react';
+import { Banknote, CreditCard, Landmark, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { formatPaise } from '@/lib/format';
+import { date, dateTime, formatPaise } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Card, Spinner, Stat } from '@/components/ui/primitives';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { homeFor, PageHeader } from '@/components/staff/shell';
 import { TABLE_STATE } from '@/components/staff/table-state';
+import type { UpiCheckDTO } from '@dineos/shared/dto';
 import type { TableState } from '@dineos/shared/enums';
 
 interface Dashboard {
@@ -83,6 +85,8 @@ export default function DashboardPage() {
           />
         </Card>
 
+        {can('payment.reconcile') && <UpiCheckCard />}
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Orders" value={d.orders} sub={`${Math.round(d.qr_order_share * 100)}% from guest phones (goal 60%)`} />
           <Stat label="In progress" value={active} sub={`${d.active_orders.placed ?? 0} waiting for approval`} />
@@ -149,5 +153,57 @@ export default function DashboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/** UPI is confirmed by looking at the guest's phone, so the bank statement is the real check. */
+function UpiCheckCard() {
+  const { api, outletId } = useStaff();
+  const { data: c } = useQuery({
+    queryKey: ['upi-check', outletId],
+    queryFn: () => api<UpiCheckDTO>(`/reconciliation/upi-check?outlet_id=${outletId}`),
+    refetchInterval: 10 * 60_000,
+  });
+  if (!c || (c.not_received.count === 0 && c.unchecked.count === 0)) return null;
+  return (
+    <Card className="space-y-3 p-5">
+      {c.not_received.count > 0 && (
+        <div className="rounded-xl bg-rose-50 p-4 text-rose-900">
+          <p className="flex items-center gap-2 font-semibold">
+            <ShieldAlert className="size-4" /> {c.not_received.count} UPI {c.not_received.count === 1 ? 'payment' : 'payments'} ({formatPaise(c.not_received.amount_paise)}) never reached your bank
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {c.not_received.payments.slice(0, 5).map((p) => (
+              <li key={p.id} className="flex flex-wrap justify-between gap-x-3">
+                <span>
+                  {p.invoice_no ?? 'Bill'}
+                  {p.table_label && ` · ${p.table_label}`} · {dateTime(p.created_at)}
+                  {p.confirmed_by_name && ` · confirmed by ${p.confirmed_by_name}`}
+                </span>
+                <span className="font-semibold tabular">{formatPaise(p.amount_paise)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {c.unchecked.count > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+          <p className="text-sm">
+            <span className="font-semibold">
+              {c.unchecked.count} UPI {c.unchecked.count === 1 ? 'payment' : 'payments'} ({formatPaise(c.unchecked.amount_paise)})
+            </span>{' '}
+            since {date(c.unchecked.oldest_day!)} {c.unchecked.count === 1 ? 'is' : 'are'} not checked against the bank yet.
+          </p>
+          <Link href="/app/reconcile" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-900 px-3 text-sm font-medium text-white">
+            <Landmark className="size-4" /> Import bank statement
+          </Link>
+        </div>
+      )}
+      {c.not_received.count > 0 && c.unchecked.count === 0 && (
+        <Link href="/app/reconcile" className="inline-flex items-center gap-1.5 text-sm font-medium text-rose-800 underline">
+          <Landmark className="size-4" /> Open the UPI check
+        </Link>
+      )}
+    </Card>
   );
 }

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
-import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO } from '@dineos/shared/dto';
+import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
 import type { Tx } from '../../context';
 import { notFound } from '../../lib/errors';
 import type { ParsedStatement } from './statement';
@@ -227,4 +227,51 @@ export async function listStatements(tx: Tx, outletId: string): Promise<BankStat
   const out: BankStatementDTO[] = [];
   for (const r of rows) out.push((await statementDetail(tx, r.id)).statement);
   return out;
+}
+
+/**
+ * The last `days` days of UPI payments, up to `to`, against the bank: found in a statement, missing
+ * from one, or not checked yet. Staff confirm UPI by looking at the guest's phone, so this is what
+ * catches a faked payment screen.
+ */
+export async function upiCheck(tx: Tx, outletId: string, to: string, days = 7): Promise<UpiCheckDTO> {
+  const from = shift(to, -(days - 1));
+  const outlet = await tx.db.selectFrom('outlets').select('timezone').where('id', '=', outletId).executeTakeFirstOrThrow();
+  const day = sql<string>`(payments.created_at at time zone ${outlet.timezone})::date::text`;
+  const rows = await tx.db
+    .selectFrom('payments')
+    .select((eb) => [
+      'payments.id',
+      'payments.amount_paise',
+      day.as('day'),
+      eb.exists(eb.selectFrom('bank_credits').select('bank_credits.id').whereRef('bank_credits.payment_id', '=', 'payments.id')).as('matched'),
+    ])
+    .where('payments.outlet_id', '=', outletId)
+    .where('payments.method', '=', 'upi')
+    .where('payments.kind', '=', 'payment')
+    .where(day, '>=', from)
+    .where(day, '<=', to)
+    .execute();
+  const statements = await tx.db.selectFrom('bank_statements').select(['period_from', 'period_to']).where('outlet_id', '=', outletId).execute();
+  // A day is settled once a statement covers it and runs past it; a payment late on a statement's
+  // last day may only post the next morning.
+  const settled = (d: string) => statements.some((s) => s.period_from <= d && d < s.period_to);
+
+  const matched = rows.filter((r) => r.matched);
+  const missing = rows.filter((r) => !r.matched && settled(r.day));
+  const pending = rows.filter((r) => !r.matched && !settled(r.day));
+  const sum = (xs: { amount_paise: number }[]) => xs.reduce((a, x) => a + x.amount_paise, 0);
+  const dtos = await paymentDtos(tx, missing.map((r) => r.id));
+  return {
+    from,
+    to,
+    last_statement_to: statements.reduce<string | null>((a, s) => (a && a > s.period_to ? a : s.period_to), null),
+    checked: { count: matched.length, amount_paise: sum(matched) },
+    not_received: {
+      count: missing.length,
+      amount_paise: sum(missing),
+      payments: missing.map((r) => dtos.get(r.id)!).sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    },
+    unchecked: { count: pending.length, amount_paise: sum(pending), oldest_day: pending.map((r) => r.day).sort()[0] ?? null },
+  };
 }

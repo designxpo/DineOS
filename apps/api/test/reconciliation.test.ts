@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, OrderDTO, StatementDetailDTO } from '@dineos/shared/dto';
+import type { BillDTO, OrderDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
 import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;
@@ -84,6 +84,22 @@ describe('UPI reconciliation', () => {
       [pay.lastDay!.id, true],
     ]);
     expect(d.missing[0]).toMatchObject({ amount_paise: pay.neverArrived!.amount, invoice_no: expect.stringMatching(/^TST\//) });
+  });
+
+  it('tells the owner which UPI payments are unchecked, and which the bank never received', async () => {
+    const extra = await upiPayment(7, null, '2026-10-12T19:00:00+05:30');
+    const url = `/v1/reconciliation/upi-check?outlet_id=${tenant.outletId}&to=2026-10-12`;
+    expect((await cashier({ method: 'GET', url })).statusCode).toBe(403);
+    const res = await owner({ method: 'GET', url });
+    expect(res.statusCode).toBe(200);
+    const c: UpiCheckDTO = res.json();
+    expect(c).toMatchObject({ from: '2026-10-06', to: '2026-10-12', last_statement_to: '2026-10-11' });
+    const matched = [pay.fullUtr!, pay.lastDigits!, pay.noRef!, pay.lateNight!];
+    expect(c.checked).toEqual({ count: 4, amount_paise: matched.reduce((a, p) => a + p.amount, 0) });
+    expect(c.not_received.payments.map((p) => p.id)).toEqual([pay.neverArrived!.id]);
+    expect(c.not_received).toMatchObject({ count: 1, amount_paise: pay.neverArrived!.amount });
+    // The 11th is the statement's last day, so that payment may still post; nothing covers the 12th yet.
+    expect(c.unchecked).toEqual({ count: 2, amount_paise: pay.lastDay!.amount + extra.amount, oldest_day: '2026-10-11' });
   });
 
   it('stores each credit once when statements overlap, and an Excel export works too', async () => {

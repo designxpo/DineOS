@@ -635,3 +635,17 @@ export interface StatementDetailDTO {
   /** UPI payments in the statement's dates with no bank credit; those on its last day may still post. */
   missing: (ReconPaymentDTO & { late_possible: boolean })[];
 }
+
+/** How the last few days of UPI payments stand against imported bank statements. */
+export interface UpiCheckDTO {
+  from: string;
+  to: string;
+  /** Last day any imported statement covers; null before the first import. */
+  last_statement_to: string | null;
+  /** Found in a statement. */
+  checked: { count: number; amount_paise: number };
+  /** A statement covers the day, and runs past it, with no matching credit: the bank never got it. */
+  not_received: { count: number; amount_paise: number; payments: ReconPaymentDTO[] };
+  /** No statement covers the day yet, or only as its last day (late payments post the next morning). */
+  unchecked: { count: number; amount_paise: number; oldest_day: string | null };
+}

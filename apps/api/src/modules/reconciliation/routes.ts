@@ -6,7 +6,8 @@ import { assertCan, requireStaff, type StaffAuth } from '../../lib/auth';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { idParams, parse } from '../../lib/validate';
 import { readGrid } from '../menu/import';
-import { importStatement, listStatements, statementDetail } from './service';
+import { businessDate } from '@dineos/shared/dates';
+import { importStatement, listStatements, statementDetail, upiCheck } from './service';
 import { parseStatement } from './statement';
 
 const MAX_FILE = 5 * 1024 * 1024;
@@ -58,6 +59,18 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const q = parse(z.object({ outlet_id: z.uuid() }), req.query);
       assertCan(auth, q.outlet_id, 'payment.reconcile');
       return ctx.tx(auth.tenantId, (tx) => listStatements(tx, q.outlet_id));
+    });
+
+    /** The dashboard's UPI reminder: by default the week up to yesterday (today's credits lag). */
+    app.get('/reconciliation/upi-check', async (req) => {
+      const auth = requireStaff(req);
+      const q = parse(z.object({ outlet_id: z.uuid(), to: z.iso.date().optional(), days: z.coerce.number().int().min(1).max(31).default(7) }), req.query);
+      assertCan(auth, q.outlet_id, 'payment.reconcile');
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const outlet = await tx.db.selectFrom('outlets').select('timezone').where('id', '=', q.outlet_id).executeTakeFirstOrThrow();
+        const yesterday = businessDate(new Date(Date.now() - 86_400_000), outlet.timezone);
+        return upiCheck(tx, q.outlet_id, q.to ?? yesterday, q.days);
+      });
     });
 
     app.get('/reconciliation/statements/:id', async (req) => {
