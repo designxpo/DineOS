@@ -326,3 +326,119 @@ export function estimateGiveBack(c: LoyaltyConfig, g: GuestProfile, names: Categ
   const given = lines.reduce((a, l) => a + l.paise, 0);
   return { spend_per_year_paise: spend, given_per_year_paise: given, give_back_bp: spend ? Math.round((given / spend) * 10_000) : 0, lines };
 }
+
+// ---------- Paid memberships ----------
+
+export interface MembershipBenefits {
+  /** A percentage off eligible dishes on every bill while it runs, capped per bill. */
+  discount: { bp: number; category_ids: string[]; max_paise: number | null } | null;
+  /** One free item a day, waiting as a reward. */
+  daily_item: { category_ids: string[]; max_value_paise: number | null } | null;
+  /** Points or stamps earned while it runs, as basis points of the normal rate. */
+  multiplier_bp: number;
+}
+
+export interface MembershipPlanInput {
+  name: string;
+  price_paise: number;
+  duration_days: number;
+  /** GST on the membership itself: set what the outlet's accountant advises. */
+  tax_rate_bp: number;
+  hsn_sac: string | null;
+  benefits: MembershipBenefits;
+}
+
+export const MEMBERSHIP_TEMPLATE_KEYS = ['coffee_a_day', 'diners_club', 'vip_year'] as const;
+export type MembershipTemplateKey = (typeof MEMBERSHIP_TEMPLATE_KEYS)[number];
+
+export const MEMBERSHIP_TEMPLATES: readonly { key: MembershipTemplateKey; pitch: string; best_for: string; plan: MembershipPlanInput }[] = [
+  {
+    key: 'coffee_a_day',
+    pitch: 'A coffee every day for a month, paid up front.',
+    best_for: 'Cafés with daily regulars',
+    plan: { name: 'Coffee a day', price_paise: 99_900, duration_days: 30, tax_rate_bp: 1800, hsn_sac: null, benefits: { discount: null, daily_item: { category_ids: [], max_value_paise: 20_000 }, multiplier_bp: 10_000 } },
+  },
+  {
+    key: 'diners_club',
+    pitch: '15% off every bill for three months.',
+    best_for: 'Casual dining with weekly regulars',
+    plan: { name: "Diners' club", price_paise: 149_900, duration_days: 90, tax_rate_bp: 1800, hsn_sac: null, benefits: { discount: { bp: 1500, category_ids: [], max_paise: 50_000 }, daily_item: null, multiplier_bp: 10_000 } },
+  },
+  {
+    key: 'vip_year',
+    pitch: '10% off and double points for a whole year.',
+    best_for: 'Your best guests',
+    plan: { name: 'VIP year', price_paise: 499_900, duration_days: 365, tax_rate_bp: 1800, hsn_sac: null, benefits: { discount: { bp: 1000, category_ids: [], max_paise: 100_000 }, daily_item: null, multiplier_bp: 20_000 } },
+  },
+];
+
+/** "30 days", "3 months", "1 year" */
+export function describeDuration(days: number): string {
+  if (days % 365 === 0) return days === 365 ? '1 year' : `${days / 365} years`;
+  if (days % 30 === 0 && days >= 60) return `${days / 30} months`;
+  return `${days} days`;
+}
+
+export function describeMembership(p: MembershipPlanInput, names: CategoryNames = noNames): string[] {
+  const b = p.benefits;
+  const out = [`${formatPrice(p.price_paise)} for ${describeDuration(p.duration_days)}, plus ${formatRate(p.tax_rate_bp)} GST.`];
+  if (b.discount) {
+    const on = names(b.discount.category_ids);
+    out.push(`${formatRate(b.discount.bp)} off ${on ? `items from ${on}` : 'every bill'}${b.discount.max_paise ? ` (up to ${formatPrice(b.discount.max_paise)} a bill)` : ''}.`);
+  }
+  if (b.daily_item) out.push(`Every day: ${describeReward({ kind: 'free_item', ...b.daily_item }, names)}.`);
+  if (b.multiplier_bp > 10_000) out.push(`${times(b.multiplier_bp)} points or stamps.`);
+  return out;
+}
+
+export function checkMembership(p: MembershipPlanInput): string | null {
+  if (!p.name.trim()) return 'Give the membership a name';
+  if (p.price_paise < 100) return 'The price must be at least ₹1';
+  if (p.duration_days < 1 || p.duration_days > 1095) return 'A membership lasts between 1 day and 3 years';
+  if (p.tax_rate_bp < 0 || p.tax_rate_bp > 2800) return 'GST must be between 0% and 28%';
+  const b = p.benefits;
+  if (b.discount && (b.discount.bp < 100 || b.discount.bp > 10_000)) return 'The discount must be between 1% and 100%';
+  if (b.multiplier_bp < 10_000 || b.multiplier_bp > 50_000) return 'Points must be between 1× and 5×';
+  if (!b.discount && !b.daily_item && b.multiplier_bp === 10_000) return 'Give members something: a discount, a daily item or faster points';
+  return null;
+}
+
+// ---------- Prepaid wallet ----------
+
+export interface WalletPackInput {
+  name: string;
+  pay_paise: number;
+  bonus_paise: number;
+  validity_days: number;
+}
+
+export const WALLET_PACK_TEMPLATES: readonly WalletPackInput[] = [
+  { name: 'Silver', pay_paise: 200_000, bonus_paise: 20_000, validity_days: 365 },
+  { name: 'Gold', pay_paise: 500_000, bonus_paise: 75_000, validity_days: 365 },
+  { name: 'Platinum', pay_paise: 1_000_000, bonus_paise: 200_000, validity_days: 365 },
+];
+
+export function describePack(p: WalletPackInput): string {
+  const extra = p.bonus_paise ? ` (${formatRate(Math.round((p.bonus_paise / p.pay_paise) * 10_000))} extra)` : '';
+  return `Pay ${formatPrice(p.pay_paise)}, get ${formatPrice(p.pay_paise + p.bonus_paise)} to spend${extra}, for ${describeDuration(p.validity_days)}.`;
+}
+
+export function checkPack(p: WalletPackInput): string | null {
+  if (!p.name.trim()) return 'Give the pack a name';
+  if (p.pay_paise < 10_000) return 'A top-up is at least ₹100';
+  if (p.bonus_paise < 0 || p.bonus_paise > p.pay_paise) return 'The bonus cannot be more than what the guest pays';
+  if (p.validity_days < 30 || p.validity_days > 1095) return 'Balances last between 30 days and 3 years';
+  return null;
+}
+
+/**
+ * How spending `amount` from a wallet splits between what the guest paid and the bonus: in the same
+ * proportion as the balance, so every rupee spent carries its share of the bonus.
+ */
+export function splitSpend(paidPaise: number, bonusPaise: number, amount: number): { paid: number; bonus: number } {
+  const total = paidPaise + bonusPaise;
+  if (amount <= 0 || total <= 0) return { paid: 0, bonus: 0 };
+  const take = Math.min(amount, total);
+  const bonus = Math.min(bonusPaise, Math.round((take * bonusPaise) / total));
+  return { paid: take - bonus, bonus };
+}

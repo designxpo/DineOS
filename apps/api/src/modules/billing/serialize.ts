@@ -27,7 +27,10 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
   const customerIds = [...new Set(bills.map((b) => b.customer_id).filter((x): x is string => !!x))];
   const customers = new Map(
     customerIds.length
-      ? (await tx.db.selectFrom('customers').select(['id', 'name', 'phone', 'points']).where('id', 'in', customerIds).execute()).map((c) => [c.id, c])
+      ? (await tx.db.selectFrom('customers').select(['id', 'name', 'phone', 'points', 'wallet_paid_paise', 'wallet_bonus_paise']).where('id', 'in', customerIds).execute()).map((c) => [
+          c.id,
+          { id: c.id, name: c.name, phone: c.phone, points: c.points, wallet_paise: c.wallet_paid_paise + c.wallet_bonus_paise },
+        ])
       : [],
   );
   const tableIds = [...new Set(bills.map((b) => b.session_table_id ?? b.order_table_id).filter((x): x is string => !!x))];
@@ -54,6 +57,15 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         .orderBy('created_at')
         .execute()
     : [];
+  const membershipIds = bills.flatMap((b) => (b.membership_id ? [b.membership_id] : []));
+  const memberships = new Map(
+    membershipIds.length
+      ? (await tx.db.selectFrom('customer_memberships').select(['id', 'plan_snapshot', 'status', 'starts_at', 'ends_at']).where('id', 'in', membershipIds).execute()).map((m) => [
+          m.id,
+          { id: m.id, name: (m.plan_snapshot as { name: string }).name, status: m.status as 'pending' | 'active' | 'cancelled', starts_at: iso(m.starts_at), ends_at: iso(m.ends_at) },
+        ])
+      : [],
+  );
   const rewards = await tx.db
     .selectFrom('customer_rewards')
     .select(['id', 'bill_id', 'label'])
@@ -128,6 +140,8 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         balance_paise: Math.max(0, b.total_paise - b.paid_paise),
         amount_shares: shares(b.amount_shares, b.total_paise),
         customer: b.customer_id ? (customers.get(b.customer_id) ?? null) : null,
+        membership: b.membership_id ? (memberships.get(b.membership_id) ?? null) : null,
+        member_discount_paise: b.member_discount_paise,
         loyalty_points_redeemed: b.loyalty_points_redeemed,
         loyalty_discount_paise: b.loyalty_discount_paise,
         loyalty_points_earned: b.loyalty_points_earned,
@@ -142,7 +156,7 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
           .map(
             (p): PaymentDTO => ({
               id: p.id,
-              bill_id: p.bill_id,
+              bill_id: p.bill_id!,
               kind: p.kind as PaymentDTO['kind'],
               method: p.method as PaymentMethod,
               amount_paise: p.amount_paise,

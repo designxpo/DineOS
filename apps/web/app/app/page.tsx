@@ -186,7 +186,7 @@ function UpiCheckCard() {
             {c.not_received.payments.slice(0, 5).map((p) => (
               <li key={p.id} className="flex flex-wrap justify-between gap-x-3">
                 <span>
-                  {p.invoice_no ?? 'Bill'}
+                  {p.invoice_no ?? (p.receipt_no ? `Wallet top-up ${p.receipt_no}` : 'Bill')}
                   {p.table_label && ` · ${p.table_label}`} · {dateTime(p.created_at)}
                   {p.confirmed_by_name && ` · confirmed by ${p.confirmed_by_name}`}
                   {missingNote(p) && <span className="block text-xs opacity-80">{missingNote(p)}</span>}

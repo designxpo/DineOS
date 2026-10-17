@@ -16,7 +16,7 @@ import type {
   SessionStatus,
   TableState,
 } from './enums';
-import type { EarnRule, LoyaltyConfig, ProgramTemplateKey, Reward } from './loyalty';
+import type { EarnRule, LoyaltyConfig, MembershipBenefits, MembershipPlanInput, MembershipTemplateKey, ProgramTemplateKey, Reward, WalletPackInput } from './loyalty';
 import type { CameraState } from './table-state';
 
 export interface ApiErrorBody {
@@ -432,7 +432,17 @@ export interface GuestSessionDTO {
   /** Name and points only once the guest proved the number with a code sent by SMS. */
   customer:
     | { phone_last4: string; verified: false }
-    | { phone_last4: string; verified: true; name: string | null; points: number; stamps: number; level: string | null; rewards: { label: string; valid_to: string | null }[] }
+    | {
+        phone_last4: string;
+        verified: true;
+        name: string | null;
+        points: number;
+        stamps: number;
+        level: string | null;
+        rewards: { label: string; valid_to: string | null }[];
+        membership: { name: string; ends_at: string } | null;
+        wallet_paise: number;
+      }
     | null;
   /** `otp`: joining loyalty takes a code sent by SMS (MSG91 is set up). `summary`: the programme in a sentence. */
   loyalty: { enabled: boolean; earn: EarnRule['kind']; earn_bp: number; stamp_goal: number | null; summary: string | null; otp: boolean };
@@ -548,9 +558,13 @@ export interface BillDTO {
   balance_paise: number;
   /** Planned shares when split by amount; payments are matched against these. */
   amount_shares: number[] | null;
-  customer: { id: string; name: string | null; phone: string; points: number } | null;
+  customer: { id: string; name: string | null; phone: string; points: number; wallet_paise: number } | null;
+  /** A membership sale: the bill's one line is the plan, and paying it starts the membership. */
+  membership: { id: string; name: string; status: CustomerMembershipDTO['status']; starts_at: string | null; ends_at: string | null } | null;
+  /** Money off from the guest's running membership (also in loyalty_discount_paise). */
+  member_discount_paise: number;
   loyalty_points_redeemed: number;
-  /** All loyalty money off: points redeemed plus rewards (reward_discount_paise). */
+  /** All loyalty money off: points redeemed, rewards (reward_discount_paise) and membership (member_discount_paise). */
   loyalty_discount_paise: number;
   loyalty_points_earned: number;
   reward_discount_paise: number;
@@ -657,6 +671,60 @@ export interface CustomerLoyaltyDTO {
   level: { name: string; next: { name: string; visits: number | null; spend_paise: number | null } | null } | null;
   /** Ready to use now, or already on a draft bill. */
   rewards: RewardDTO[];
+  /** Running, and bought but not yet paid for. */
+  memberships: CustomerMembershipDTO[];
+  wallet: { paid_paise: number; bonus_paise: number; expires_at: string | null };
+}
+
+export interface MembershipPlanDTO extends MembershipPlanInput {
+  id: string;
+  template: MembershipTemplateKey | null;
+  is_active: boolean;
+  /** Guests with this membership running now. */
+  members: number;
+}
+
+export interface CustomerMembershipDTO {
+  id: string;
+  plan_id: string;
+  name: string;
+  status: 'pending' | 'active' | 'cancelled';
+  starts_at: string | null;
+  ends_at: string | null;
+  benefits: MembershipBenefits;
+  /** The bill it was sold on. */
+  bill_id: string | null;
+}
+
+export interface WalletPackDTO extends WalletPackInput {
+  id: string;
+  is_active: boolean;
+}
+
+export interface WalletEntryDTO {
+  id: string;
+  kind: 'topup' | 'spend' | 'refund' | 'cash_out' | 'expire';
+  paid_paise: number;
+  bonus_paise: number;
+  invoice_no: string | null;
+  receipt_no: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface WalletDTO {
+  paid_paise: number;
+  bonus_paise: number;
+  expires_at: string | null;
+  ledger: WalletEntryDTO[];
+}
+
+export interface WalletTopupDTO {
+  id: string;
+  receipt_no: string;
+  paid_paise: number;
+  bonus_paise: number;
+  wallet: { paid_paise: number; bonus_paise: number; expires_at: string | null };
 }
 
 /** The loyalty card on a bill: the guest's standing, and which lines each free-dish reward fits. */
@@ -675,6 +743,9 @@ export interface LoyaltyReportDTO {
   points: { earned: number; redeemed: number; outstanding: number; outstanding_paise: number | null };
   rewards: { source: RewardSource; issued: number; used: number; value_paise: number; cost_paise: number }[];
   levels: { name: string; guests: number }[];
+  memberships: { plan: string; sold: number; revenue_paise: number; active: number }[];
+  /** Top-ups and spends in the dates; outstanding is what guests hold now. */
+  wallet: { topped_up_paise: number; bonus_given_paise: number; spent_paise: number; outstanding_paid_paise: number; outstanding_bonus_paise: number };
 }
 
 // ---------- Reservations and waitlist (Phase 2) ----------
@@ -791,7 +862,9 @@ export interface BankStatementDTO {
 
 export interface ReconPaymentDTO {
   id: string;
-  bill_id: string;
+  /** Null for a wallet top-up, which has a receipt instead of an invoice. */
+  bill_id: string | null;
+  receipt_no: string | null;
   invoice_no: string | null;
   table_label: string | null;
   amount_paise: number;

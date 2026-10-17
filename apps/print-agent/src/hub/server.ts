@@ -6,7 +6,7 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { connect, type Socket as NetSocket } from 'node:net';
 import { Server as IoServer } from 'socket.io';
 import { z, ZodError } from 'zod';
-import { ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_METHODS } from '@dineos/shared/enums';
+import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES } from '@dineos/shared/enums';
 import type { OutletEvent } from '@dineos/shared/events';
 import { HubError, offlineUnsupported, type HubEngine, type HubUser } from './engine';
 
@@ -199,7 +199,7 @@ export class HubServer {
           params.id!,
           z
             .object({
-              method: z.enum(PAYMENT_METHODS),
+              method: z.enum(HUB_PAYMENT_METHODS),
               amount_paise: z.number().int().min(1).max(100_000_000),
               tendered_paise: z.number().int().min(0).max(100_000_000).nullable().optional(),
               reference: z.string().max(80).nullable().optional(),

@@ -10,6 +10,7 @@ import { createOrder, prepareLines, type OrderLineInput } from '../orders/servic
 import { upsertCustomer } from '../customers/service';
 import { lockLiveSession } from '../tables/sessions';
 import { openRewards, programSummary } from '../loyalty/engine';
+import { runningMemberships } from '../loyalty/membership-state';
 import { activeProgram } from '../loyalty/program';
 
 export const MAX_CART_LINES = 50;
@@ -117,9 +118,16 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth, otpEnabled = fal
   const outlet = await tx.db.selectFrom('outlets').select(['event_seq']).where('id', '=', auth.outletId).executeTakeFirstOrThrow();
   const program = await activeProgram(tx);
   const customer = s.customer_id
-    ? await tx.db.selectFrom('customers').select(['id', 'phone', 'name', 'points', 'stamps', 'level']).where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
+    ? await tx.db
+        .selectFrom('customers')
+        .select(['id', 'phone', 'name', 'points', 'stamps', 'level', 'wallet_paid_paise', 'wallet_bonus_paise'])
+        .where('id', '=', s.customer_id)
+        .where('erased_at', 'is', null)
+        .executeTakeFirst()
     : undefined;
-  const rewards = customer && s.customer_verified_at && program ? await openRewards(tx, customer.id) : [];
+  const verified = customer && s.customer_verified_at ? customer : null;
+  const rewards = verified ? await openRewards(tx, verified.id) : [];
+  const membership = verified ? (await runningMemberships(tx, verified.id))[0] : undefined;
   const earn = program?.config.earn;
   const finalised = bills.filter((b) => b.status !== 'draft');
   return {
@@ -145,6 +153,8 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth, otpEnabled = fal
             stamps: customer.stamps,
             level: customer.level,
             rewards: rewards.filter((r) => r.status === 'available').map((r) => ({ label: r.label, valid_to: r.valid_to })),
+            membership: membership ? { name: membership.plan.name, ends_at: membership.ends_at!.toISOString() } : null,
+            wallet_paise: customer.wallet_paid_paise + customer.wallet_bonus_paise,
           }
         : { phone_last4: customer.phone.slice(-4), verified: false }
       : null,

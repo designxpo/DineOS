@@ -46,8 +46,14 @@ export type BillStatus = (typeof BILL_STATUSES)[number];
 
 /** `room`: charged to a hotel guest's room, collected by the hotel at checkout. */
 /** `platform`: settled by Zomato's or Swiggy's payout, for their orders only. */
-export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room', 'platform'] as const;
+/** 'wallet' spends the guest's prepaid balance, which lives in the cloud. */
+export const PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room', 'platform', 'wallet'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+/** What the outlet hub can take while offline: everything but the wallet. */
+export const HUB_PAYMENT_METHODS = ['cash', 'upi', 'card_slip', 'other', 'room', 'platform'] as const;
+/** How a guest pays for a wallet top-up. */
+export const TOPUP_METHODS = ['cash', 'upi', 'card_slip', 'other'] as const;
+export type TopupMethod = (typeof TOPUP_METHODS)[number];
 
 export const SERVICE_REQUEST_KINDS = ['call_waiter', 'bill'] as const;
 export type ServiceRequestKind = (typeof SERVICE_REQUEST_KINDS)[number];
@@ -68,5 +74,5 @@ export const MANUAL_COMP_REASONS = ['mishap', 'special_guest', 'owners_guest', '
 export const COMP_REASONS = [...MANUAL_COMP_REASONS, 'loyalty'] as const;
 export type CompReason = (typeof COMP_REASONS)[number];
 
-export const REWARD_SOURCES = ['stamps', 'level', 'welcome', 'birthday', 'comeback'] as const;
+export const REWARD_SOURCES = ['stamps', 'level', 'welcome', 'birthday', 'comeback', 'membership'] as const;
 export type RewardSource = (typeof REWARD_SOURCES)[number];

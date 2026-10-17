@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { ITEM_STATUSES, ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_METHODS } from '@dineos/shared/enums';
+import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES } from '@dineos/shared/enums';
 import type { HubSyncPayload } from '@dineos/shared/hub';
 import type { AppContext } from '../../context';
 import { requireDevice, type DeviceAuth } from '../../lib/auth';
@@ -133,7 +133,7 @@ const bill = z.object({
     .array(
       z.object({
         id: z.uuid(),
-        method: z.enum(PAYMENT_METHODS),
+        method: z.enum(HUB_PAYMENT_METHODS),
         amount_paise: z.number().int().min(1).max(100_000_000),
         tendered_paise: money.nullable(),
         change_paise: money.nullable(),

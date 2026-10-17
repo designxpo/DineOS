@@ -203,6 +203,16 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
             </p>
           </div>
         </div>
+        {member.verified && (member.membership || member.wallet_paise > 0) && (
+          <div className="flex flex-wrap gap-1.5 pl-8 text-xs">
+            {member.membership && (
+              <span className="rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-800">
+                {t('guest.loyalty_member_until', { name: member.membership.name, date: new Date(member.membership.ends_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) })}
+              </span>
+            )}
+            {member.wallet_paise > 0 && <span className="rounded-full bg-white px-2.5 py-1 font-medium text-emerald-800">{t('guest.loyalty_wallet', { amount: formatRupee(member.wallet_paise) })}</span>}
+          </div>
+        )}
         {member.verified && earn === 'stamps' && goal > 0 && (
           <div className="flex gap-1 pl-8" aria-hidden>
             {Array.from({ length: goal }, (_, i) => (

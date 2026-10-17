@@ -89,7 +89,9 @@ export function renderBill(doc: BillDoc, width: number, opts: RenderOptions = {}
   if (discount) p.line(columns('Discount', `-${money(discount)}`, width));
   // Loyalty money off is points redeemed plus rewards; each has its own line.
   const rewardOff = bill.reward_discount_paise ?? 0;
-  const pointsOff = bill.loyalty_discount_paise - rewardOff;
+  const memberOff = bill.member_discount_paise ?? 0;
+  const pointsOff = bill.loyalty_discount_paise - rewardOff - memberOff;
+  if (memberOff) p.line(columns('Member discount', `-${money(memberOff)}`, width));
   if (pointsOff) p.line(columns(`Points redeemed (${bill.loyalty_points_redeemed})`, `-${money(pointsOff)}`, width));
   if (rewardOff) p.line(columns('Loyalty reward', `-${money(rewardOff)}`, width));
   if (bill.service_charge_paise) p.line(columns(`Service charge (${pct(bill.service_charge_bp)})`, money(bill.service_charge_paise), width));

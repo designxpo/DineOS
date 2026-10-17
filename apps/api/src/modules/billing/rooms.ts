@@ -46,6 +46,7 @@ export async function roomCharges(tx: Tx, r: Range, opts: { unpostedOnly?: boole
     ])
     .where('payments.outlet_id', '=', r.outletId)
     .where('payments.method', '=', 'room')
+    .where('payments.bill_id', 'is not', null)
     .where(day, '>=', r.from)
     .where(day, '<=', r.to);
   if (opts.unpostedOnly) q = q.where('payments.room_posted_at', 'is', null);
@@ -53,7 +54,7 @@ export async function roomCharges(tx: Tx, r: Range, opts: { unpostedOnly?: boole
 
   const out: RoomChargeRow[] = rows.map((p) => ({
     payment_id: p.id,
-    bill_id: p.bill_id,
+    bill_id: p.bill_id!,
     kind: p.kind as RoomChargeRow['kind'],
     at: p.created_at.toISOString(),
     room_no: p.room_no!,

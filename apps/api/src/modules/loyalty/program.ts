@@ -63,8 +63,11 @@ export async function pointsRule(tx: Tx): Promise<Extract<EarnRule, { kind: 'poi
 
 /** Names of menu categories across the tenant's outlets, for describing rewards. */
 export async function categoryNames(tx: Tx, config: LoyaltyConfig | null): Promise<CategoryNames> {
-  const ids = config ? programCategoryIds(config) : [];
-  const rows = ids.length ? await tx.db.selectFrom('menu_categories').select(['id', 'name']).where('id', 'in', ids).execute() : [];
+  return namesFor(tx, config ? programCategoryIds(config) : []);
+}
+
+export async function namesFor(tx: Tx, ids: readonly string[]): Promise<CategoryNames> {
+  const rows = ids.length ? await tx.db.selectFrom('menu_categories').select(['id', 'name']).where('id', 'in', [...ids]).execute() : [];
   const byId = new Map(rows.map((r) => [r.id, r.name]));
   return (list) => {
     const names = [...new Set(list.map((id) => byId.get(id)).filter((n): n is string => !!n))];

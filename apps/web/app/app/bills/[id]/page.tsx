@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, Droplets, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
+import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, Crown, Droplets, FileText, Gift, Percent, PiggyBank, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -9,8 +9,8 @@ import { useEffect, useState } from 'react';
 import { rupeesToPaise } from '@dineos/shared/money';
 import type { BillDTO, BillLineDTO, BillLoyaltyDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
-import { errorMessage, onHub } from '@/lib/api';
-import { dateTime, formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
+import { ApiError, errorMessage, onHub } from '@/lib/api';
+import { date, dateTime, formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
 import { send } from '@/lib/outbox';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -22,6 +22,7 @@ import { useToast } from '@/components/ui/toast';
 import { useWithApproval } from '@/components/staff/approval';
 import { CompForm, type CompRequest } from '@/components/staff/comp-sheet';
 import { NewCustomerSheet } from '@/components/staff/customer-sheet';
+import { SellMembershipSheet, TopUpSheet } from '@/components/staff/loyalty/sell-sheets';
 import { ReasonPicker } from '@/components/staff/orders';
 
 type Invoice = InvoiceDTO & { upi_uri: string | null };
@@ -33,6 +34,7 @@ const METHODS: { value: PaymentMethod; label: I18nKey; icon: React.ComponentType
   { value: 'other', label: 'pay.other', icon: Wallet },
   { value: 'room', label: 'pay.room', icon: BedDouble },
   { value: 'platform', label: 'pay.platform', icon: Bike },
+  { value: 'wallet', label: 'pay.wallet', icon: PiggyBank },
 ];
 
 export default function BillPage() {
@@ -118,7 +120,7 @@ export default function BillPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl leading-tight font-semibold tracking-tight sm:text-2xl">
-            {bill.table_label ? t('bill.table', { label: bill.table_label }) : t('bill.counter')}
+            {bill.membership ? t('bill.membership_title', { name: bill.membership.name }) : bill.table_label ? t('bill.table', { label: bill.table_label }) : t('bill.counter')}
             {bill.split_label && <span className="ml-2 text-base font-normal text-ink-faint">{bill.split_label}</span>}
           </h1>
           <p className="text-sm text-ink-faint">{bill.invoice_no ? (
@@ -189,9 +191,14 @@ export default function BillPage() {
             <Row label={t('bill.subtotal')} value={formatPaise(bill.subtotal_paise)} />
             {free > 0 && <Row label={t('comp.free')} value={`− ${formatPaise(free)}`} tone="text-emerald-700" />}
             {discount > 0 && <Row label={`${t('bill.discount')}${bill.discount_reason ? ` (${bill.discount_reason})` : ''}`} value={`− ${formatPaise(discount)}`} tone="text-emerald-700" />}
+            {bill.member_discount_paise > 0 && <Row label={t('bill.member_row')} value={`− ${formatPaise(bill.member_discount_paise)}`} tone="text-emerald-700" />}
             {bill.reward_discount_paise > 0 && <Row label={t('bill.reward_row')} value={`− ${formatPaise(bill.reward_discount_paise)}`} tone="text-emerald-700" />}
-            {bill.loyalty_discount_paise - bill.reward_discount_paise > 0 && (
-              <Row label={t('bill.points_row', { n: bill.loyalty_points_redeemed })} value={`− ${formatPaise(bill.loyalty_discount_paise - bill.reward_discount_paise)}`} tone="text-emerald-700" />
+            {bill.loyalty_discount_paise - bill.reward_discount_paise - bill.member_discount_paise > 0 && (
+              <Row
+                label={t('bill.points_row', { n: bill.loyalty_points_redeemed })}
+                value={`− ${formatPaise(bill.loyalty_discount_paise - bill.reward_discount_paise - bill.member_discount_paise)}`}
+                tone="text-emerald-700"
+              />
             )}
             {(bill.service_charge_paise > 0 || bill.service_charge_bp > 0) && (
               <Row label={`${t('bill.sc')} ${bill.service_charge_waived ? t('bill.sc_removed') : `(${formatRate(bill.service_charge_bp)})`}`} value={formatPaise(bill.service_charge_paise)} />
@@ -221,10 +228,12 @@ export default function BillPage() {
                     <Button variant="outline" onClick={() => setSheet('discount')}>
                       <Percent className="size-4" /> {t('bill.discount')}
                     </Button>
-                    <Button variant="outline" onClick={() => setSheet('split')}>
-                      <Scissors className="size-4" /> {t('bill.split')}
-                    </Button>
-                    {can('bill.comp') && (
+                    {!bill.membership && (
+                      <Button variant="outline" onClick={() => setSheet('split')}>
+                        <Scissors className="size-4" /> {t('bill.split')}
+                      </Button>
+                    )}
+                    {can('bill.comp') && !bill.membership && (
                       <Button variant="outline" onClick={() => setSheet('comp')}>
                         <Gift className="size-4" /> {t('comp.title')}
                       </Button>
@@ -275,12 +284,32 @@ export default function BillPage() {
             </Card>
           )}
 
-          {!hub && can('customer.view') && (draft || bill.customer) && bill.status !== 'void' && (
+          {bill.membership && bill.customer && (
+            <Card className="flex items-start gap-3 p-4">
+              <Crown className="mt-0.5 size-5 shrink-0 text-violet-700" />
+              <div className="text-sm">
+                <p className="font-semibold">
+                  {bill.customer.name ?? t('loy.guest')} <span className="font-normal text-ink-faint tabular">…{bill.customer.phone.slice(-4)}</span>
+                </p>
+                <p className="text-ink-soft">
+                  {bill.membership.status === 'active' && bill.membership.ends_at
+                    ? t('bill.membership_runs', { date: date(bill.membership.ends_at) })
+                    : bill.membership.status === 'cancelled'
+                      ? t('bill.membership_cancelled')
+                      : t('bill.membership_starts')}
+                </p>
+              </div>
+            </Card>
+          )}
+
+          {!hub && can('customer.view') && !bill.membership && (draft || bill.customer) && bill.status !== 'void' && (
             <LoyaltyCard
               bill={bill}
               editable={draft && can('customer.manage')}
               onUpdate={(body, done) => act('loyalty', () => api(`/bills/${id}`, { method: 'PATCH', body }), done)}
               onReward={(fn, done) => act('reward', fn, done)}
+              onSold={(sold) => router.push(`/app/bills/${sold.id}`)}
+              onToppedUp={() => void refresh()}
             />
           )}
 
@@ -352,13 +381,18 @@ function LoyaltyCard({
   editable,
   onUpdate,
   onReward,
+  onSold,
+  onToppedUp,
 }: {
   bill: BillDTO;
   editable: boolean;
   onUpdate: (body: object, done: string) => Promise<boolean>;
   onReward: (fn: () => Promise<unknown>, done: string) => Promise<boolean>;
+  onSold: (bill: BillDTO) => void;
+  onToppedUp: () => void;
 }) {
-  const { api, outletId } = useStaff();
+  const { api, outletId, can } = useStaff();
+  const [selling, setSelling] = useState<'topup' | 'membership' | null>(null);
   const { t } = useI18n();
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
@@ -414,6 +448,21 @@ function LoyaltyCard({
               </button>
             )}
           </div>
+          {l && (l.memberships.length > 0 || l.wallet.paid_paise + l.wallet.bonus_paise > 0) && (
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              {l.memberships.map((m) => (
+                <span key={m.id} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-800">
+                  <Crown className="size-3" />
+                  {m.status === 'pending' ? t('loy.member_pending', { name: m.name }) : t('loy.member_until', { name: m.name, date: date(m.ends_at!) })}
+                </span>
+              ))}
+              {l.wallet.paid_paise + l.wallet.bonus_paise > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-medium text-emerald-800">
+                  <PiggyBank className="size-3" /> {t('loy.wallet', { amount: formatPaise(l.wallet.paid_paise + l.wallet.bonus_paise) })}
+                </span>
+              )}
+            </div>
+          )}
           {program?.stamp_goal != null && l && (
             <div>
               <div className="flex gap-1" aria-label={t('loy.stamps', { n: l.stamps, goal: program.stamp_goal })}>
@@ -493,6 +542,28 @@ function LoyaltyCard({
           {editable && usesPoints && !canRedeem && bill.loyalty_points_redeemed === 0 && c.points > 0 && <p className="text-xs text-ink-faint">{t('loy.min', { n: program?.min_redeem_points ?? 0 })}</p>}
           {bill.loyalty_points_earned > 0 && <p className="text-sm text-emerald-700">{t('loy.earned', { n: bill.loyalty_points_earned })}</p>}
           {program && program.earn !== 'none' && bill.status === 'draft' && <p className="text-xs text-ink-faint">{t(program.earn === 'stamps' ? 'loy.earn_on_pay_stamps' : 'loy.earn_on_pay')}</p>}
+          {can('payment.record') && can('customer.manage') && (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={() => setSelling('topup')}>
+                <PiggyBank className="size-4" /> {t('loy.top_up')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelling('membership')}>
+                <Crown className="size-4" /> {t('loy.sell_membership')}
+              </Button>
+            </div>
+          )}
+          {selling === 'topup' && (
+            <TopUpSheet
+              customerId={c.id}
+              onClose={() => setSelling(null)}
+              onDone={() => {
+                setSelling(null);
+                void standing.refetch();
+                onToppedUp();
+              }}
+            />
+          )}
+          {selling === 'membership' && <SellMembershipSheet customerId={c.id} onClose={() => setSelling(null)} onSold={onSold} />}
         </>
       ) : editable ? (
         <>
@@ -636,9 +707,13 @@ function PlatformPayment({ bill, onPaid }: { bill: BillDTO; onPaid: () => Promis
 }
 
 function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string | null; onPaid: () => Promise<void> }) {
-  const { token, outlet } = useStaff();
-  // Charging to a room only exists in hotel outlets that turned it on.
-  const methods = METHODS.filter((m) => m.value !== 'platform' && (m.value !== 'room' || outlet?.room_charge_enabled));
+  const { token, outlet, api, outletId } = useStaff();
+  const withApproval = useWithApproval();
+  const walletBalance = bill.customer?.wallet_paise ?? 0;
+  // Charging to a room only exists in hotel outlets that turned it on; the wallet, for a guest with money in it.
+  const methods = METHODS.filter((m) => m.value !== 'platform' && (m.value !== 'room' || outlet?.room_charge_enabled) && (m.value !== 'wallet' || walletBalance > 0));
+  // Paying from the wallet may need a code the guest reads out: null until the server asks for one.
+  const [code, setCode] = useState<{ sentTo: string | null; value: string } | null>(null);
   const [roomNo, setRoomNo] = useState('');
   const [roomGuest, setRoomGuest] = useState('');
   const { t } = useI18n();
@@ -668,8 +743,44 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
   }
   const change = tenderedPaise !== null ? tenderedPaise - amountPaise : null;
 
+  // The wallet is in the cloud and may need a manager's PIN, so it never goes through the offline outbox.
+  const payFromWallet = async (walletProof: string | null) => {
+    setBusy(true);
+    try {
+      const res = await withApproval((approvalToken) =>
+        api<BillDTO>(`/bills/${bill.id}/payments`, { method: 'POST', body: { method: 'wallet', amount_paise: amountPaise, wallet_proof: walletProof }, approvalToken }),
+      );
+      if (res === undefined) return;
+      toast(res.status === 'paid' ? t('bill.fully_paid') : t('bill.payment_recorded'));
+      setCode(null);
+      await onPaid();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'wallet_code_required') setCode({ sentTo: null, value: '' });
+      else toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const sendCode = async () => {
+    try {
+      const r = await api<{ phone_last4: string }>(`/customers/${bill.customer!.id}/wallet/code`, { method: 'POST', body: { outlet_id: outletId } });
+      setCode({ sentTo: r.phone_last4, value: '' });
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    }
+  };
+  const checkCode = async () => {
+    try {
+      const r = await api<{ proof: string }>(`/customers/${bill.customer!.id}/wallet/code/verify`, { method: 'POST', body: { outlet_id: outletId, code: code!.value } });
+      await payFromWallet(r.proof);
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    }
+  };
+
   const pay = async () => {
     if (amountPaise <= 0) return toast(t('bill.enter_amount'), 'error');
+    if (method === 'wallet') return payFromWallet(null);
     setBusy(true);
     try {
       const res = await send<BillDTO>(token, `/bills/${bill.id}/payments`, {
@@ -717,11 +828,14 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
           ))}
         </div>
       )}
-      <div className={cn('grid gap-2', methods.length > 4 ? 'grid-cols-5' : 'grid-cols-4')}>
+      <div className={cn('grid gap-2', methods.length > 5 ? 'grid-cols-3 sm:grid-cols-6' : methods.length > 4 ? 'grid-cols-5' : 'grid-cols-4')}>
         {methods.map((m) => (
           <button
             key={m.value}
-            onClick={() => setMethod(m.value)}
+            onClick={() => {
+              setMethod(m.value);
+              if (m.value === 'wallet') setAmount(rupeesInput(Math.min(walletBalance, suggested)));
+            }}
             aria-pressed={method === m.value}
             className={cn('flex h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold', method === m.value ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line text-ink-soft hover:bg-stone-50')}
           >
@@ -758,7 +872,37 @@ function PaymentPanel({ bill, upiUri, onPaid }: { bill: BillDTO; upiUri: string 
       {(method === 'card_slip' || method === 'other') && (
         <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={method === 'card_slip' ? t('bill.card_slip') : t('bill.reference')} aria-label={t('bill.reference')} />
       )}
-      <Button size="lg" block variant="success" loading={busy} disabled={method === 'room' && !roomNo.trim()} onClick={() => void pay()}>
+      {method === 'wallet' && bill.customer && (
+        <div className="space-y-2 rounded-xl bg-stone-50 p-3 text-sm">
+          <p>{t('pay.wallet_balance', { amount: formatPaise(walletBalance) })}</p>
+          {code &&
+            (code.sentTo ? (
+              <>
+                <p className="text-xs text-ink-soft">{t('pay.wallet_code_sent', { last4: code.sentTo })}</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={code.value}
+                    onChange={(e) => setCode({ ...code, value: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder={t('pay.wallet_code')}
+                    aria-label={t('pay.wallet_code')}
+                    className="h-10"
+                  />
+                  <Button disabled={code.value.length !== 6} loading={busy} onClick={() => void checkCode()}>
+                    {t('pay.wallet_verify')}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Button variant="outline" block onClick={() => void sendCode()}>
+                {t('pay.wallet_send_code', { last4: bill.customer.phone.slice(-4) })}
+              </Button>
+            ))}
+          <p className="text-xs text-ink-faint">{t('pay.wallet_hint')}</p>
+        </div>
+      )}
+      <Button size="lg" block variant="success" loading={busy} disabled={(method === 'room' && !roomNo.trim()) || (method === 'wallet' && !!code)} onClick={() => void pay()}>
         {t(method === 'room' ? 'bill.charge_room' : 'bill.confirm', { amount: formatPaise(Math.max(0, amountPaise)) })}
       </Button>
     </Card>

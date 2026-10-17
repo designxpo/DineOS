@@ -2,6 +2,7 @@
 // read and change; finalising freezes the lines and takes the next gap-free invoice number.
 
 import { computeBill, type BillDiscount } from '@dineos/shared/billing';
+import { describeDuration } from '@dineos/shared/loyalty';
 import { businessDate, financialYear, formatInvoiceNo } from '@dineos/shared/dates';
 import type { BillDTO } from '@dineos/shared/dto';
 import { OPERATOR_CHANNELS, type DeliveryChannel, type PaymentMethod } from '@dineos/shared/enums';
@@ -18,7 +19,8 @@ import { badRequest, conflict, notFound } from '../../lib/errors';
 import { createOrder, markOrdersBilled } from '../orders/service';
 import { canPrint, openCashDrawer, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
-import { detachRewards, releaseRewards, rewardMoneyOff, rewardsOnPrint, rewardsOnVoid } from '../loyalty/bill-hooks';
+import { activateMembership, cancelMembership, detachRewards, memberDiscount, membershipLine, releaseRewards, rewardMoneyOff, rewardsOnPrint, rewardsOnVoid } from '../loyalty/bill-hooks';
+import { logWalletSpend, refundToWallet, spendFromWallet } from '../loyalty/wallet';
 import { earnOnPaid, lockCustomer, refreshCustomer } from '../loyalty/engine';
 import { pointsRule } from '../loyalty/program';
 import { redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
@@ -105,6 +107,7 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
   const bill = await lockBill(tx, billId);
   if (bill.status !== 'draft') return;
   const outlet = await outletFor(tx, bill.outlet_id);
+  if (bill.membership_id) return syncMembershipDraft(tx, bill, outlet);
   const items = await billableItems(tx, bill);
   const discounts = (bill.item_discounts ?? {}) as Record<string, number>;
   // Free (complimentary) dishes are charged nothing: their value is part of the item discount, so
@@ -125,13 +128,17 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
     service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
     prices_include_tax: outlet.prices_include_tax,
   };
-  // Loyalty comes off what is left after other discounts: rewards first, then points in whole points.
+  // Loyalty comes off what is left after other discounts: the guest's membership first, then
+  // rewards, then points in whole points.
   const pre = computeBill(input);
   const room = pre.subtotal_paise - pre.item_discount_paise - pre.bill_discount_paise;
-  const rewardOff = bill.customer_id ? await rewardMoneyOff(tx, billId, room) : 0;
+  const memberOff = bill.customer_id
+    ? await memberDiscount(tx, bill.customer_id, pre.lines.map((l, i) => ({ item_id: items[i]!.item_id, value_paise: l.gross_paise - l.item_discount_paise })), room)
+    : 0;
+  const rewardOff = bill.customer_id ? await rewardMoneyOff(tx, billId, room - memberOff) : 0;
   const rule = bill.loyalty_points_redeemed > 0 ? await pointsRule(tx) : null;
-  const points = rule ? Math.min(bill.loyalty_points_redeemed, Math.floor((room - rewardOff) / rule.point_value_paise)) : 0;
-  const totals = computeBill({ ...input, loyalty_paise: rewardOff + points * (rule?.point_value_paise ?? 0) });
+  const points = rule ? Math.min(bill.loyalty_points_redeemed, Math.floor((room - memberOff - rewardOff) / rule.point_value_paise)) : 0;
+  const totals = computeBill({ ...input, loyalty_paise: memberOff + rewardOff + points * (rule?.point_value_paise ?? 0) });
 
   await tx.db.deleteFrom('bill_lines').where('bill_id', '=', billId).execute();
   if (items.length) {
@@ -183,8 +190,64 @@ export async function syncDraft(tx: Tx, billId: string): Promise<void> {
       loyalty_points_redeemed: points,
       loyalty_discount_paise: totals.loyalty_discount_paise,
       reward_discount_paise: rewardOff,
+      member_discount_paise: memberOff,
     })
     .where('id', '=', billId)
+    .execute();
+}
+
+/** A membership sale: one line, the plan as sold, taxed at its own rate. */
+async function syncMembershipDraft(tx: Tx, bill: BillRow, outlet: Awaited<ReturnType<typeof outletFor>>): Promise<void> {
+  const plan = await membershipLine(tx, bill.membership_id!);
+  const totals = computeBill({
+    lines: [{ key: 'membership', qty: 1, unit_price_paise: plan.price_paise, tax_rate_bp: plan.tax_rate_bp }],
+    bill_discount: (bill.bill_discount ?? null) as BillDiscount | null,
+    service_charge_bp: 0,
+    service_charge_tax_rate_bp: outlet.service_charge_tax_rate_bp,
+    prices_include_tax: outlet.prices_include_tax,
+  });
+  const l = totals.lines[0]!;
+  await tx.db.deleteFrom('bill_lines').where('bill_id', '=', bill.id).execute();
+  await tx.db
+    .insertInto('bill_lines')
+    .values({
+      tenant_id: tx.tenantId,
+      bill_id: bill.id,
+      order_item_id: null,
+      name: `${plan.name} membership (${describeDuration(plan.duration_days)})`,
+      qty: 1,
+      unit_price_paise: l.unit_price_paise,
+      gross_paise: l.gross_paise,
+      item_discount_paise: 0,
+      bill_discount_paise: l.bill_discount_paise,
+      taxable_paise: l.taxable_paise,
+      tax_rate_bp: l.tax_rate_bp,
+      cgst_paise: l.cgst_paise,
+      sgst_paise: l.sgst_paise,
+      amount_paise: l.amount_paise,
+      hsn_sac: plan.hsn_sac,
+      seat_no: null,
+    })
+    .execute();
+  await tx.db
+    .updateTable('bills')
+    .set({
+      subtotal_paise: totals.subtotal_paise,
+      item_discount_paise: 0,
+      bill_discount_paise: totals.bill_discount_paise,
+      service_charge_paise: 0,
+      taxable_paise: totals.taxable_paise,
+      cgst_paise: totals.cgst_paise,
+      sgst_paise: totals.sgst_paise,
+      tax_total_paise: totals.tax_total_paise,
+      round_off_paise: totals.round_off_paise,
+      total_paise: totals.total_paise,
+      loyalty_points_redeemed: 0,
+      loyalty_discount_paise: 0,
+      reward_discount_paise: 0,
+      member_discount_paise: 0,
+    })
+    .where('id', '=', bill.id)
     .execute();
 }
 
@@ -380,6 +443,8 @@ export type SplitInput =
  * amount it stays one bill and one invoice, paid in shares.
  */
 export async function splitBill(tx: Tx, auth: StaffAuth, billId: string, input: SplitInput): Promise<BillDTO[]> {
+  const sale = await tx.db.selectFrom('bills').select('membership_id').where('id', '=', billId).executeTakeFirst();
+  if (sale?.membership_id) throw badRequest('membership_bill', 'A membership bill cannot be split');
   await syncDraft(tx, billId);
   const bill = await lockBill(tx, billId);
   assertCan(auth, bill.outlet_id, 'bill.manage');
@@ -527,6 +592,7 @@ export async function discardDraft(tx: Tx, auth: StaffAuth, billId: string): Pro
   assertCan(auth, bill.outlet_id, 'bill.manage');
   if (bill.status !== 'draft') throw conflict('bill_finalised', 'A printed bill must be voided, not discarded');
   await detachRewards(tx, billId);
+  await cancelMembership(tx, billId);
   await tx.db.deleteFrom('bills').where('id', '=', billId).execute();
   await tx.emit({ outletId: bill.outlet_id, type: 'bill.updated', channels: ['outlet'], payload: { bill_id: billId, status: 'discarded', table_session_id: bill.table_session_id } });
 }
@@ -591,6 +657,7 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
   if (await canPrint(tx, outlet.id, 'bill')) await printBill(tx, billId, false);
   if (bill.total_paise === 0) {
     await earnOnPaid(tx, billId, auth.userId);
+    await activateMembership(tx, billId);
     await settleSessionIfDone(tx, billId);
   }
   const dto = (await loadBill(tx, billId))!;
@@ -686,6 +753,8 @@ export interface PaymentInput {
   /** Charge to room: the room, and the guest's name if known. */
   room_no?: string | null;
   room_guest?: string | null;
+  /** From a code the guest read out (wallet payments). */
+  wallet_proof?: string | null;
 }
 
 /** Room charges need the outlet to allow them and a room number; returns the cleaned fields. */
@@ -698,8 +767,17 @@ export async function roomFields(tx: Tx, outletId: string, input: PaymentInput):
   return { room_no: room, room_guest: input.room_guest?.trim().slice(0, 80) || null };
 }
 
-/** Records cash, UPI (to the outlet's own QR, confirmed by staff), card slip or other payment. */
-export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, input: PaymentInput): Promise<BillDTO> {
+/**
+ * Records cash, UPI (to the outlet's own QR, confirmed by staff), card slip, other, room, platform,
+ * or the guest's wallet (with proof the guest is there; see spendFromWallet).
+ */
+export async function recordPayment(
+  tx: Tx,
+  auth: StaffAuth,
+  billId: string,
+  input: PaymentInput,
+  wallet: { approvalToken?: string | null; secret: string; smsReady: boolean } = { secret: '', smsReady: false },
+): Promise<BillDTO> {
   const bill = await lockBill(tx, billId);
   assertCan(auth, bill.outlet_id, 'payment.record');
   if (bill.status === 'draft') throw conflict('bill_not_finalised', 'Print (finalise) the bill before taking payment');
@@ -722,12 +800,13 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
     throw conflict('payment_not_confirmed', confirmation.status === 'failed' ? confirmation.reason : 'Payment is still pending');
   }
   const room = await roomFields(tx, bill.outlet_id, input);
+  const fromWallet = input.method === 'wallet' ? await spendFromWallet(tx, auth, bill, input.amount_paise, { walletProof: input.wallet_proof, approvalToken: wallet.approvalToken }, wallet) : null;
   let change: number | null = null;
   if (input.method === 'cash' && input.tendered_paise != null) {
     if (input.tendered_paise < input.amount_paise) throw badRequest('tendered_short', 'Cash tendered is less than the amount');
     change = input.tendered_paise - input.amount_paise;
   }
-  await tx.db
+  const payment = await tx.db
     .insertInto('payments')
     .values({
       tenant_id: tx.tenantId,
@@ -741,7 +820,9 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
       confirmed_by: auth.userId,
       ...room,
     })
-    .execute();
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  if (fromWallet) await logWalletSpend(tx, { id: bill.id, outlet_id: bill.outlet_id, customer_id: bill.customer_id! }, payment.id, fromWallet, auth.userId);
   const paid = bill.paid_paise + input.amount_paise;
   const fullyPaid = paid >= bill.total_paise;
   await tx.db
@@ -751,6 +832,7 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
     .execute();
   if (fullyPaid) {
     await earnOnPaid(tx, billId, auth.userId);
+    await activateMembership(tx, billId);
     await settleSessionIfDone(tx, billId);
   }
   if (input.method === 'cash') await openCashDrawer(tx, bill.outlet_id);
@@ -774,6 +856,7 @@ export async function voidBill(tx: Tx, auth: StaffAuth, billId: string, reason: 
     .execute();
   await reverseOnVoid(tx, bill, auth.userId);
   await rewardsOnVoid(tx, billId);
+  await cancelMembership(tx, billId);
   // Orders marked billed by this bill go back to served so their items can be billed again.
   const orderIds = await tx.db
     .selectFrom('bill_lines')
@@ -813,7 +896,8 @@ export async function refundPayment(
   approvalToken?: string | null,
 ): Promise<BillDTO> {
   const payment = await tx.db.selectFrom('payments').selectAll().where('id', '=', paymentId).executeTakeFirst();
-  if (!payment || payment.kind !== 'payment') throw notFound('Payment');
+  // Wallet top-ups are given back from the guest's wallet (cash-out), not here.
+  if (!payment || payment.kind !== 'payment' || !payment.bill_id) throw notFound('Payment');
   const bill = await lockBill(tx, payment.bill_id);
   if (!input.reason.trim()) throw badRequest('reason_required', 'Give a reason for the refund');
   const refunded = await tx.db
@@ -845,6 +929,8 @@ export async function refundPayment(
       room_guest: payment.room_guest,
     })
     .execute();
+  // Paid from the wallet: it goes back into the wallet.
+  if (payment.method === 'wallet') await refundToWallet(tx, { id: payment.id, bill_id: bill.id, outlet_id: bill.outlet_id, amount_paise: payment.amount_paise }, input.amount_paise, auth.userId);
   const paid = bill.paid_paise - input.amount_paise;
   await tx.db
     .updateTable('bills')

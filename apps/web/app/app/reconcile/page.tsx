@@ -151,7 +151,7 @@ function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: Statemen
         empty="Every UPI payment in these dates reached the bank."
       >
         {d.missing.map((m) => (
-          <Row key={m.id} amount={m.amount_paise} note={missingNote(m)} title={`${m.invoice_no ?? 'Bill'}${m.table_label ? ` · ${m.table_label}` : ''}`} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
+          <Row key={m.id} amount={m.amount_paise} note={missingNote(m)} title={`${m.invoice_no ?? (m.receipt_no ? `Wallet top-up ${m.receipt_no}` : 'Bill')}${m.table_label ? ` · ${m.table_label}` : ''}`} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
             {m.late_possible && <Badge tone="neutral">May post on the next statement</Badge>}
             <Button size="sm" variant="outline" onClick={() => setMatching({ payment: m })} disabled={!unrecorded.some((c) => c.amount_paise === m.amount_paise)}>
               Match…
@@ -267,7 +267,7 @@ function CreditRow({ c, children }: { c: BankCreditDTO; children: React.ReactNod
 function MatchSheet({ d, from, onClose, onMatch }: { d: StatementDetailDTO; from: { credit?: BankCreditDTO; payment?: ReconPaymentDTO }; onClose: () => void; onMatch: (creditId: string, paymentId: string) => void }) {
   const amount = from.credit?.amount_paise ?? from.payment!.amount_paise;
   const options = from.credit
-    ? d.missing.filter((m) => m.amount_paise === amount).map((m) => ({ id: m.id, title: `${m.invoice_no ?? 'Bill'}${m.table_label ? ` · ${m.table_label}` : ''}`, sub: dateTime(m.created_at) }))
+    ? d.missing.filter((m) => m.amount_paise === amount).map((m) => ({ id: m.id, title: `${m.invoice_no ?? (m.receipt_no ? `Wallet top-up ${m.receipt_no}` : 'Bill')}${m.table_label ? ` · ${m.table_label}` : ''}`, sub: dateTime(m.created_at) }))
     : d.credits.filter((c) => !c.payment && !c.dismissed_reason && c.amount_paise === amount).map((c) => ({ id: c.id, title: c.narration, sub: `${date(c.txn_date)}${c.utr ? ` · UTR ${c.utr}` : ''}` }));
   return (
     <Sheet open onClose={onClose} title={`Match ${formatPaise(amount)}`}>

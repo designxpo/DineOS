@@ -55,6 +55,7 @@ const paymentBody = z.object({
   reference: z.string().max(100).nullable().optional(),
   room_no: z.string().max(10).nullable().optional(),
   room_guest: z.string().max(80).nullable().optional(),
+  wallet_proof: z.string().max(200).nullable().optional(),
 });
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
@@ -142,7 +143,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const auth = requireStaff(req);
       const { id } = parse(idParams, req.params);
       const body = parse(paymentBody, req.body);
-      const bill = await ctx.tx(auth.tenantId, (tx) => recordPayment(tx, auth, id, body));
+      const bill = await ctx.tx(auth.tenantId, (tx) => recordPayment(tx, auth, id, body, { approvalToken: approvalHeader(req.headers), secret: ctx.config.TOKEN_SECRET, smsReady: !!ctx.otp }));
       return reply.status(201).send(bill);
     });
 

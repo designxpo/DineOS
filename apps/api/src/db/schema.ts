@@ -152,6 +152,8 @@ export interface Bills {
   loyalty_discount_paise: Generated<number>;
   loyalty_points_earned: Generated<number>;
   loyalty_points_redeemed: Generated<number>;
+  member_discount_paise: Generated<number>;
+  membership_id: string | null;
   order_id: string | null;
   outlet_id: string;
   outlet_snapshot: Json | null;
@@ -228,6 +230,21 @@ export interface Counters {
   value: Generated<number>;
 }
 
+export interface CustomerMemberships {
+  cancelled_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  customer_id: string;
+  ends_at: Timestamp | null;
+  id: Generated<string>;
+  plan_id: string;
+  plan_snapshot: Json;
+  sold_by: string | null;
+  starts_at: Timestamp | null;
+  status: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface CustomerRewards {
   bill_id: string | null;
   comp_id: string | null;
@@ -235,6 +252,7 @@ export interface CustomerRewards {
   customer_id: string;
   id: Generated<string>;
   label: string;
+  membership_id: string | null;
   program_id: string | null;
   reward: Json;
   source: string;
@@ -266,6 +284,9 @@ export interface Customers {
   total_spend_paise: Generated<number>;
   updated_at: Generated<Timestamp>;
   visits: Generated<number>;
+  wallet_bonus_paise: Generated<number>;
+  wallet_expires_at: Timestamp | null;
+  wallet_paid_paise: Generated<number>;
 }
 
 export interface Devices {
@@ -353,6 +374,22 @@ export interface LoyaltyPrograms {
   id: Generated<string>;
   name: string;
   status: Generated<string>;
+  template: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface MembershipPlans {
+  benefits: Json;
+  created_at: Generated<Timestamp>;
+  duration_days: number;
+  hsn_sac: string | null;
+  id: Generated<string>;
+  is_active: Generated<boolean>;
+  name: string;
+  price_paise: number;
+  sort: Generated<number>;
+  tax_rate_bp: number;
   template: string | null;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
@@ -493,11 +530,13 @@ export interface OtpCodes {
   attempts: Generated<number>;
   code_hash: string;
   created_at: Generated<Timestamp>;
+  customer_id: string | null;
   expires_at: Timestamp;
   id: Generated<string>;
   outlet_id: string;
   phone: string;
-  table_session_id: string;
+  purpose: Generated<string>;
+  table_session_id: string | null;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
   verified_at: Timestamp | null;
@@ -560,7 +599,7 @@ export interface Outlets {
 export interface Payments {
   amount_paise: number;
   approved_by: string | null;
-  bill_id: string;
+  bill_id: string | null;
   change_paise: number | null;
   confirmed_by: string | null;
   created_at: Generated<Timestamp>;
@@ -577,6 +616,7 @@ export interface Payments {
   tenant_id: string;
   tendered_paise: number | null;
   updated_at: Generated<Timestamp>;
+  wallet_topup_id: string | null;
 }
 
 export interface Plans {
@@ -864,6 +904,50 @@ export interface WaitlistEntries {
   updated_at: Generated<Timestamp>;
 }
 
+export interface WalletLedger {
+  bill_id: string | null;
+  bonus_paise: number;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  customer_id: string;
+  id: Generated<string>;
+  kind: string;
+  note: string | null;
+  outlet_id: string | null;
+  paid_paise: number;
+  payment_id: string | null;
+  tenant_id: string;
+  topup_id: string | null;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface WalletPacks {
+  bonus_paise: Generated<number>;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  is_active: Generated<boolean>;
+  name: string;
+  pay_paise: number;
+  sort: Generated<number>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  validity_days: number;
+}
+
+export interface WalletTopups {
+  bonus_paise: Generated<number>;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  customer_id: string;
+  id: Generated<string>;
+  outlet_id: string;
+  pack_id: string | null;
+  paid_paise: number;
+  receipt_no: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface DB {
   admin_sessions: AdminSessions;
   approval_tokens: ApprovalTokens;
@@ -875,6 +959,7 @@ export interface DB {
   cameras: Cameras;
   comps: Comps;
   counters: Counters;
+  customer_memberships: CustomerMemberships;
   customer_rewards: CustomerRewards;
   customers: Customers;
   devices: Devices;
@@ -884,6 +969,7 @@ export interface DB {
   kots: Kots;
   loyalty_ledger: LoyaltyLedger;
   loyalty_programs: LoyaltyPrograms;
+  membership_plans: MembershipPlans;
   menu_categories: MenuCategories;
   menu_items: MenuItems;
   modifier_groups: ModifierGroups;
@@ -915,4 +1001,7 @@ export interface DB {
   user_sessions: UserSessions;
   users: Users;
   waitlist_entries: WaitlistEntries;
+  wallet_ledger: WalletLedger;
+  wallet_packs: WalletPacks;
+  wallet_topups: WalletTopups;
 }

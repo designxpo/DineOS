@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookUser, Download, Gift, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import { BookUser, Crown, Download, Gift, PiggyBank, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState } from 'react';
 import type { CustomerDTO, CustomerLoyaltyDTO, LoyaltyEntryDTO } from '@dineos/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
@@ -13,6 +14,7 @@ import { ConfirmDialog, Sheet } from '@/components/ui/overlay';
 import { Badge, Card, EmptyState, Field, Input, Segmented, Spinner, Switch, Textarea } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { NewCustomerSheet } from '@/components/staff/customer-sheet';
+import { SellMembershipSheet, TopUpSheet } from '@/components/staff/loyalty/sell-sheets';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
 interface CustomerDetail {
@@ -122,22 +124,44 @@ export default function CustomersPage() {
 
 /** Where the guest stands in the programme: level, stamp card and rewards waiting for them. */
 function Standing({ customerId }: { customerId: string }) {
-  const { api, outletId } = useStaff();
-  const { data: l } = useQuery({ queryKey: ['customers', 'loyalty', customerId], queryFn: () => api<CustomerLoyaltyDTO>(`/customers/${customerId}/loyalty?outlet_id=${outletId}`) });
-  if (!l?.program) return null;
+  const { api, outletId, can } = useStaff();
+  const router = useRouter();
+  const [selling, setSelling] = useState<'topup' | 'membership' | null>(null);
+  const { data: l, refetch } = useQuery({ queryKey: ['customers', 'loyalty', customerId], queryFn: () => api<CustomerLoyaltyDTO>(`/customers/${customerId}/loyalty?outlet_id=${outletId}`) });
+  if (!l) return null;
   const next = l.level?.next;
+  const wallet = l.wallet.paid_paise + l.wallet.bonus_paise;
+  const canSell = can('payment.record') && can('customer.manage');
   return (
     <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{l.program.name}</span>
-        {l.level && <Badge tone="violet">{l.level.name}</Badge>}
-        {next && (
-          <span className="text-xs text-ink-faint">
-            {next.name}: {[next.visits !== null && `${next.visits} more visits`, next.spend_paise !== null && `${formatPaise(next.spend_paise)} more`].filter(Boolean).join(' or ')}
-          </span>
-        )}
-      </div>
-      {l.program.stamp_goal !== null && (
+      {(l.memberships.length > 0 || wallet > 0) && (
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          {l.memberships.map((m) => (
+            <span key={m.id} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 font-medium text-violet-800">
+              <Crown className="size-3" />
+              {m.status === 'pending' ? `${m.name}: not paid yet` : `${m.name} until ${date(m.ends_at!)}`}
+            </span>
+          ))}
+          {wallet > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-medium text-emerald-800">
+              <PiggyBank className="size-3" /> Wallet {formatPaise(wallet)}
+              {l.wallet.bonus_paise > 0 && <span className="font-normal">(incl. {formatPaise(l.wallet.bonus_paise)} bonus)</span>}
+            </span>
+          )}
+        </div>
+      )}
+      {l.program && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{l.program.name}</span>
+          {l.level && <Badge tone="violet">{l.level.name}</Badge>}
+          {next && (
+            <span className="text-xs text-ink-faint">
+              {next.name}: {[next.visits !== null && `${next.visits} more visits`, next.spend_paise !== null && `${formatPaise(next.spend_paise)} more`].filter(Boolean).join(' or ')}
+            </span>
+          )}
+        </div>
+      )}
+      {l.program && l.program.stamp_goal !== null && (
         <div>
           <div className="flex gap-1" aria-label={`${l.stamps} of ${l.program.stamp_goal} stamps`}>
             {Array.from({ length: l.program.stamp_goal }, (_, i) => (
@@ -160,6 +184,27 @@ function Standing({ customerId }: { customerId: string }) {
           ))}
         </ul>
       )}
+      {canSell && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button size="sm" variant="outline" onClick={() => setSelling('topup')}>
+            <PiggyBank className="size-4" /> Top up wallet
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setSelling('membership')}>
+            <Crown className="size-4" /> Sell a membership
+          </Button>
+        </div>
+      )}
+      {selling === 'topup' && (
+        <TopUpSheet
+          customerId={customerId}
+          onClose={() => setSelling(null)}
+          onDone={() => {
+            setSelling(null);
+            void refetch();
+          }}
+        />
+      )}
+      {selling === 'membership' && <SellMembershipSheet customerId={customerId} onClose={() => setSelling(null)} onSold={(bill) => router.push(`/app/bills/${bill.id}`)} />}
     </div>
   );
 }

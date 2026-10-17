@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
 import type { Tx } from '../context';
 
-export type CounterName = 'order' | 'kot' | 'invoice';
+export type CounterName = 'order' | 'kot' | 'invoice' | 'wallet';
 
 /**
  * Next value of a per-outlet counter, e.g. ('invoice', '2627') or ('order', '2026-10-15').

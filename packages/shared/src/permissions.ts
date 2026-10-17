@@ -31,6 +31,7 @@ export const ACTIONS = [
   'inventory.manage', // ingredients, recipes, purchases
   'inventory.record', // wastage and stock counts
   'payment.reconcile', // match UPI payments against the bank statement
+  'wallet.spend', // pay from a guest's wallet without a code from their phone
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -82,7 +83,7 @@ export const PIN_MAX_ATTEMPTS = 5;
 export const PIN_LOCK_MINUTES = 15;
 
 /** Actions that need a manager's PIN when a lower role performs them (spec §8: voids and refunds). */
-export const MANAGER_APPROVAL_ACTIONS = ['bill.void', 'payment.refund', 'order.cancel_after_accept', 'bill.discount_large', 'bill.comp'] as const;
+export const MANAGER_APPROVAL_ACTIONS = ['bill.void', 'payment.refund', 'order.cancel_after_accept', 'bill.discount_large', 'bill.comp', 'wallet.spend'] as const;
 export type ApprovalAction = (typeof MANAGER_APPROVAL_ACTIONS)[number];
 
 /** Largest bill discount a cashier may give without approval, in basis points. */

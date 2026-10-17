@@ -1,45 +1,16 @@
-import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
-import { normalizePhone } from '@dineos/shared/phone';
+import { randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Tx } from '../../context';
 import type { GuestAuth } from '../../lib/auth';
-import { badRequest, tooMany } from '../../lib/errors';
+import { assertCodeAllowed, CODE_TTL_MS, hashCode, MAX_TRIES, mobile } from '../../lib/otp-codes';
 import type { OtpSender } from '../../lib/sms';
 import { joinLoyalty, readGuestSession } from './service';
-
-const CODE_TTL_MS = 10 * 60_000;
-const MAX_TRIES = 5;
-/** SMS costs money and can be abused: a few codes per number, and a ceiling per outlet. */
-const PER_NUMBER = { codes: 3, windowMs: 15 * 60_000 };
-const PER_OUTLET_PER_HOUR = 100;
-
-const hashCode = (secret: string, id: string, code: string) => createHmac('sha256', secret).update(`${id}:${code}`).digest('hex');
-
-/** Indian mobiles only: +91, then 6 to 9, then nine more digits. */
-function mobile(input: string): string {
-  const phone = normalizePhone(input);
-  if (!/^\+91[6-9]\d{9}$/.test(phone)) throw badRequest('invalid_phone', 'Enter a 10-digit Indian mobile number');
-  return phone;
-}
 
 /** Texts a six-digit code to the number for this table visit. */
 export async function sendLoyaltyCode(tx: Tx, auth: GuestAuth, secret: string, sender: OtpSender, phoneInput: string) {
   const phone = mobile(phoneInput);
   const s = await readGuestSession(tx, auth);
   const now = Date.now();
-  const forNumber = await tx.db
-    .selectFrom('otp_codes')
-    .select((eb) => eb.fn.countAll<number>().as('n'))
-    .where('phone', '=', phone)
-    .where('created_at', '>', new Date(now - PER_NUMBER.windowMs))
-    .executeTakeFirstOrThrow();
-  if (Number(forNumber.n) >= PER_NUMBER.codes) throw tooMany('Too many codes for this number. Try again in a few minutes.');
-  const forOutlet = await tx.db
-    .selectFrom('otp_codes')
-    .select((eb) => eb.fn.countAll<number>().as('n'))
-    .where('outlet_id', '=', auth.outletId)
-    .where('created_at', '>', new Date(now - 3_600_000))
-    .executeTakeFirstOrThrow();
-  if (Number(forOutlet.n) >= PER_OUTLET_PER_HOUR) throw tooMany('Codes are paused for a while. Ask your server to add your number.');
+  await assertCodeAllowed(tx, auth.outletId, phone);
 
   const id = randomUUID();
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');

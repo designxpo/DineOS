@@ -83,7 +83,7 @@ export default function BillsPage() {
                   <Link href={`/app/bills/${b.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-stone-50">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
-                        {b.table_label ? `Table ${b.table_label}` : 'Counter / takeaway'}
+                        {b.membership ? `Membership: ${b.membership.name}` : b.table_label ? `Table ${b.table_label}` : 'Counter / takeaway'}
                         {b.split_label && <span className="ml-2 text-xs text-ink-faint">{b.split_label}</span>}
                       </p>
                       <p className="text-xs text-ink-faint">

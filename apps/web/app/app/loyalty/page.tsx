@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Card, Segmented, Spinner, Stat } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import type { LoyaltyCategory } from '@/components/staff/loyalty/fields';
+import { MembershipsTab, MoneyReport, WalletTab } from '@/components/staff/loyalty/memberships-wallet';
 import { ProgramEditor, type ProgramDraft } from '@/components/staff/loyalty/program-editor';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'program' | 'report';
+type Tab = 'program' | 'memberships' | 'wallet' | 'report';
 
 const ICONS: Record<ProgramTemplateKey, React.ComponentType<{ className?: string }>> = {
   stamp_card: Coffee,
@@ -29,6 +30,7 @@ const ICONS: Record<ProgramTemplateKey, React.ComponentType<{ className?: string
 export default function LoyaltyPage() {
   const { api, outletId, can } = useStaff();
   const [tab, setTab] = useState<Tab>('program');
+  const categories = useQuery({ queryKey: ['loyalty-categories', outletId], enabled: can('outlet.settings'), queryFn: () => api<LoyaltyCategory[]>(`/loyalty/categories?outlet_id=${outletId}`) });
   if (!can('outlet.settings')) return <Forbidden />;
   return (
     <div className="pb-12">
@@ -37,13 +39,26 @@ export default function LoyaltyPage() {
         <Segmented
           value={tab}
           onChange={setTab}
+          className="max-w-full overflow-x-auto"
           options={[
             { value: 'program', label: 'Programme' },
+            { value: 'memberships', label: 'Memberships' },
+            { value: 'wallet', label: 'Wallet' },
             { value: 'report', label: 'How it is doing' },
           ]}
         />
       </div>
-      <div className="px-4 lg:px-8">{tab === 'program' ? <ProgramTab api={api} outletId={outletId!} /> : <ReportTab api={api} outletId={outletId!} />}</div>
+      <div className="px-4 lg:px-8">
+        {tab === 'program' ? (
+          <ProgramTab api={api} outletId={outletId!} />
+        ) : tab === 'memberships' ? (
+          <MembershipsTab api={api} outletId={outletId!} categories={categories.data ?? []} />
+        ) : tab === 'wallet' ? (
+          <WalletTab api={api} outletId={outletId!} />
+        ) : (
+          <ReportTab api={api} outletId={outletId!} />
+        )}
+      </div>
     </div>
   );
 }
@@ -162,7 +177,7 @@ function Gallery({ replacing, onPick, onCancel }: { replacing: boolean; onPick: 
   );
 }
 
-const SOURCE_LABEL: Record<RewardSource, string> = { stamps: 'Full stamp cards', level: 'Level perks', welcome: 'Welcome gifts', birthday: 'Birthday treats', comeback: 'Welcome back' };
+const SOURCE_LABEL: Record<RewardSource, string> = { stamps: 'Full stamp cards', level: 'Level perks', welcome: 'Welcome gifts', birthday: 'Birthday treats', comeback: 'Welcome back', membership: 'Member treats' };
 
 function ReportTab({ api, outletId }: { api: Api; outletId: string }) {
   const today = todayIst();
@@ -262,6 +277,7 @@ function ReportTab({ api, outletId }: { api: Api; outletId: string }) {
             </table>
             <p className="border-t border-line px-4 py-2.5 text-xs text-ink-faint">A free dish costs its ingredients (from recipes); money off costs what came off the bill.</p>
           </Card>
+          <MoneyReport memberships={r.memberships} wallet={r.wallet} />
         </>
       )}
     </div>

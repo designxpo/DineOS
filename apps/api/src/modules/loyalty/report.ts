@@ -89,6 +89,45 @@ export async function loyaltyReport(tx: Tx, r: Range): Promise<LoyaltyReportDTO>
     .execute();
   const order = program?.config.levels.map((l) => l.name) ?? [];
 
+  // Memberships sold (paid for) in the dates, and running now, by plan.
+  const now = new Date();
+  const sold = await tx.db
+    .selectFrom('bills')
+    .innerJoin('customer_memberships', 'customer_memberships.id', 'bills.membership_id')
+    .select([sql<string>`customer_memberships.plan_snapshot->>'name'`.as('plan'), sql<number>`count(*)`.as('n'), sql<number>`coalesce(sum(bills.total_paise), 0)`.as('revenue')])
+    .where('bills.outlet_id', '=', r.outletId)
+    .where('bills.status', '=', 'paid')
+    .where(localDay('bills.paid_at'), '>=', r.from)
+    .where(localDay('bills.paid_at'), '<=', r.to)
+    .groupBy(sql`1`)
+    .execute();
+  const running = await tx.db
+    .selectFrom('customer_memberships')
+    .select([sql<string>`plan_snapshot->>'name'`.as('plan'), sql<number>`count(distinct customer_id)`.as('n')])
+    .where('status', '=', 'active')
+    .where('starts_at', '<=', now)
+    .where('ends_at', '>', now)
+    .groupBy(sql`1`)
+    .execute();
+  const plans = [...new Set([...sold.map((x) => x.plan), ...running.map((x) => x.plan)])];
+
+  const flows = await tx.db
+    .selectFrom('wallet_ledger')
+    .select([
+      sql<number>`coalesce(sum(paid_paise) filter (where kind = 'topup'), 0)`.as('topped_up'),
+      sql<number>`coalesce(sum(bonus_paise) filter (where kind = 'topup'), 0)`.as('bonus'),
+      sql<number>`coalesce(-sum(paid_paise + bonus_paise) filter (where kind = 'spend'), 0) - coalesce(sum(paid_paise + bonus_paise) filter (where kind = 'refund'), 0)`.as('spent'),
+    ])
+    .where('outlet_id', '=', r.outletId)
+    .where(localDay('created_at'), '>=', r.from)
+    .where(localDay('created_at'), '<=', r.to)
+    .executeTakeFirstOrThrow();
+  const held = await tx.db
+    .selectFrom('customers')
+    .select([sql<number>`coalesce(sum(wallet_paid_paise), 0)`.as('paid'), sql<number>`coalesce(sum(wallet_bonus_paise), 0)`.as('bonus')])
+    .where('erased_at', 'is', null)
+    .executeTakeFirstOrThrow();
+
   return {
     from: r.from,
     to: r.to,
@@ -104,5 +143,16 @@ export async function loyaltyReport(tx: Tx, r: Range): Promise<LoyaltyReportDTO>
     levels: levels
       .map((l) => ({ name: l.level!, guests: n(l.n) }))
       .sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)),
+    memberships: plans.map((plan) => {
+      const s = sold.find((x) => x.plan === plan);
+      return { plan, sold: n(s?.n), revenue_paise: n(s?.revenue), active: n(running.find((x) => x.plan === plan)?.n) };
+    }),
+    wallet: {
+      topped_up_paise: n(flows.topped_up),
+      bonus_given_paise: n(flows.bonus),
+      spent_paise: n(flows.spent),
+      outstanding_paid_paise: n(held.paid),
+      outstanding_bonus_paise: n(held.bonus),
+    },
   };
 }

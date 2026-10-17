@@ -607,12 +607,19 @@ function DayEnd({ data }: { data: any }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Net sales" value={formatPaise(data.sales.net_paise)} sub={`${data.sales.bills} bills`} />
-        <Stat label="Cash expected in drawer" value={formatPaise(data.expected_cash_paise)} />
+        <Stat
+          label="Cash expected in drawer"
+          value={formatPaise(data.expected_cash_paise)}
+          sub={data.wallet_topups?.some((p: any) => p.method === 'cash') ? `incl. ${formatPaise(data.wallet_topups.find((p: any) => p.method === 'cash').net_paise)} wallet top-ups` : undefined}
+        />
         <Stat label="Open bills" value={data.open_bills.count} sub={formatPaise(data.open_bills.balance_paise)} />
         <Stat label="Voids" value={data.voids.length} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Table title="Payments" head={['Method', 'Net']} rows={data.payments.map((p: any) => [p.method.replace('_', ' '), formatPaise(p.net_paise)])} />
+        {data.wallet_topups?.length > 0 && (
+          <Table title="Wallet top-ups (not sales)" head={['Method', 'Net']} rows={data.wallet_topups.map((p: any) => [p.method.replace('_', ' '), formatPaise(p.net_paise)])} />
+        )}
         <Table title="Tax" head={['Rate', 'Taxable', 'CGST', 'SGST']} rows={data.tax.map((r: any) => [`${formatRate(r.tax_rate_bp)}${r.kind === 'service_charge' ? ' (SC)' : ''}`, formatPaise(r.taxable_paise), formatPaise(r.cgst_paise), formatPaise(r.sgst_paise)])} />
         <Table title="Voided bills" head={['Invoice', 'Amount', 'Reason', 'By']} rows={data.voids.map((v: any) => [v.invoice_no, formatPaise(v.total_paise), v.reason ?? '', v.voided_by ?? ''])} empty="No voids" />
         <Table title="Discounts" head={['Invoice', 'Amount', 'Reason']} rows={data.discounts.map((d: any) => [d.invoice_no, formatPaise(d.discount_paise), d.reason ?? ''])} empty="No discounts" />

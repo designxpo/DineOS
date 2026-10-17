@@ -164,11 +164,22 @@ async function paymentDtos(tx: Tx, ids: string[]): Promise<Map<string, ReconPaym
   if (!ids.length) return new Map();
   const rows = await tx.db
     .selectFrom('payments')
-    .innerJoin('bills', 'bills.id', 'payments.bill_id')
+    .leftJoin('bills', 'bills.id', 'payments.bill_id')
+    .leftJoin('wallet_topups', 'wallet_topups.id', 'payments.wallet_topup_id')
     .leftJoin('table_sessions', 'table_sessions.id', 'bills.table_session_id')
     .leftJoin('tables', 'tables.id', 'table_sessions.table_id')
     .leftJoin('users', 'users.id', 'payments.confirmed_by')
-    .select(['payments.id', 'payments.bill_id', 'bills.invoice_no', 'tables.label as table_label', 'payments.amount_paise', 'payments.reference', 'users.name as confirmed_by_name', 'payments.created_at'])
+    .select([
+      'payments.id',
+      'payments.bill_id',
+      'bills.invoice_no',
+      'wallet_topups.receipt_no',
+      'tables.label as table_label',
+      'payments.amount_paise',
+      'payments.reference',
+      'users.name as confirmed_by_name',
+      'payments.created_at',
+    ])
     .where('payments.id', 'in', ids)
     .execute();
   return new Map(rows.map((r) => [r.id, { ...r, created_at: r.created_at.toISOString() }]));

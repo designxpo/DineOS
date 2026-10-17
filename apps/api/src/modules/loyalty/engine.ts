@@ -10,7 +10,9 @@ import { describeProgram, describeReward, inHappyHours, levelIndex, type Categor
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest } from '../../lib/errors';
-import { activeProgram, categoryNames, type Program } from './program';
+import { customerMemberships, membershipMultiplier, runningMemberships } from './membership-state';
+import { activeProgram, categoryNames, namesFor, type Program } from './program';
+import { expireWallet, walletBalance } from './wallet';
 
 const DAY = 86_400_000;
 /** Visits closer together than this count as one (split bills, a second round of drinks). */
@@ -22,6 +24,7 @@ const SOURCE_LABEL: Record<RewardSource, string> = {
   welcome: 'Welcome gift',
   birthday: 'Birthday treat',
   comeback: 'Welcome back',
+  membership: 'Member treat',
 };
 
 export async function lockCustomer(tx: Tx, customerId: string) {
@@ -49,13 +52,14 @@ function endOfLocalDay(at: Date, timeZone: string, plusDays = 0): Date {
 
 async function grant(
   tx: Tx,
-  program: Program,
+  program: Program | null,
   names: CategoryNames,
   customerId: string,
   source: RewardSource,
   reward: Reward,
   validFrom: Date,
   validTo: Date | null,
+  membershipId: string | null = null,
 ): Promise<void> {
   const what = describeReward(reward, names);
   await tx.db
@@ -63,7 +67,8 @@ async function grant(
     .values({
       tenant_id: tx.tenantId,
       customer_id: customerId,
-      program_id: program.id,
+      program_id: program?.id ?? null,
+      membership_id: membershipId,
       source,
       label: `${SOURCE_LABEL[source]}: ${what}`,
       reward: json(reward),
@@ -80,6 +85,7 @@ async function yearStats(tx: Tx, customerId: string): Promise<{ visits: number; 
     .select([sql<number>`count(distinct invoice_date)`.as('visits'), sql<number>`coalesce(sum(total_paise), 0)`.as('spend')])
     .where('customer_id', '=', customerId)
     .where('status', '=', 'paid')
+    .where('membership_id', 'is', null)
     .where('paid_at', '>', new Date(Date.now() - 365 * DAY))
     .executeTakeFirstOrThrow();
   return { visits: Number(r.visits), spend: Number(r.spend) };
@@ -106,8 +112,9 @@ async function stampsFor(tx: Tx, config: LoyaltyConfig, billId: string, totalPai
  * first-time guest the welcome gift for next time.
  */
 export async function earnOnPaid(tx: Tx, billId: string, userId: string | null): Promise<void> {
-  const bill = await tx.db.selectFrom('bills').select(['id', 'outlet_id', 'customer_id', 'total_paise']).where('id', '=', billId).executeTakeFirstOrThrow();
-  if (!bill.customer_id) return;
+  const bill = await tx.db.selectFrom('bills').select(['id', 'outlet_id', 'customer_id', 'total_paise', 'membership_id']).where('id', '=', billId).executeTakeFirstOrThrow();
+  // Buying a membership is not a meal: it earns nothing and is not a visit.
+  if (!bill.customer_id || bill.membership_id) return;
   const program = await activeProgram(tx);
   const c = await lockCustomer(tx, bill.customer_id);
   const now = new Date();
@@ -124,7 +131,9 @@ export async function earnOnPaid(tx: Tx, billId: string, userId: string | null):
   const tz = await timezone(tx, bill.outlet_id);
   const names = await categoryNames(tx, config);
   const levelAt = Math.max(0, config.levels.findIndex((l) => l.name === c.level));
-  const multiplier = ((config.levels[levelAt]?.multiplier_bp ?? 10_000) * (inHappyHours(config.happy_hours, now, tz) ? config.happy_hours!.multiplier_bp : 10_000)) / 10_000;
+  const happy = inHappyHours(config.happy_hours, now, tz) ? config.happy_hours!.multiplier_bp : 10_000;
+  // Level, happy hours and membership multiply together; 10000 is 1×.
+  const multiplier = (((config.levels[levelAt]?.multiplier_bp ?? 10_000) * happy) / 10_000) * ((await membershipMultiplier(tx, c.id)) / 10_000);
   const e = config.earn;
   const points = e.kind === 'points' ? Math.floor((bill.total_paise * e.earn_bp * multiplier) / 10_000 / 10_000 / e.point_value_paise) : 0;
   const stamps = Math.floor(((await stampsFor(tx, config, bill.id, bill.total_paise, newVisit)) * multiplier) / 10_000);
@@ -187,6 +196,8 @@ async function levelPerk(tx: Tx, program: Program, names: CategoryNames, custome
  * the birthday treat, the comeback offer and this month's level perk appear when due.
  */
 export async function refreshCustomer(tx: Tx, customerId: string, outletId: string, now = new Date()): Promise<void> {
+  await expireWallet(tx, customerId, outletId);
+  await memberTreats(tx, customerId, outletId, now);
   const program = await activeProgram(tx);
   if (!program) return;
   const config = program.config;
@@ -238,6 +249,19 @@ export async function refreshCustomer(tx: Tx, customerId: string, outletId: stri
 
   const level = config.levels.find((l) => l.name === c.level);
   if (level?.perk) await levelPerk(tx, program, names, c.id, level.perk, now, tz);
+}
+
+/** A running membership's free item of the day, once a day, until midnight. */
+async function memberTreats(tx: Tx, customerId: string, outletId: string, now: Date): Promise<void> {
+  const running = (await runningMemberships(tx, customerId, now)).filter((m) => m.plan.benefits.daily_item);
+  if (!running.length) return;
+  const tz = await timezone(tx, outletId);
+  for (const m of running) {
+    const had = await tx.db.selectFrom('customer_rewards').select('id').where('membership_id', '=', m.id).where('created_at', '>=', endOfLocalDay(now, tz, -1)).executeTakeFirst();
+    if (had) continue;
+    const reward: Reward = { kind: 'free_item', ...m.plan.benefits.daily_item! };
+    await grant(tx, null, await namesFor(tx, reward.category_ids), customerId, 'membership', reward, now, endOfLocalDay(now, tz), m.id);
+  }
 }
 
 export function rewardDto(r: { id: string; source: string; label: string; reward: unknown; valid_from: Date; valid_to: Date | null; status: string; bill_id: string | null }): RewardDTO {
@@ -305,6 +329,8 @@ export async function customerLoyalty(tx: Tx, customerId: string, outletId: stri
     stamps: c.stamps,
     level,
     rewards: await openRewards(tx, c.id),
+    memberships: await customerMemberships(tx, c.id),
+    wallet: await walletBalance(tx, c.id),
   };
 }
 

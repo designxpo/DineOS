@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { checkProgram, describeDays, describeProgram, EMPTY_PROGRAM, estimateGiveBack, inHappyHours, levelIndex, PROGRAM_TEMPLATES, type LoyaltyConfig } from './loyalty';
+import {
+  checkMembership,
+  checkPack,
+  checkProgram,
+  describeDays,
+  describeMembership,
+  describePack,
+  describeProgram,
+  EMPTY_PROGRAM,
+  estimateGiveBack,
+  inHappyHours,
+  levelIndex,
+  MEMBERSHIP_TEMPLATES,
+  PROGRAM_TEMPLATES,
+  splitSpend,
+  WALLET_PACK_TEMPLATES,
+  type LoyaltyConfig,
+} from './loyalty';
 
 const template = (key: string) => PROGRAM_TEMPLATES.find((t) => t.key === key)!.config;
 const regular = { avg_bill_paise: 40_000, visits_per_month: 4, stamp_items_per_visit: 1, avg_item_paise: 20_000 };
@@ -66,3 +83,28 @@ describe('what a regular gets back', () => {
     expect(club.lines.map((l) => l.paise)).toEqual([192_000, 240_000]);
   });
 });
+
+describe('memberships and wallet packs', () => {
+  it('ship templates that are ready to sell, and say what members get', () => {
+    for (const t of MEMBERSHIP_TEMPLATES) expect(checkMembership(t.plan), t.key).toBeNull();
+    for (const p of WALLET_PACK_TEMPLATES) expect(checkPack(p), p.name).toBeNull();
+    const coffee = MEMBERSHIP_TEMPLATES.find((t) => t.key === 'coffee_a_day')!.plan;
+    expect(describeMembership(coffee, () => 'Coffee')).toEqual(['₹999 for 30 days, plus 18% GST.', 'Every day: a free item from Coffee (up to ₹200).']);
+    expect(describeMembership(MEMBERSHIP_TEMPLATES.find((t) => t.key === 'vip_year')!.plan)).toEqual([
+      '₹4,999 for 1 year, plus 18% GST.',
+      '10% off every bill (up to ₹1,000 a bill).',
+      '2× points or stamps.',
+    ]);
+    expect(describePack(WALLET_PACK_TEMPLATES[1]!)).toBe('Pay ₹5,000, get ₹5,750 to spend (15% extra), for 1 year.');
+    expect(checkPack({ name: 'Too good', pay_paise: 100_000, bonus_paise: 150_000, validity_days: 365 })).toBe('The bonus cannot be more than what the guest pays');
+  });
+
+  it('spends paid and bonus money in the proportion they are held', () => {
+    expect(splitSpend(200_000, 20_000, 52_500)).toEqual({ paid: 47_727, bonus: 4_773 });
+    expect(splitSpend(100, 0, 50)).toEqual({ paid: 50, bonus: 0 });
+    // Never more than the balance, never a negative share.
+    expect(splitSpend(1000, 500, 5000)).toEqual({ paid: 1000, bonus: 500 });
+    expect(splitSpend(0, 0, 100)).toEqual({ paid: 0, bonus: 0 });
+  });
+});
+

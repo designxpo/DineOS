@@ -15,6 +15,7 @@ const LABELS: Record<ApprovalAction, string> = {
   'order.cancel_after_accept': 'cancel food the kitchen already has',
   'bill.discount_large': 'give a discount above 10%',
   'bill.comp': 'give food or drinks free',
+  'wallet.spend': "pay from the guest's wallet without a code from their phone",
 };
 
 type Request = { action: ApprovalAction; resolve: (token: string | null) => void };

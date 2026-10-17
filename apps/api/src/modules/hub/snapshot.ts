@@ -207,6 +207,8 @@ export async function buildSnapshot(tx: Tx, outletId: string, deviceId: string, 
       .select('id')
       .where('outlet_id', '=', outletId)
       .where('status', '=', 'finalised')
+      // A membership starts when its bill is paid, which only the cloud can do.
+      .where('membership_id', 'is', null)
       .where('finalised_at', '>', sql<Date>`now() - interval '7 days'`)
       .execute()
   ).map((b) => b.id);

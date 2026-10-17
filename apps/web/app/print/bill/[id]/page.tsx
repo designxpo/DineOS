@@ -60,7 +60,10 @@ export default function PrintBill() {
       <Line left="Subtotal" right={money(bill.subtotal_paise)} />
       {free > 0 && <Line left="Complimentary" right={`-${money(free)}`} />}
       {discount > 0 && <Line left="Discount" right={`-${money(discount)}`} />}
-      {bill.loyalty_discount_paise - bill.reward_discount_paise > 0 && <Line left={`Points redeemed (${bill.loyalty_points_redeemed})`} right={`-${money(bill.loyalty_discount_paise - bill.reward_discount_paise)}`} />}
+      {bill.member_discount_paise > 0 && <Line left="Member discount" right={`-${money(bill.member_discount_paise)}`} />}
+      {bill.loyalty_discount_paise - bill.reward_discount_paise - bill.member_discount_paise > 0 && (
+        <Line left={`Points redeemed (${bill.loyalty_points_redeemed})`} right={`-${money(bill.loyalty_discount_paise - bill.reward_discount_paise - bill.member_discount_paise)}`} />
+      )}
       {bill.reward_discount_paise > 0 && <Line left="Loyalty reward" right={`-${money(bill.reward_discount_paise)}`} />}
       {bill.service_charge_paise > 0 && <Line left={`Service charge (${formatRate(bill.service_charge_bp)})`} right={money(bill.service_charge_paise)} />}
       {tax_summary.map((t) => (

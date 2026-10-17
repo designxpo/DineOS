@@ -64,7 +64,7 @@ export async function salesSummary(tx: Tx, r: Range) {
     .selectFrom('bills')
     .leftJoin('orders', 'orders.id', 'bills.order_id')
     .select((eb) => [
-      sql<string>`case when bills.table_session_id is not null then 'dine_in' else coalesce(orders.type, 'counter') end`.as('type'),
+      sql<string>`case when bills.membership_id is not null then 'membership' when bills.table_session_id is not null then 'dine_in' else coalesce(orders.type, 'counter') end`.as('type'),
       eb.fn.countAll<number>().as('bills'),
       eb.fn.sum<number>('bills.total_paise').as('net_paise'),
     ])
@@ -76,6 +76,7 @@ export async function salesSummary(tx: Tx, r: Range) {
     .execute();
 
   const payments = await paymentsByMethod(tx, r);
+  const walletTopups = await paymentsByMethod(tx, r, 'wallet_topups');
 
   const voids = await tx.db
     .selectFrom('bills')
@@ -120,6 +121,8 @@ export async function salesSummary(tx: Tx, r: Range) {
     by_day: byDay.map((d) => ({ date: d.invoice_date!, bills: n(d.bills), net_paise: n(d.net_paise) })),
     by_order_type: byType.map((d) => ({ type: d.type, bills: n(d.bills), net_paise: n(d.net_paise) })),
     payments,
+    /** Money paid into guests' wallets: not sales (no invoice), but in the drawer and the bank. */
+    wallet_topups: walletTopups,
     voids: { count: n(voids.count), amount_paise: n(voids.amount_paise) },
     timing: {
       avg_serve_minutes: timing.avg_serve_minutes == null ? null : n(timing.avg_serve_minutes),
@@ -128,7 +131,8 @@ export async function salesSummary(tx: Tx, r: Range) {
   };
 }
 
-export async function paymentsByMethod(tx: Tx, r: Range) {
+/** Bill payments by method, or (with 'wallet_topups') money paid into wallets. */
+export async function paymentsByMethod(tx: Tx, r: Range, of: 'bills' | 'wallet_topups' = 'bills') {
   const rows = await tx.db
     .selectFrom('payments')
     .select((eb) => [
@@ -138,6 +142,7 @@ export async function paymentsByMethod(tx: Tx, r: Range) {
       eb.fn.countAll<number>().as('count'),
     ])
     .where('outlet_id', '=', r.outletId)
+    .where(of === 'bills' ? 'bill_id' : 'wallet_topup_id', 'is not', null)
     .where(sql<string>`(created_at at time zone ${r.timezone})::date`, '>=', r.from)
     .where(sql<string>`(created_at at time zone ${r.timezone})::date`, '<=', r.to)
     .groupBy('method')
@@ -375,13 +380,16 @@ export async function dayEnd(tx: Tx, r: Range) {
     .orderBy('orders.placed_at')
     .execute();
   const cash = sales.payments.find((p) => p.method === 'cash');
+  const topupCash = sales.wallet_topups.find((p) => p.method === 'cash');
   return {
     date: r.from === r.to ? r.from : null,
     from: r.from,
     to: r.to,
     sales: sales.totals,
     payments: sales.payments,
-    expected_cash_paise: cash?.net_paise ?? 0,
+    wallet_topups: sales.wallet_topups,
+    // The drawer holds bill cash and cash paid into wallets.
+    expected_cash_paise: (cash?.net_paise ?? 0) + (topupCash?.net_paise ?? 0),
     tax: gst.by_rate,
     invoices: gst.invoices,
     voids: voided.map((v) => ({ invoice_no: v.invoice_no, total_paise: v.total_paise, reason: v.void_reason, voided_by: v.voided_by })),
