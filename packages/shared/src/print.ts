@@ -24,6 +24,10 @@ export interface BillDoc {
   /** "upi://pay?..." string printed as a QR so guests can pay the outlet's own UPI ID. */
   upi_uri: string | null;
   duplicate: boolean;
+  /** Counter and takeaway bills: the number the guest listens for, and the code of the link that
+   *  follows their order (the printer adds the site's address: {site}/o/{code}). */
+  pickup_no?: number | null;
+  track_code?: string | null;
 }
 
 export interface TestDoc {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
+import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, Droplets, FileText, Gift, Percent, Printer, Scissors, Search, Smartphone, Trash2, Undo2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -36,7 +36,7 @@ const METHODS: { value: PaymentMethod; label: I18nKey; icon: React.ComponentType
 
 export default function BillPage() {
   const { id } = useParams<{ id: string }>();
-  const { api, can } = useStaff();
+  const { api, can, outlet } = useStaff();
   const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
@@ -86,6 +86,9 @@ export default function BillPage() {
   const draft = bill.status === 'draft';
   const finalised = bill.status === 'finalised';
   const discount = bill.item_discount_paise + bill.bill_discount_paise;
+  // Bottled water left on the table: someone counts the opened ones before the bill prints.
+  const waterCheck = draft && !hub && !!outlet?.table_water_item_id && !!bill.table_session_id;
+  const waterMissing = waterCheck && (bill.water_bottles ?? null) === null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 lg:px-8">
@@ -206,13 +209,21 @@ export default function BillPage() {
                 </div>
               )}
               {bill.amount_shares && <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900">{t('bill.split_ways', { n: bill.amount_shares.length, shares: bill.amount_shares.map(formatPaise).join(' / ') })}</p>}
+              {waterCheck && (
+                <WaterCheck
+                  count={bill.water_bottles ?? null}
+                  busy={busy === 'water'}
+                  onPick={(count) => void act('water', () => api(`/bills/${id}/water`, { method: 'POST', body: { count } }))}
+                />
+              )}
               <Button
                 size="xl"
                 block
+                disabled={waterMissing}
                 loading={busy === 'finalise'}
                 onClick={() => void act('finalise', () => api<BillDTO>(`/bills/${id}/finalise`, { method: 'POST' }), t('bill.printed'))}
               >
-                <Printer className="size-5" /> {t('bill.print')} · {formatPaise(bill.total_paise)}
+                <Printer className="size-5" /> {waterMissing ? t('bill.water_needed') : `${t('bill.print')} · ${formatPaise(bill.total_paise)}`}
               </Button>
               <p className="text-center text-xs text-ink-faint">{t('bill.print_note')}</p>
             </Card>
@@ -227,6 +238,8 @@ export default function BillPage() {
           )}
 
           {finalised && can('payment.record') && (bill.tax_by_operator ? <PlatformPayment bill={bill} onPaid={refresh} /> : <PaymentPanel bill={bill} upiUri={inv.upi_uri} onPaid={refresh} />)}
+
+          {bill.pickup_no != null && bill.track_code && <PickupCard pickupNo={bill.pickup_no} code={bill.track_code} />}
 
           {bill.payments.length > 0 && <PaymentList payments={bill.payments} canRefund={can('payment.record') && !hub} onRefund={(p, amount, reason) => act('refund', (approval) => api(`/payments/${p.id}/refund`, { method: 'POST', body: { amount_paise: amount, reason }, approvalToken: approval }), t('bill.refund_done'))} />}
 
@@ -399,6 +412,58 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
       <dt className="text-ink-soft">{label}</dt>
       <dd className={cn('tabular', tone)}>{value}</dd>
     </div>
+  );
+}
+
+/** How many bottles of the water left on the table were opened; 0 is an answer too. */
+function WaterCheck({ count, busy, onPick }: { count: number | null; busy: boolean; onPick: (count: number) => void }) {
+  const { t } = useI18n();
+  return (
+    <div className={cn('rounded-xl border p-3', count === null ? 'border-amber-300 bg-amber-50' : 'border-line bg-stone-50')}>
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <Droplets className="size-4 text-sky-700" /> {t('bill.water_title')}
+        {busy && <Spinner className="size-3.5" />}
+      </p>
+      <p className="mt-0.5 text-xs text-ink-soft">{t('bill.water_hint')}</p>
+      <div className="mt-2 grid grid-cols-7 gap-1.5" role="radiogroup" aria-label={t('bill.water_title')}>
+        {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={count === n}
+            disabled={busy}
+            onClick={() => onPick(n)}
+            className={cn(
+              'h-10 cursor-pointer rounded-lg text-sm font-semibold tabular ring-1 transition active:scale-95 disabled:opacity-60',
+              count === n ? 'bg-[var(--brand)] text-white ring-[var(--brand)]' : 'bg-surface text-ink ring-line',
+              n === 0 && 'text-xs',
+            )}
+          >
+            {n === 0 ? t('bill.water_none') : n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Counter and takeaway: the number the guest collects with, and a QR to follow the order. */
+function PickupCard({ pickupNo, code }: { pickupNo: number; code: string }) {
+  const { t } = useI18n();
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    void QRCode.toDataURL(`${window.location.origin}/o/${code}`, { margin: 1, width: 240 }).then(setQr);
+  }, [code]);
+  return (
+    <Card className="flex items-center gap-4 p-4">
+      {qr && <img src={qr} alt="" className="size-28 shrink-0 rounded-lg border border-line bg-white" />}
+      <div>
+        <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">{t('bill.pickup_no')}</p>
+        <p className="font-display text-4xl leading-none font-semibold tracking-tight tabular">{pickupNo}</p>
+        <p className="mt-2 text-xs text-ink-soft">{t('bill.track_hint')}</p>
+      </div>
+    </Card>
   );
 }
 

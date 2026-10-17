@@ -40,6 +40,8 @@ const outletFields = {
   room_charge_enabled: z.boolean(),
   delivery_commission_bp: z.object({ zomato: z.number().int().min(0).max(5000).optional(), swiggy: z.number().int().min(0).max(5000).optional() }),
   hub_url: z.string().trim().regex(/^https?:\/\/[^\s/]+(:\d+)?\/?$/, 'Address looks like http://192.168.1.20:4100').nullable(),
+  auto_clean_minutes: z.number().int().min(0).max(240),
+  table_water_item_id: z.uuid().nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
 const createOutlet = z.object(outletFields).partial().required({ name: true });
@@ -50,6 +52,7 @@ export const OUTLET_COLUMNS = [
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
   'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled', 'delivery_commission_bp',
+  'auto_clean_minutes', 'table_water_item_id',
 ] as const;
 
 export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
@@ -127,6 +130,16 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           if (!device) throw badRequest('invalid_device', 'Pick an active print agent at this outlet');
         }
         if (body.hub_url) body.hub_url = body.hub_url.replace(/\/$/, '');
+        if (body.table_water_item_id) {
+          const item = await tx.db
+            .selectFrom('menu_items')
+            .select('id')
+            .where('id', '=', body.table_water_item_id)
+            .where('outlet_id', '=', id)
+            .where('deleted_at', 'is', null)
+            .executeTakeFirst();
+          if (!item) throw badRequest('invalid_item', 'Pick a dish from this outlet\'s menu');
+        }
         if (body.timezone && !Intl.supportedValuesOf('timeZone').includes(body.timezone)) {
           throw badRequest('invalid_timezone', 'Unknown timezone');
         }

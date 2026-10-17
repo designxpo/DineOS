@@ -200,3 +200,19 @@ Guests order drinks and food from one menu, and each dish goes to its own statio
 ## Delivery orders
 
 Enter Zomato and Swiggy orders at the POS (type **Delivery**) with the platform's order number; they go to the kitchen like any order. Set each platform's commission under **Settings → Billing**. Because the platform pays the GST on these orders (CGST Act s. 9(5)), their bills carry no tax, print a note saying so, and are closed with **Mark paid on the app**; the GST report lists them apart from your taxable sales. Confirm the treatment, and how to report it in GSTR-1, with your accountant. Own-rider deliveries are billed with GST like takeaway. The outlet hub does not take new delivery orders or bill platform orders while offline.
+
+## Tables without cameras
+
+Most cafés have no cameras, so the floor reads the tables from what guests and staff already do:
+
+- **Guests sit down and scan the table QR**: the table turns **Occupied** with "Guests here" at once, before anyone orders. If nobody has seated them or taken an order after 5 minutes, the tile pulses "Guests waiting" and staff on the Orders and Floor screens hear a chime (a floor-only waiter hears only their own tables). A scan counts for 20 minutes without any activity.
+- **Guests who do not scan**: tap the table on the floor, then the number of guests (1 to 6, or More). Seating clears any "Needs cleaning".
+- **Guests leave**: paying the bill closes the visit and the table shows **Needs cleaning**. It counts as free again after the outlet's clearing time (**Settings → Ordering → After guests leave**, 10 minutes by default; "Only when staff mark it clean" turns this off). Until then the tile counts down. When staff clear tables by hand, the tile pulses after 10 minutes.
+- **Bottled water on tables**: choose the dish to bill opened bottles as (**Settings → Ordering → Bottled water on tables**). A table's bill then cannot print until someone taps how many bottles were opened (or None). The count goes on the bill as a served item with no kitchen ticket, and can be changed until the bill prints.
+
+## Counter-service cafés
+
+Counter and takeaway orders get a number guests collect with:
+
+- The bill (printed and on screen) shows **ORDER 23** and a QR. Guests scan it to follow the order on their phone (`/o/<code>`): received, being made, ready. The phone chimes and vibrates when it is ready, if they tapped "Play a sound".
+- **Settings → Ordering → Pickup screen** gives a link for a TV or tablet by the counter. It shows the numbers being made and ready to collect (delivery orders show the platform), and chimes when one turns ready. Mark the order served when it is handed over and it leaves the screen; ready orders also drop off after 30 minutes. **New link** stops old screens.

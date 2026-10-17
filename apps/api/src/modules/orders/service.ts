@@ -247,6 +247,11 @@ export interface CreateOrderInput {
   /** Delivery orders: who delivers, and the platform's order number. */
   channel?: DeliveryChannel | null;
   channelRef?: string | null;
+  /**
+   * Staff only: the items are already at the table (bottled water left there), so the order is
+   * served at once and the kitchen gets no ticket.
+   */
+  alreadyServed?: boolean;
 }
 
 export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<OrderDTO> {
@@ -306,7 +311,8 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
   // outlet auto-accepts, and flagged ones still wait when approval of flagged orders is on.
   const accepted =
     input.source !== 'guest_qr' || (!mustWait && outlet.auto_accept && !(flagged && outlet.approve_flagged_orders));
-  const status: OrderStatus = accepted ? 'accepted' : 'placed';
+  const served = !!input.alreadyServed && input.source !== 'guest_qr';
+  const status: OrderStatus = served ? 'served' : accepted ? 'accepted' : 'placed';
   const day = businessDate(now, outlet.timezone);
 
   const order = await tx.db
@@ -332,22 +338,23 @@ export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<Orde
       created_by: input.createdBy ?? null,
       placed_at: now,
       accepted_at: accepted ? now : null,
+      ...(served ? { served_at: now } : {}),
     })
     .returning('id')
     .executeTakeFirstOrThrow();
-  await insertOrderItems(tx, order.id, lines, status === 'accepted' ? 'accepted' : 'placed');
+  await insertOrderItems(tx, order.id, lines, served ? 'served' : status === 'accepted' ? 'accepted' : 'placed');
 
   if (session) {
     if (session.status === 'pending') await openSession(tx, session.id, { waiterId: input.createdBy ?? null });
-    // A new order supersedes an earlier bill request.
-    if (session.bill_requested_at) {
+    // A new order supersedes an earlier bill request (water counted at billing does not).
+    if (session.bill_requested_at && !served) {
       await tx.db.updateTable('table_sessions').set({ bill_requested_at: null }).where('id', '=', session.id).execute();
     }
   }
 
   if (accepted) await syncStock(tx, order.id, input.createdBy ?? null);
   const dto = (await loadOrder(tx, order.id))!;
-  if (accepted) await createKots(tx, outlet, dto, dto.items.map((i) => i.id));
+  if (accepted && !served) await createKots(tx, outlet, dto, dto.items.map((i) => i.id));
   await tx.emit({ outletId: outlet.id, type: 'order.placed', channels: ['outlet'], payload: { order: dto } });
   if (session) {
     await tx.emit({

@@ -44,7 +44,12 @@ export function renderKot(doc: KotDoc, width: number): EscPos {
   return p.feed(3).cut();
 }
 
-export function renderBill(doc: BillDoc, width: number): EscPos {
+/** What the printer needs besides the document: the site's address, for links on receipts. */
+export interface RenderOptions {
+  webOrigin?: string | null;
+}
+
+export function renderBill(doc: BillDoc, width: number, opts: RenderOptions = {}): EscPos {
   const { bill, outlet, tax_summary } = doc.invoice;
   const p = new EscPos().init();
   const rule = '-'.repeat(width);
@@ -55,6 +60,8 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
   if (outlet.gstin) p.line(`GSTIN: ${outlet.gstin}`);
   if (outlet.fssai_no) p.line(`FSSAI: ${outlet.fssai_no}`);
   p.feed(1).bold(true).line(doc.duplicate ? 'TAX INVOICE (DUPLICATE)' : 'TAX INVOICE').bold(false);
+  // Counter and takeaway: the number the guest listens for, big enough to read across the counter.
+  if (doc.pickup_no != null) p.feed(1).bold(true).size(2, 2).line(`ORDER ${doc.pickup_no}`).size(1, 1).bold(false);
   p.align('left');
   p.line(columns(`Inv: ${bill.invoice_no ?? 'DRAFT'}`, bill.invoice_date ?? '', width));
   if (bill.table_label) p.line(`Table: ${bill.table_label}${bill.split_label ? `  (${bill.split_label})` : ''}`);
@@ -103,6 +110,9 @@ export function renderBill(doc: BillDoc, width: number): EscPos {
     p.feed(1).align('center').line('Scan to pay with any UPI app').qr(doc.upi_uri, 6).align('left');
   }
   if (bill.loyalty_points_earned) p.line(`Points earned on this bill: ${bill.loyalty_points_earned}`);
+  if (doc.track_code && opts.webOrigin) {
+    p.feed(1).align('center').line('Scan to see when your order is ready').qr(`${opts.webOrigin}/o/${doc.track_code}`, 5).align('left');
+  }
   p.feed(1).align('center').line('Thank you. Visit again!');
   return p.feed(3).cut();
 }
@@ -118,12 +128,12 @@ export function renderTest(doc: TestDoc, width: number): EscPos {
   return p.feed(3).cut();
 }
 
-export function render(doc: PrintDoc, width: number): EscPos {
+export function render(doc: PrintDoc, width: number, opts: RenderOptions = {}): EscPos {
   switch (doc.kind) {
     case 'kot':
       return renderKot(doc, width);
     case 'bill':
-      return renderBill(doc, width);
+      return renderBill(doc, width, opts);
     case 'test':
       return renderTest(doc, width);
     case 'drawer':

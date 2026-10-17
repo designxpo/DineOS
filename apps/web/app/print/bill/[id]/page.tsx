@@ -13,9 +13,14 @@ export default function PrintBill() {
   const { id } = useParams<{ id: string }>();
   const { data, error } = usePrintData<InvoiceDTO & { upi_uri: string | null }>(`/bills/${id}/invoice`);
   const [qr, setQr] = useState<string | null>(null);
+  const [trackQr, setTrackQr] = useState<string | null>(null);
   useEffect(() => {
     if (data?.upi_uri) QRCode.toDataURL(data.upi_uri, { margin: 0, width: 220 }).then(setQr);
   }, [data?.upi_uri]);
+  const trackCode = data?.bill.track_code;
+  useEffect(() => {
+    if (trackCode) QRCode.toDataURL(`${window.location.origin}/o/${trackCode}`, { margin: 0, width: 220 }).then(setTrackQr);
+  }, [trackCode]);
 
   if (error) return <p className="p-6">{error}</p>;
   if (!data) return <p className="p-6">Loading…</p>;
@@ -33,6 +38,7 @@ export default function PrintBill() {
         {outlet.fssai_no && <p>FSSAI: {outlet.fssai_no}</p>}
         <p className="mt-2 font-bold">{bill.status === 'draft' ? 'PRE-BILL (NOT A TAX INVOICE)' : 'TAX INVOICE'}</p>
         {bill.status === 'void' && <p className="font-bold">*** CANCELLED ***</p>}
+        {bill.pickup_no != null && <p className="mt-2 text-[22px] leading-none font-bold">ORDER {bill.pickup_no}</p>}
       </div>
       <Rule />
       <Line left={`Inv: ${bill.invoice_no ?? '—'}`} right={bill.invoice_date ?? ''} />
@@ -74,6 +80,12 @@ export default function PrintBill() {
         <div className="mt-3 text-center">
           <p>Scan to pay with any UPI app</p>
           <img src={qr} alt="UPI QR" className="mx-auto mt-1 size-32" />
+        </div>
+      )}
+      {trackQr && (
+        <div className="mt-3 text-center">
+          <p>Scan to see when your order is ready</p>
+          <img src={trackQr} alt="Order status QR" className="mx-auto mt-1 size-28" />
         </div>
       )}
       <p className="mt-3 text-center">Thank you. Visit again!</p>

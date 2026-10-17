@@ -12,6 +12,7 @@ import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@
 import { useToast } from '@/components/ui/toast';
 import { CamerasSettings } from '@/components/staff/cameras';
 import { PrinterSettings } from '@/components/staff/printer-settings';
+import { PickupScreenSettings, TableSettings } from '@/components/staff/table-settings';
 import { useSaveOutlet } from '@/components/staff/use-save-outlet';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
@@ -135,6 +136,8 @@ function OrderingForm() {
           <Button onClick={() => void save({ kitchen_stations: stations.filter(Boolean) })}>Save stations</Button>
         </div>
       </Card>
+      <TableSettings />
+      <PickupScreenSettings />
     </div>
   );
 }

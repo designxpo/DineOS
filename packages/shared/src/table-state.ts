@@ -5,9 +5,35 @@ export type CameraState = 'vacant' | 'occupied' | 'needs_cleaning';
 /** Camera readings older than this are ignored (the worker resends its view every few minutes). */
 export const CAMERA_FRESH_MS = 15 * 60_000;
 
+/** A guest's scan (or cart change) counts as people at the table for this long. */
+export const GUESTS_PRESENT_MINUTES = 20;
+/** Guests who scanned this long ago with nobody seating them or taking an order: tell the floor. */
+export const GUESTS_WAITING_ALERT_MINUTES = 5;
+/** A table waiting this long to be cleaned (when the outlet clears tables by hand) is flagged. */
+export const CLEANING_ALERT_MINUTES = 10;
+
+const minutesAgo = (t: string | Date, now: Date) => (now.getTime() - new Date(t).getTime()) / 60_000;
+
+/** Whether phones at the table were active recently enough to mean people are sitting there. */
+export function guestsPresent(guestSeenAt: string | Date | null | undefined, now = new Date()): boolean {
+  return !!guestSeenAt && minutesAgo(guestSeenAt, now) < GUESTS_PRESENT_MINUTES;
+}
+
+/**
+ * Whether a table left to be cleaned now counts as clean: the outlet clears tables within
+ * `autoCleanMinutes` of guests leaving (0 means staff mark them clean).
+ */
+export function cleaningLapsed(needsCleaningSince: string | Date | null | undefined, autoCleanMinutes: number, now = new Date()): boolean {
+  return autoCleanMinutes > 0 && !!needsCleaningSince && minutesAgo(needsCleaningSince, now) >= autoCleanMinutes;
+}
+
 export interface TableStateInput {
   needsCleaning: boolean;
+  /** When the table started waiting to be cleaned, and how long the outlet takes to clear one. */
+  cleaning?: { since: string | Date | null; autoMinutes: number } | null;
   session: { status: SessionStatus; bill_requested_at: string | Date | null } | null;
+  /** Latest scan or cart change by a guest phone in a pending session. */
+  guestSeenAt?: string | Date | null;
   /** Statuses of the session's orders. */
   orderStatuses: readonly OrderStatus[];
   /** Latest camera reading, if the table has a camera zone (Phase 3). */
@@ -16,12 +42,14 @@ export interface TableStateInput {
 }
 
 /**
- * Table state from orders and bills (spec §5). A pending session (guests browsing, cart only)
- * still counts as vacant: scanning and adding to cart does not occupy a table.
+ * Table state from orders and bills (spec §5). Without an order, a guest phone that scanned the
+ * table QR in the last few minutes means people are sitting there (occupied); a table left to be
+ * cleaned counts as clean again after the outlet's clearing time.
  */
-export function deriveTableState({ needsCleaning, session, orderStatuses, camera, now = new Date() }: TableStateInput): TableState {
+export function deriveTableState({ needsCleaning, cleaning, session, guestSeenAt, orderStatuses, camera, now = new Date() }: TableStateInput): TableState {
   if (!session || session.status !== 'open') {
-    if (needsCleaning) return 'needs_cleaning';
+    if (session?.status === 'pending' && guestsPresent(guestSeenAt, now)) return 'occupied';
+    if (needsCleaning && !(cleaning && cleaningLapsed(cleaning.since, cleaning.autoMinutes, now))) return 'needs_cleaning';
     // Fusion rule (spec §5): the camera only fills gaps. With no open visit it may say a table is
     // taken or left messy; an open session or order always wins over it.
     if (camera && now.getTime() - new Date(camera.at).getTime() < CAMERA_FRESH_MS) {

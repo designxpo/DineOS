@@ -346,6 +346,8 @@ export class HubEngine {
           .filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status))
           .flatMap((o) => o.items)
           .reduce((n, i) => n + (i.status === 'ready' ? i.qty : 0), 0),
+        guests_since: null,
+        needs_cleaning_since: null,
         open_requests: [],
         is_active: t.is_active,
         next_reservation: null,

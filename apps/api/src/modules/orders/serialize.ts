@@ -75,6 +75,8 @@ export async function loadOrders(tx: Tx, ids: readonly string[]): Promise<OrderD
         subtotal_paise: orderItems
           .filter((i) => i.status !== 'cancelled')
           .reduce((sum, i) => sum + i.qty * i.unit_price_paise, 0),
+        // Guests follow counter and takeaway orders by link; table guests see theirs on the menu.
+        track_code: o.type === 'takeaway' || o.type === 'counter' ? o.track_code : null,
       };
       return [o.id, dto] as const;
     }),

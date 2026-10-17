@@ -16,6 +16,7 @@ import {
   printBill,
   recordPayment,
   refundPayment,
+  setWaterBottles,
   splitBill,
   updateBill,
   voidBill,
@@ -121,6 +122,14 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { id } = parse(idParams, req.params);
       const body = parse(splitBody, req.body);
       return ctx.tx(auth.tenantId, (tx) => splitBill(tx, auth, id, body));
+    });
+
+    /** Bottled water opened at the table (0 if none); asked before a table bill prints. */
+    app.post('/bills/:id/water', async (req) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      const body = parse(z.object({ count: z.number().int().min(0).max(50) }), req.body);
+      return ctx.tx(auth.tenantId, (tx) => setWaterBottles(tx, auth, id, body.count));
     });
 
     app.post('/bills/:id/finalise', async (req) => {

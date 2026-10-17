@@ -12,7 +12,7 @@ import { assertOutletReachable } from '../hub/presence';
 import { loadMenu } from '../menu/service';
 import { sendLoyaltyCode, verifyLoyaltyCode } from './otp';
 import { createServiceRequest } from '../tables/floor';
-import { getOrCreateSession } from '../tables/sessions';
+import { getOrCreateSession, noteGuestsHere } from '../tables/sessions';
 import {
   addCartLine,
   guestContext,
@@ -77,7 +77,10 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const claims = await qrClaims(body.qr_token);
       const session = await ctx.tx(claims.tenantId, async (tx) => {
         await checkQr(tx, claims);
-        return getOrCreateSession(tx, claims.tableId);
+        const s = await getOrCreateSession(tx, claims.tableId);
+        // Someone just sat down and scanned: the floor shows the table as taken.
+        await noteGuestsHere(tx, s.id);
+        return s;
       });
       const deviceId = body.device_id ?? randomUUID();
       const guestToken = signGuestToken(ctx.config.TOKEN_SECRET, {
@@ -121,14 +124,22 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     app.post('/guest/cart/lines', async (req) => {
       const auth = requireGuest(req);
       const body = parse(cartLine, req.body);
-      return ctx.tx(auth.tenantId, (tx) => addCartLine(tx, auth, body));
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const cart = await addCartLine(tx, auth, body);
+        await noteGuestsHere(tx, auth.sessionId);
+        return cart;
+      });
     });
 
     app.patch('/guest/cart/lines/:lineId', async (req) => {
       const auth = requireGuest(req);
       const { lineId } = parse(z.object({ lineId: z.uuid() }), req.params);
       const body = parse(z.object({ qty: z.number().int().min(0).max(99).optional(), note: z.string().max(200).nullable().optional() }), req.body);
-      return ctx.tx(auth.tenantId, (tx) => updateCartLine(tx, auth, lineId, body));
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const cart = await updateCartLine(tx, auth, lineId, body);
+        await noteGuestsHere(tx, auth.sessionId);
+        return cart;
+      });
     });
 
     app.delete('/guest/cart/lines/:lineId', async (req) => {

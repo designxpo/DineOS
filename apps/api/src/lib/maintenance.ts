@@ -47,6 +47,15 @@ export async function runMaintenance(adminDb: Database): Promise<Record<string, 
     }
     out.pending_sessions_closed = stale.length;
 
+    // Tables left to be cleaned count as clean after the outlet's clearing time (screens already
+    // show them that way); store it so nothing else reads an old flag.
+    const cleaned = await sql`
+      update tables t set needs_cleaning = false
+      from outlets o
+      where o.id = t.outlet_id and t.needs_cleaning and o.auto_clean_minutes > 0
+        and t.needs_cleaning_since < now() - make_interval(mins => o.auto_clean_minutes)`.execute(trx);
+    out.tables_marked_clean = Number(cleaned.numAffectedRows ?? 0);
+
     // Bookings nobody turned up for, once the outlet's grace period has passed.
     out.reservations_no_show = count(
       await trx

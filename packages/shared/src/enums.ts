@@ -35,7 +35,7 @@ export const TABLE_STATES = [
 ] as const;
 export type TableState = (typeof TABLE_STATES)[number];
 
-export const TABLE_STATE_SOURCES = ['order', 'camera', 'staff'] as const;
+export const TABLE_STATE_SOURCES = ['order', 'camera', 'staff', 'guest'] as const;
 export type TableStateSource = (typeof TABLE_STATE_SOURCES)[number];
 
 export const SESSION_STATUSES = ['pending', 'open', 'closed'] as const;

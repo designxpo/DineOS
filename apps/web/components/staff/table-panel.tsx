@@ -7,14 +7,14 @@ import { useState } from 'react';
 import type { BillDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago, formatPaise } from '@/lib/format';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/overlay';
+import { cn } from '@/components/ui/cn';
 import { Badge, Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { OrderCard } from './orders';
-import { TABLE_STATE } from './table-state';
 
 type Mode = null | 'transfer' | 'merge' | 'seat';
 
@@ -44,7 +44,7 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
 
   if (!table) return null;
 
-  const run = async (label: string, fn: () => Promise<unknown>, done?: string) => {
+  const run = async (label: string, fn: () => Promise<unknown>, done?: string): Promise<boolean> => {
     setBusy(label);
     try {
       await fn();
@@ -52,11 +52,17 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
       if (done) toast(done);
       setMode(null);
       setPicked([]);
+      return true;
     } catch (err) {
       toast(errorMessage(err), 'error');
+      return false;
     } finally {
       setBusy(null);
     }
+  };
+
+  const seat = async (n: number) => {
+    if (await run('seat', () => api(`/tables/${table.id}/seat`, { method: 'POST', body: { guest_count: n } }), t('floor.seated', { label: table.label, n }))) onClose();
   };
 
   const openBill = () =>
@@ -74,7 +80,6 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
     }
   };
 
-  const style = TABLE_STATE[table.state];
   const live = table.session?.status === 'open';
   const freeTables = tables.filter((t) => t.id !== table.id && (!t.session || t.session.status !== 'open'));
   const others = tables.filter((t) => t.id !== table.id);
@@ -91,7 +96,7 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
       title={
         <span className="flex items-center gap-3">
           Table {table.label}
-          <Badge tone={table.state === 'vacant' ? 'neutral' : table.state === 'needs_cleaning' ? 'rose' : table.state === 'bill_requested' ? 'violet' : table.state === 'served' ? 'green' : table.state === 'ordered' ? 'amber' : 'blue'}>{style.label}</Badge>
+          <Badge tone={table.state === 'vacant' ? 'neutral' : table.state === 'needs_cleaning' ? 'rose' : table.state === 'bill_requested' ? 'violet' : table.state === 'served' ? 'green' : table.state === 'ordered' ? 'amber' : 'blue'}>{t(`table.${table.state}` as I18nKey)}</Badge>
         </span>
       }
     >
@@ -100,6 +105,7 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
           <Users className="size-4" /> {table.session?.guest_count ?? '–'} / {table.seats} seats
         </span>
         {live && table.session?.opened_at && <span>Seated {ago(table.session.opened_at)} ago</span>}
+        {table.guests_since && <span className="font-medium text-sky-800">{t('floor.guests_here', { time: ago(table.guests_since) })}</span>}
         {table.merged_with.length > 0 && (
           <span className="inline-flex items-center gap-1">
             <Link2 className="size-4" /> with {table.merged_with.join(', ')}
@@ -108,12 +114,36 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
         {live && <span className="font-semibold text-ink tabular">{formatPaise(table.running_total_paise)}</span>}
       </div>
 
+      {/* Guests just sat down: tap how many, and the table is theirs. */}
+      {!live && can('table.operate') && (
+        <div className="mt-4 rounded-2xl bg-stone-50 p-3">
+          <p className="mb-2 text-sm font-medium">{t('floor.seat_how_many')}</p>
+          <div className="grid grid-cols-7 gap-1.5">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                disabled={!!busy}
+                onClick={() => void seat(n)}
+                aria-label={`${t('floor.seat')}: ${n}`}
+                className="h-12 cursor-pointer rounded-xl bg-surface text-lg font-semibold tabular ring-1 ring-line transition hover:ring-[var(--brand)] active:scale-95 active:duration-75 disabled:opacity-50"
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'seat' ? null : 'seat')}
+              aria-expanded={mode === 'seat'}
+              className={cn('h-12 cursor-pointer rounded-xl text-xs font-semibold ring-1 transition active:scale-95', mode === 'seat' ? 'bg-brand-50 text-brand-700 ring-[var(--brand)]' : 'bg-surface text-ink-soft ring-line')}
+            >
+              {t('floor.seat_more')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {!live && can('table.operate') && (
-          <Button variant="outline" onClick={() => setMode(mode === 'seat' ? null : 'seat')}>
-            <Users className="size-4" /> {t('floor.seat')}
-          </Button>
-        )}
         {can('order.create') && (
           <Button variant="outline" onClick={() => router.push(`/app/pos?table=${table.id}`)}>
             <ShoppingCart className="size-4" /> {t('floor.new_order')}
@@ -161,8 +191,8 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
               <Plus className="size-4" />
             </button>
           </div>
-          <Button className="ml-auto" loading={busy === 'seat'} onClick={() => void run('seat', () => api(`/tables/${table.id}/seat`, { method: 'POST', body: { guest_count: guests } }), `${table.label} seated`)}>
-            Seat
+          <Button className="ml-auto" loading={busy === 'seat'} onClick={() => void seat(guests)}>
+            {t('floor.seat')}
           </Button>
         </div>
       )}

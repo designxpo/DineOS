@@ -21,7 +21,7 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
     .leftJoin('table_sessions', 'table_sessions.id', 'bills.table_session_id')
     .leftJoin('orders', 'orders.id', 'bills.order_id')
     .selectAll('bills')
-    .select(['table_sessions.table_id as session_table_id', 'orders.table_id as order_table_id'])
+    .select(['table_sessions.table_id as session_table_id', 'table_sessions.water_bottles', 'orders.table_id as order_table_id', 'orders.order_no as pickup_order_no', 'orders.type as order_type', 'orders.track_code'])
     .where('bills.id', 'in', [...ids])
     .execute();
   const customerIds = [...new Set(bills.map((b) => b.customer_id).filter((x): x is string => !!x))];
@@ -64,6 +64,9 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
         split_label: b.split_label,
         status: b.status as BillStatus,
         tax_by_operator: b.tax_by_operator,
+        water_bottles: b.water_bottles ?? null,
+        pickup_no: b.order_type === 'takeaway' || b.order_type === 'counter' ? b.pickup_order_no : null,
+        track_code: b.order_type === 'takeaway' || b.order_type === 'counter' ? b.track_code : null,
         lines: lines
           .filter((l) => l.bill_id === b.id)
           .map(

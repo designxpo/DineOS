@@ -2,7 +2,7 @@
 
 import type { ServiceRequestDTO, TableDTO } from '@dineos/shared/dto';
 import { ACTIVE_ORDER_STATUSES, type ServiceRequestKind, type SessionStatus, type TableState } from '@dineos/shared/enums';
-import { CAMERA_FRESH_MS, type CameraState } from '@dineos/shared/table-state';
+import { CAMERA_FRESH_MS, cleaningLapsed, deriveTableState, guestsPresent, type CameraState } from '@dineos/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest, conflict, notFound } from '../../lib/errors';
@@ -23,11 +23,40 @@ function cameraExpired(r: { state: string; needs_cleaning: boolean; session_stat
   return !r.camera_at || Date.now() - r.camera_at.getTime() >= CAMERA_FRESH_MS;
 }
 
+/**
+ * The stored state moves on with the clock, not only with events: guests whose phones went quiet
+ * no longer hold the table, and a table left to be cleaned counts as clean after the outlet's
+ * clearing time. Same rules as when the state is stored.
+ */
+function stateNow(r: {
+  state: string;
+  needs_cleaning: boolean;
+  needs_cleaning_since: Date | null;
+  auto_clean_minutes: number;
+  session_status: string | null;
+  guest_seen_at: Date | null;
+  camera_id: string | null;
+  camera_state: string | null;
+  camera_at: Date | null;
+}): TableState {
+  if (r.session_status === 'open') return r.state as TableState;
+  if (cameraExpired(r) && !(r.session_status === 'pending' && guestsPresent(r.guest_seen_at))) return 'vacant';
+  return deriveTableState({
+    needsCleaning: r.needs_cleaning,
+    cleaning: { since: r.needs_cleaning_since, autoMinutes: r.auto_clean_minutes },
+    session: r.session_status ? { status: r.session_status as SessionStatus, bill_requested_at: null } : null,
+    guestSeenAt: r.guest_seen_at,
+    orderStatuses: [],
+    camera: r.camera_id && r.camera_state && r.camera_at ? { state: r.camera_state as CameraState, at: r.camera_at } : null,
+  });
+}
+
 export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly string[]): Promise<TableDTO[]> {
   let q = tx.db
     .selectFrom('tables')
     .leftJoin('table_sessions', 'table_sessions.id', 'tables.current_session_id')
     .leftJoin('users', 'users.id', 'tables.assigned_waiter_id')
+    .innerJoin('outlets', 'outlets.id', 'tables.outlet_id')
     .select([
       'tables.id',
       'tables.outlet_id',
@@ -46,12 +75,17 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       'tables.camera_confidence',
       'tables.camera_at',
       'tables.camera_occupied_since',
+      'tables.needs_cleaning_since',
+      'outlets.auto_clean_minutes',
       'users.name as waiter_name',
       'table_sessions.status as session_status',
       'table_sessions.opened_at',
       'table_sessions.guest_count',
       'table_sessions.bill_requested_at',
       'table_sessions.waiter_id',
+      'table_sessions.guests_since',
+      'table_sessions.guest_seen_at',
+      'table_sessions.water_bottles',
     ])
     .where('tables.outlet_id', '=', outletId);
   q = onlyIds ? q.where('tables.id', 'in', [...onlyIds]) : q.where('tables.is_active', '=', true);
@@ -137,8 +171,10 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
       seats: r.seats,
       zone: r.zone,
       sort: r.sort,
-      state: cameraExpired(r) ? 'vacant' : (r.state as TableState),
-      needs_cleaning: r.needs_cleaning,
+      state: stateNow(r),
+      needs_cleaning: r.needs_cleaning && !cleaningLapsed(r.needs_cleaning_since, r.auto_clean_minutes),
+      needs_cleaning_since: r.needs_cleaning && !cleaningLapsed(r.needs_cleaning_since, r.auto_clean_minutes) ? iso(r.needs_cleaning_since) : null,
+      guests_since: r.session_status === 'pending' && guestsPresent(r.guest_seen_at) ? iso(r.guests_since) : null,
       assigned_waiter_id: r.assigned_waiter_id,
       assigned_waiter_name: r.waiter_name,
       qr_token_version: r.qr_token_version,
@@ -150,6 +186,7 @@ export async function loadTables(tx: Tx, outletId: string, onlyIds?: readonly st
             guest_count: r.guest_count,
             bill_requested_at: r.bill_requested_at?.toISOString() ?? null,
             waiter_id: r.waiter_id,
+            water_bottles: r.water_bottles,
           }
         : null,
       merged_with: sid ? rows.filter((o) => o.current_session_id === sid && o.id !== r.id).map((o) => o.label) : [],

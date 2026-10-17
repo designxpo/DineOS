@@ -6,6 +6,7 @@ import { json } from '../../db';
 import { assertCan, requireDevice, requireStaff } from '../../lib/auth';
 import { badRequest, notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
+import { webOrigin } from '../../lib/links';
 import { ONLINE_WINDOW_MS } from '../devices/routes';
 import { queuePrintJob } from './jobs';
 
@@ -68,7 +69,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .select(['devices.id', 'devices.name', 'devices.config', 'outlets.id as outlet_id', 'outlets.name as outlet_name', 'outlets.kitchen_stations'])
           .where('devices.id', '=', auth.deviceId)
           .executeTakeFirstOrThrow();
-        return d;
+        // Receipts carry a link for guests to follow their order; the agent adds this address.
+        return { ...d, web_origin: webOrigin(ctx.config) };
       });
     });
 

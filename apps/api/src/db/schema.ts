@@ -425,6 +425,7 @@ export interface Orders {
   table_id: string | null;
   table_session_id: string | null;
   tenant_id: string;
+  track_code: Generated<string | null>;
   type: string;
   updated_at: Generated<Timestamp>;
 }
@@ -457,6 +458,7 @@ export interface Outlets {
   address: string | null;
   approve_flagged_orders: Generated<boolean>;
   auto_accept: Generated<boolean>;
+  auto_clean_minutes: Generated<number>;
   city: string | null;
   created_at: Generated<Timestamp>;
   default_tax_rate_bp: Generated<number>;
@@ -478,6 +480,7 @@ export interface Outlets {
   menu_version: Generated<number>;
   name: string;
   phone: string | null;
+  pickup_link_version: Generated<number>;
   prices_include_tax: Generated<boolean>;
   reservation_grace_minutes: Generated<number>;
   reservation_minutes: Generated<number>;
@@ -486,6 +489,7 @@ export interface Outlets {
   service_charge_tax_rate_bp: Generated<number>;
   state_code: string | null;
   status: Generated<string>;
+  table_water_item_id: string | null;
   tenant_id: string;
   timezone: Generated<string>;
   updated_at: Generated<Timestamp>;
@@ -685,6 +689,7 @@ export interface Tables {
   is_active: Generated<boolean>;
   label: string;
   needs_cleaning: Generated<boolean>;
+  needs_cleaning_since: Timestamp | null;
   outlet_id: string;
   qr_token_version: Generated<number>;
   seats: Generated<number>;
@@ -704,6 +709,8 @@ export interface TableSessions {
   customer_id: string | null;
   customer_verified_at: Timestamp | null;
   guest_count: number | null;
+  guest_seen_at: Timestamp | null;
+  guests_since: Timestamp | null;
   id: Generated<string>;
   opened_at: Timestamp | null;
   outlet_id: string;
@@ -712,6 +719,8 @@ export interface TableSessions {
   tenant_id: string;
   updated_at: Generated<Timestamp>;
   waiter_id: string | null;
+  water_bottles: number | null;
+  water_order_id: string | null;
 }
 
 export interface TableStateEvents {

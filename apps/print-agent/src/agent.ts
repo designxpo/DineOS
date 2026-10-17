@@ -33,6 +33,8 @@ interface DeviceMe {
   name: string;
   outlet_name: string;
   config: { printers?: Record<string, PrinterConfig> };
+  /** The site's address, for the "follow your order" link on counter receipts. */
+  web_origin?: string | null;
 }
 
 /**
@@ -43,6 +45,7 @@ interface DeviceMe {
 export class PrintAgent {
   private socket: Socket | null = null;
   private deviceId: string | null = null;
+  private webOrigin: string | null = null;
   private printers: Record<string, PrinterConfig> = {};
   private discovering: Promise<void> | null = null;
   private seen = new Set<string>();
@@ -101,6 +104,7 @@ export class PrintAgent {
     const me = await this.api<DeviceMe>('GET', '/device/me');
     const first = this.deviceId === null;
     this.deviceId = me.id;
+    this.webOrigin = me.web_origin ?? null;
     const next = { ...(me.config.printers ?? {}), ...(this.opts.printers ?? {}) };
     if (first || JSON.stringify(next) !== JSON.stringify(this.printers)) {
       this.printers = next;
@@ -179,7 +183,7 @@ export class PrintAgent {
     const next = prev.then(async () => {
       try {
         if (!printer) throw new Error(`no printer configured for "${target}"`);
-        await this.transport(printer.address, render(doc, printer.width ?? 48).build());
+        await this.transport(printer.address, render(doc, printer.width ?? 48, { webOrigin: this.webOrigin }).build());
         this.log(`printed offline ${doc.kind} on ${target}`);
       } catch (err) {
         this.log(`offline ${doc.kind} for ${target} failed: ${(err as Error).message}`);
@@ -197,7 +201,7 @@ export class PrintAgent {
     const printer = this.printers[job.target] ?? this.printers.default;
     try {
       if (!printer) throw new Error(`no printer configured for "${job.target}"`);
-      const doc = render(job.doc, printer.width ?? 48);
+      const doc = render(job.doc, printer.width ?? 48, { webOrigin: this.webOrigin });
       await this.transport(printer.address, doc.build());
       await this.api('POST', `/device/print-jobs/${job.id}/ack`, { status: 'printed' });
       this.log(`printed ${job.kind} ${job.id} on ${job.target}`);

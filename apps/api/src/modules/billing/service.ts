@@ -15,7 +15,7 @@ import { audit } from '../../lib/audit';
 import { assertCan, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, notFound } from '../../lib/errors';
-import { markOrdersBilled } from '../orders/service';
+import { createOrder, markOrdersBilled } from '../orders/service';
 import { canPrint, openCashDrawer, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
 import { earnOnPaid, lockCustomer, redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
@@ -429,6 +429,64 @@ export async function splitBill(tx: Tx, auth: StaffAuth, billId: string, input: 
   return dtos;
 }
 
+/**
+ * How many bottles of the water left on the table the guests opened. The count goes on the bill
+ * as a served order of the outlet's water item (no kitchen ticket); changing it before printing
+ * changes that order. Asked once per visit, for every bill of the table.
+ */
+export async function setWaterBottles(tx: Tx, auth: StaffAuth, billId: string, count: number): Promise<BillDTO> {
+  const bill = await lockBill(tx, billId);
+  assertCan(auth, bill.outlet_id, 'bill.manage');
+  if (bill.status !== 'draft') throw conflict('bill_finalised', 'This bill is already printed');
+  if (!bill.table_session_id) throw badRequest('not_a_table_bill', 'Water bottles are counted on table bills');
+  const outlet = await outletFor(tx, bill.outlet_id);
+  if (!outlet.table_water_item_id) throw badRequest('water_check_off', 'Choose the bottled water item in Settings first');
+  const session = await tx.db
+    .selectFrom('table_sessions')
+    .select(['id', 'water_order_id'])
+    .where('id', '=', bill.table_session_id)
+    .forUpdate()
+    .executeTakeFirstOrThrow();
+
+  let orderId = session.water_order_id;
+  const item = orderId ? await tx.db.selectFrom('order_items').select(['id', 'qty', 'status']).where('order_id', '=', orderId).executeTakeFirst() : undefined;
+  const live = item && item.status !== 'cancelled' ? item : undefined;
+  if (live && live.qty !== count) {
+    const printed = await tx.db
+      .selectFrom('bill_lines')
+      .innerJoin('bills', 'bills.id', 'bill_lines.bill_id')
+      .select('bills.id')
+      .where('bill_lines.order_item_id', '=', live.id)
+      .where('bills.status', 'in', ['finalised', 'paid'])
+      .executeTakeFirst();
+    if (printed) throw conflict('water_billed', 'The water is already on a printed bill');
+  }
+  if (live && count === 0) {
+    const reason = 'Bottled water not opened';
+    await tx.db.updateTable('order_items').set({ status: 'cancelled', cancelled_reason: reason }).where('id', '=', live.id).execute();
+    await tx.db.updateTable('orders').set({ status: 'cancelled', cancelled_reason: reason }).where('id', '=', orderId!).execute();
+  } else if (live && count !== live.qty) {
+    await tx.db.updateTable('order_items').set({ qty: count }).where('id', '=', live.id).execute();
+  } else if (!live && count > 0) {
+    const order = await createOrder(tx, {
+      outletId: bill.outlet_id,
+      type: 'dine_in',
+      source: 'pos',
+      sessionId: bill.table_session_id,
+      lines: [{ item_id: outlet.table_water_item_id, qty: count, modifier_ids: [] }],
+      note: 'Bottled water opened at the table',
+      createdBy: auth.userId,
+      alreadyServed: true,
+    });
+    orderId = order.id;
+  }
+  await tx.db.updateTable('table_sessions').set({ water_bottles: count, water_order_id: orderId }).where('id', '=', session.id).execute();
+  await syncDraft(tx, billId);
+  const dto = (await loadBill(tx, billId))!;
+  await announceBill(tx, dto);
+  return dto;
+}
+
 /** Discards an unprinted draft (no invoice number was used). */
 export async function discardDraft(tx: Tx, auth: StaffAuth, billId: string): Promise<void> {
   const bill = await lockBill(tx, billId);
@@ -459,6 +517,11 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
   }
 
   const outlet = await outletFor(tx, bill.outlet_id);
+  // Bottled water left on the table is billed only if opened, so someone has to look first.
+  if (bill.table_session_id && outlet.table_water_item_id) {
+    const session = await tx.db.selectFrom('table_sessions').select('water_bottles').where('id', '=', bill.table_session_id).executeTakeFirst();
+    if (session && session.water_bottles === null) throw conflict('water_check', 'Count the opened water bottles at the table before printing the bill');
+  }
   const now = new Date();
   const day = businessDate(now, outlet.timezone);
   const fy = financialYear(day);
@@ -535,11 +598,18 @@ export async function printBill(tx: Tx, billId: string, duplicate: boolean) {
   const invoice = await loadInvoice(tx, billId);
   if (!invoice || invoice.bill.status === 'draft') throw conflict('bill_not_finalised', 'Finalise the bill before printing');
   const outlet = await outletFor(tx, invoice.bill.outlet_id);
+  // Counter and takeaway: the number to collect with, and a link to follow the order.
+  const order = invoice.bill.order_id
+    ? await tx.db.selectFrom('orders').select(['type', 'order_no', 'track_code']).where('id', '=', invoice.bill.order_id).executeTakeFirst()
+    : undefined;
+  const pickup = order && (order.type === 'takeaway' || order.type === 'counter');
   const doc: BillDoc = {
     kind: 'bill',
     invoice,
     upi_uri: upiUri(outlet.upi_vpa, outlet.upi_payee_name ?? outlet.name, invoice.bill.balance_paise || invoice.bill.total_paise, invoice.bill.invoice_no ?? ''),
     duplicate,
+    pickup_no: pickup ? order.order_no : null,
+    track_code: pickup ? order.track_code : null,
   };
   return queuePrintJob(tx, outlet.id, { target: 'bill', refId: billId, doc });
 }

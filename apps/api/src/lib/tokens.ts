@@ -109,3 +109,31 @@ export function verifyGuestToken(secret: string, token: string, now = Date.now()
     issuedAt,
   };
 }
+
+// ---------------------------------------------------------------- pickup screen
+
+export interface PickupClaims {
+  tenantId: string;
+  outletId: string;
+  /** Must equal outlets.pickup_link_version; a new link retires the old one. */
+  version: number;
+}
+
+const PICKUP_BODY = 1 + 16 * 2 + 2;
+const PICKUP_SIG = 12;
+
+/** Link for the TV by the counter showing order numbers; read-only, shows no names or amounts. */
+export function signPickupToken(secret: string, c: PickupClaims): string {
+  const body = Buffer.alloc(PICKUP_BODY);
+  body.writeUInt8(3, 0);
+  uuidToBytes(c.tenantId).copy(body, 1);
+  uuidToBytes(c.outletId).copy(body, 17);
+  body.writeUInt16BE(c.version, 33);
+  return seal(secret, 'pickup-screen', body, PICKUP_SIG);
+}
+
+export function verifyPickupToken(secret: string, token: string): PickupClaims | null {
+  const body = open(secret, 'pickup-screen', token, PICKUP_BODY, PICKUP_SIG);
+  if (!body || body.readUInt8(0) !== 3) return null;
+  return { tenantId: bytesToUuid(body.subarray(1, 17)), outletId: bytesToUuid(body.subarray(17, 33)), version: body.readUInt16BE(33) };
+}

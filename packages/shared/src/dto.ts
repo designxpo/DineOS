@@ -81,6 +81,10 @@ export interface OutletDTO {
   room_charge_enabled: boolean;
   /** Commission each delivery platform takes, in basis points (2500 = 25%), for expected payouts. */
   delivery_commission_bp: Partial<Record<DeliveryChannel, number>>;
+  /** A table counts as clean this many minutes after its guests leave; 0: staff mark it clean. */
+  auto_clean_minutes: number;
+  /** Bottled water left on tables: the menu item billed per opened bottle; null: no water check. */
+  table_water_item_id: string | null;
 }
 
 // ---------- Menu ----------
@@ -174,6 +178,8 @@ export interface TableSessionDTO {
   guest_count: number | null;
   bill_requested_at: string | null;
   waiter_id: string | null;
+  /** Bottled water opened at the table, as staff counted it; null until asked. */
+  water_bottles?: number | null;
 }
 
 export interface TableDTO {
@@ -199,6 +205,13 @@ export interface TableDTO {
   unpaid_bill_since: string | null;
   /** Dishes and drinks of this visit sitting ready at the pass, not yet served. */
   ready_items: number;
+  /**
+   * Guests scanned the table QR but nobody has seated them or taken an order yet: since when.
+   * Null once the visit is open, or when no phone at the table has been active for a while.
+   */
+  guests_since: string | null;
+  /** When the table started waiting to be cleaned. */
+  needs_cleaning_since: string | null;
   open_requests: ServiceRequestDTO[];
   is_active: boolean;
   /** Next booked reservation on this table today, within the next few hours. */
@@ -316,6 +329,26 @@ export interface OrderDTO {
   items: OrderItemDTO[];
   /** Sum of active items before tax and discounts. */
   subtotal_paise: number;
+  /** Code of the link that lets the guest follow a counter or takeaway order (/o/{code}). */
+  track_code?: string | null;
+}
+
+/** A counter or takeaway order as the guest follows it on their phone (no staff details). */
+export interface TrackedOrderDTO {
+  outlet_name: string;
+  order_no: number;
+  type: OrderType;
+  status: OrderStatus;
+  placed_at: string;
+  ready_at: string | null;
+  items: { name: string; qty: number }[];
+}
+
+/** The pickup screen by the counter: order numbers being made and ready to collect. */
+export interface PickupBoardDTO {
+  outlet_name: string;
+  preparing: { order_no: number; label: string | null }[];
+  ready: { order_no: number; label: string | null; ready_at: string | null }[];
 }
 
 /** What a guest sees about an order: no staff names, no internal flags. */
@@ -439,6 +472,12 @@ export interface BillDTO {
   table_session_id: string | null;
   order_id: string | null;
   table_label: string | null;
+  /** Table bills: bottled water opened at the table, as counted; null until asked. */
+  water_bottles?: number | null;
+  /** Counter and takeaway bills: the order number the guest collects with, and the code of the
+   *  link that lets them follow the order (/o/{code}). */
+  pickup_no?: number | null;
+  track_code?: string | null;
   parent_bill_id: string | null;
   split_label: string | null;
   status: BillStatus;

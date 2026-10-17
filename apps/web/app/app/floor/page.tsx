@@ -5,12 +5,13 @@ import { BellRing, CalendarClock, Cctv, HandPlatter, Link2, ReceiptIndianRupee, 
 import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
-import { paymentAlert } from '@dineos/shared/table-state';
+import { CLEANING_ALERT_MINUTES, GUESTS_WAITING_ALERT_MINUTES, paymentAlert } from '@dineos/shared/table-state';
 import { ago, duration, formatPaise, minutesSince, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
 import { Segmented, Spinner } from '@/components/ui/primitives';
+import { useGuestsWaitingAlerts } from '@/components/staff/floor-alerts';
 import { useReadyAlerts } from '@/components/staff/ready-alerts';
 import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
@@ -23,6 +24,7 @@ export default function FloorPage() {
   const { t } = useI18n();
   useServiceRequestAlerts();
   useReadyAlerts();
+  useGuestsWaitingAlerts();
   const [zone, setZone] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
   const { data: tables, isLoading, stale } = usePersistedQuery(['tables', outletId], () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`), { refetchInterval: 60_000 });
@@ -80,8 +82,17 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
   const style = TABLE_STATE[table.state];
   const calling = table.open_requests.some((r) => r.kind === 'call_waiter' && r.status === 'open');
   const billAsked = table.open_requests.some((r) => r.kind === 'bill');
-  // The camera sees people at a table nobody has opened yet.
-  const waiting = !table.session && table.camera?.state === 'occupied' && table.camera.occupied_since ? minutesSince(table.camera.occupied_since) : null;
+  const { outlet } = useStaff();
+  // People at a table nobody has seated or taken an order from: a phone scanned the table QR, or
+  // the camera sees them.
+  const browsing = table.guests_since ? minutesSince(table.guests_since) : null;
+  const seen = !table.session && table.camera?.state === 'occupied' && table.camera.occupied_since ? minutesSince(table.camera.occupied_since) : null;
+  const waiting = browsing ?? seen;
+  const waitingLong = browsing !== null ? browsing >= GUESTS_WAITING_ALERT_MINUTES : seen !== null && seen >= 3;
+  // Cleaning: counts down to free when the outlet clears tables by itself, else counts up.
+  const autoClean = outlet?.auto_clean_minutes ?? 0;
+  const cleaning = table.needs_cleaning && table.needs_cleaning_since ? minutesSince(table.needs_cleaning_since) : null;
+  const cleaningLate = cleaning !== null && autoClean === 0 && cleaning >= CLEANING_ALERT_MINUTES;
   // Money that could walk out: served with no bill, or a bill left unpaid.
   const money =
     table.session?.status === 'open'
@@ -93,7 +104,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
       className={cn(
         'relative flex min-h-32 cursor-pointer flex-col rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)] active:translate-y-0 active:scale-[0.98] active:duration-75',
         style.tile,
-        (calling || money || (waiting !== null && waiting >= 3)) && 'animate-pulse-ring',
+        (calling || money || waitingLong || cleaningLate) && 'animate-pulse-ring',
       )}
       aria-label={`Table ${table.label}, ${style.label}`}
     >
@@ -137,7 +148,18 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
             <HandPlatter className="size-3 shrink-0" /> {t('floor.ready', { n: table.ready_items })}
           </p>
         )}
-        {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { time: duration(Math.max(1, waiting)) })}</p>}
+        {waiting !== null && (
+          <p className={cn('mt-1 font-semibold', waitingLong ? 'text-amber-800' : 'text-sky-800')}>
+            {t(waitingLong ? 'floor.waiting' : 'floor.guests_here', { time: duration(Math.max(1, waiting)) })}
+          </p>
+        )}
+        {cleaning !== null && (
+          <p className={cn('mt-1 font-semibold', cleaningLate ? 'text-rose-700' : 'text-ink-soft')}>
+            {autoClean > 0
+              ? t('floor.cleaning_auto', { time: duration(Math.max(1, autoClean - cleaning)) })
+              : t('floor.cleaning_for', { time: duration(Math.max(1, cleaning)) })}
+          </p>
+        )}
         {money && <p className="mt-1 font-semibold text-rose-700">{t(money.kind === 'not_billed' ? 'floor.not_billed' : 'floor.not_paid', { time: duration(money.minutes) })}</p>}
         {table.next_reservation && table.session?.status !== 'open' && (
           <div className="mt-1 text-sky-800">

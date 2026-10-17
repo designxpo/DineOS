@@ -1,8 +1,9 @@
 // Table sessions and derived table state (spec §5). Core module shared by guest, orders, billing
 // and floor operations. Every function runs inside the caller's tenant transaction.
 
+import { sql } from 'kysely';
 import type { OrderStatus, SessionStatus, TableState, TableStateSource } from '@dineos/shared/enums';
-import { deriveTableState, type CameraState } from '@dineos/shared/table-state';
+import { deriveTableState, GUESTS_PRESENT_MINUTES, type CameraState } from '@dineos/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { gone, notFound } from '../../lib/errors';
@@ -62,6 +63,25 @@ export async function getOrCreateSession(tx: Tx, tableId: string): Promise<Sessi
   return created as SessionRow;
 }
 
+/**
+ * A guest phone scanned the table QR or changed the cart: people are sitting there. The floor
+ * shows the table as taken from now on, even before anyone orders. A scan after a long quiet
+ * spell is a new group, so their waiting time starts again.
+ */
+export async function noteGuestsHere(tx: Tx, sessionId: string): Promise<void> {
+  const updated = await tx.db
+    .updateTable('table_sessions')
+    .set({
+      guests_since: sql<Date>`case when guest_seen_at is null or guest_seen_at < now() - make_interval(mins => ${GUESTS_PRESENT_MINUTES}) then now() else guests_since end`,
+      guest_seen_at: sql<Date>`now()`,
+    })
+    .where('id', '=', sessionId)
+    .where('status', '=', 'pending')
+    .returning('id')
+    .executeTakeFirst();
+  if (updated) await refreshSessionTables(tx, sessionId, 'guest');
+}
+
 /** pending -> open. Called by the first placed order or when a waiter seats guests. */
 export async function openSession(
   tx: Tx,
@@ -74,8 +94,9 @@ export async function openSession(
     .where('id', '=', sessionId)
     .where('status', '=', 'pending')
     .execute();
-  // Someone is looking after the guests now.
-  await tx.db.updateTable('tables').set({ camera_occupied_since: null }).where('current_session_id', '=', sessionId).execute();
+  // Someone is looking after the guests now, and they are sitting at the table, so it is not
+  // waiting to be cleaned any more.
+  await tx.db.updateTable('tables').set({ camera_occupied_since: null, needs_cleaning: false }).where('current_session_id', '=', sessionId).execute();
   if (opts.guestCount != null || opts.waiterId != null) {
     await tx.db
       .updateTable('table_sessions')
@@ -151,6 +172,7 @@ export async function refreshTableStates(
   const tables = await tx.db
     .selectFrom('tables')
     .leftJoin('table_sessions', 'table_sessions.id', 'tables.current_session_id')
+    .innerJoin('outlets', 'outlets.id', 'tables.outlet_id')
     .select([
       'tables.id',
       'tables.outlet_id',
@@ -160,8 +182,11 @@ export async function refreshTableStates(
       'tables.camera_id',
       'tables.camera_state',
       'tables.camera_at',
+      'tables.needs_cleaning_since',
+      'outlets.auto_clean_minutes',
       'table_sessions.status as session_status',
       'table_sessions.bill_requested_at',
+      'table_sessions.guest_seen_at',
     ])
     .where('tables.id', 'in', [...new Set(tableIds)])
     .execute();
@@ -178,6 +203,8 @@ export async function refreshTableStates(
   for (const t of tables) {
     const state = deriveTableState({
       needsCleaning: t.needs_cleaning,
+      cleaning: { since: t.needs_cleaning_since, autoMinutes: t.auto_clean_minutes },
+      guestSeenAt: t.guest_seen_at,
       session:
         t.current_session_id && t.session_status
           ? { status: t.session_status as SessionStatus, bill_requested_at: t.bill_requested_at }

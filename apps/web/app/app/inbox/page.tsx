@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, Segmented, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { OrderCard } from '@/components/staff/orders';
+import { useGuestsWaitingAlerts } from '@/components/staff/floor-alerts';
 import { useReadyAlerts } from '@/components/staff/ready-alerts';
 import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
@@ -53,6 +54,7 @@ export default function InboxPage() {
 
   useServiceRequestAlerts();
   useReadyAlerts();
+  useGuestsWaitingAlerts();
   // New orders: chime, toast and a pulsing card for a few seconds (spec §7).
   useOutletEvents((e) => {
     if (e.type === 'order.placed') {
