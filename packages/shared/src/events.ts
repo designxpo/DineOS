@@ -23,6 +23,12 @@ export const EVENT_TYPES = [
   'inventory.low',
   'staff.pin_locked',
   'comp.given',
+  /** The menu or settings changed: screens refresh and confirm the new version. */
+  'config.changed',
+  /** The office asked one screen to reload. */
+  'screen.reload',
+  /** A help case changed: a reply, a new status or owner. */
+  'support.updated',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 

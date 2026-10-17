@@ -8,6 +8,7 @@ import { accessibleOutletIds, assertCan, assertOutletAccess, isTenantWide, requi
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { detectImage } from '../../lib/images';
 import { idParams, parse } from '../../lib/validate';
+import { bumpConfig } from '../../lib/config-version';
 
 const station = z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9_-]{0,29}$/, 'Station names use letters, numbers, - and _');
 
@@ -149,6 +150,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (Object.keys(set).length) await tx.db.updateTable('outlets').set(set).where('id', '=', id).execute();
         const after = await loadOutlet(tx, id);
         const changed = Object.keys(set).filter((k) => JSON.stringify(before[k as keyof typeof before]) !== JSON.stringify(after[k as keyof typeof after]));
+        if (changed.length) await bumpConfig(tx, id);
         if (changed.length) {
           await audit(tx, auth, {
             outletId: id,

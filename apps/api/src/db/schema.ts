@@ -9,6 +9,8 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
+export type Int8 = ColumnType<string, bigint | number | string, bigint | number | string>;
+
 export type Json = JsonValue;
 
 export type JsonArray = JsonValue[];
@@ -290,6 +292,8 @@ export interface Customers {
 }
 
 export interface Devices {
+  applied_at: Timestamp | null;
+  applied_version: Int8 | null;
   config: Generated<Json>;
   created_at: Generated<Timestamp>;
   id: Generated<string>;
@@ -560,6 +564,7 @@ export interface Outlets {
   auto_clean_minutes: Generated<number>;
   city: string | null;
   comp_alert_paise: Generated<number | null>;
+  config_version: Generated<Int8>;
   created_at: Generated<Timestamp>;
   default_tax_rate_bp: Generated<number>;
   delivery_commission_bp: Generated<Json>;
@@ -732,6 +737,21 @@ export interface Reservations {
   table_session_id: string | null;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
+}
+
+export interface Screens {
+  applied_version: Int8 | null;
+  created_at: Generated<Timestamp>;
+  id: string;
+  kind: string;
+  label: Generated<string>;
+  last_seen_at: Generated<Timestamp>;
+  outlet_id: string;
+  reload_requested_at: Timestamp | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  user_agent: string | null;
+  user_id: string | null;
 }
 
 export interface ServiceRequests {
@@ -991,6 +1011,7 @@ export interface DB {
   push_subscriptions: PushSubscriptions;
   recipes: Recipes;
   reservations: Reservations;
+  screens: Screens;
   service_requests: ServiceRequests;
   stock_movements: StockMovements;
   subscriptions: Subscriptions;

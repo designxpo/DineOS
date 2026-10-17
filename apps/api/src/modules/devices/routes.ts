@@ -7,6 +7,7 @@ import { assertCan, requireAction, requireStaff } from '../../lib/auth';
 import { randomToken, sha256 } from '../../lib/crypto';
 import { notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
+import { bumpConfig } from '../../lib/config-version';
 
 /** A network printer (host:port), a printer installed on the agent's computer, or a Linux USB device. */
 const printerAddress = z
@@ -112,8 +113,11 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('id', '=', id)
           .returning(COLUMNS)
           .executeTakeFirstOrThrow();
-        // A running agent picks up new printers straight away.
-        if (body.config) await tellAgent(tx, d.outlet_id, id, 'reload');
+        // A running agent picks up new printers straight away, and confirms it when it fetches them.
+        if (body.config) {
+          await bumpConfig(tx, d.outlet_id);
+          await tellAgent(tx, d.outlet_id, id, 'reload');
+        }
         if (body.status && body.status !== d.status) {
           // A revoked device stops being the outlet hub.
           if (body.status === 'revoked') await tx.db.updateTable('outlets').set({ hub_device_id: null }).where('hub_device_id', '=', id).execute();

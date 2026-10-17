@@ -66,11 +66,14 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         const d = await tx.db
           .selectFrom('devices')
           .innerJoin('outlets', 'outlets.id', 'devices.outlet_id')
-          .select(['devices.id', 'devices.name', 'devices.config', 'outlets.id as outlet_id', 'outlets.name as outlet_name', 'outlets.kitchen_stations'])
+          .select(['devices.id', 'devices.name', 'devices.config', 'outlets.id as outlet_id', 'outlets.name as outlet_name', 'outlets.kitchen_stations', 'outlets.config_version'])
           .where('devices.id', '=', auth.deviceId)
           .executeTakeFirstOrThrow();
+        // Fetching its settings is how a print computer applies a change; record which it has.
+        const { config_version, ...me } = d;
+        await tx.db.updateTable('devices').set({ applied_version: config_version, applied_at: new Date() }).where('id', '=', auth.deviceId).execute();
         // Receipts carry a link for guests to follow their order; the agent adds this address.
-        return { ...d, web_origin: webOrigin(ctx.config) };
+        return { ...me, web_origin: webOrigin(ctx.config) };
       });
     });
 

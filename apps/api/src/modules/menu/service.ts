@@ -9,6 +9,7 @@ import type {
 import { isScheduleOpen } from '@dineos/shared/menu';
 import type { Tx } from '../../context';
 import { notFound } from '../../lib/errors';
+import { bumpConfig } from '../../lib/config-version';
 
 /**
  * The outlet's menu. Staff see inactive categories; guests only see active ones (out-of-stock
@@ -142,5 +143,6 @@ export async function bumpMenu(tx: Tx, outletId: string): Promise<number> {
     .returning('menu_version')
     .executeTakeFirstOrThrow();
   await tx.emit({ outletId, type: 'menu.updated', channels: ['outlet', 'menu'], payload: { menu_version } });
+  await bumpConfig(tx, outletId);
   return menu_version;
 }

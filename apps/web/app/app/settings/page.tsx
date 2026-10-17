@@ -16,8 +16,9 @@ import { PrinterSettings } from '@/components/staff/printer-settings';
 import { PickupScreenSettings, TableSettings } from '@/components/staff/table-settings';
 import { useSaveOutlet } from '@/components/staff/use-save-outlet';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
+import { ScreensPanel, ScreensStatus } from '@/components/staff/screens-status';
 
-type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
+type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -30,6 +31,7 @@ export default function SettingsPage() {
     { value: 'billing', label: 'Billing & UPI' },
     { value: 'guests', label: 'Loyalty & stock' },
     { value: 'printers', label: 'Printers' },
+    { value: 'screens', label: 'Screens' },
     { value: 'cameras', label: 'Cameras' },
     ...(owner ? [{ value: 'brand' as Tab, label: 'Brand & plan' }, { value: 'outlets' as Tab, label: 'Outlets' }] : []),
     { value: 'account', label: 'My PIN' },
@@ -49,11 +51,13 @@ export default function SettingsPage() {
         <Segmented value={tab} onChange={setTab} options={tabs} className="hidden sm:inline-flex" />
       </div>
       <div className="max-w-3xl px-4 lg:px-8">
+        {tab !== 'screens' && <ScreensStatus className="mb-4" />}
         {tab === 'outlet' && <OutletForm fields={['name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix']} />}
         {tab === 'orders' && <OrderingForm />}
         {tab === 'billing' && <BillingForm />}
         {tab === 'guests' && <GuestsForm />}
         {tab === 'printers' && <PrinterSettings />}
+        {tab === 'screens' && <ScreensPanel />}
         {tab === 'cameras' && <CamerasSettings />}
         {tab === 'brand' && <Brand />}
         {tab === 'outlets' && <Outlets />}

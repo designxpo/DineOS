@@ -750,6 +750,38 @@ export interface LoyaltyReportDTO {
   wallet: { topped_up_paise: number; bonus_given_paise: number; spent_paise: number; outstanding_paid_paise: number; outstanding_bonus_paise: number };
 }
 
+// ---------- Screens: which settings each one is running ----------
+
+export type ScreenKind = 'kitchen' | 'till' | 'floor' | 'orders' | 'bills' | 'other';
+
+export interface ScreenDTO {
+  id: string;
+  label: string;
+  kind: ScreenKind;
+  user_name: string | null;
+  device: string | null;
+  applied_version: number | null;
+  up_to_date: boolean;
+  online: boolean;
+  last_seen_at: string;
+}
+
+export interface PrintComputerStateDTO {
+  id: string;
+  name: string;
+  applied_version: number | null;
+  up_to_date: boolean;
+  online: boolean;
+  last_seen_at: string | null;
+}
+
+export interface ScreensDTO {
+  config_version: number;
+  /** Screens seen in the last day, the most recent first. */
+  screens: ScreenDTO[];
+  print_computers: PrintComputerStateDTO[];
+}
+
 // ---------- Reservations and waitlist (Phase 2) ----------
 
 export type ReservationStatus = 'booked' | 'seated' | 'completed' | 'cancelled' | 'no_show';

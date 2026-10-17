@@ -30,6 +30,7 @@ import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, type Action } from '@dineos/shared/
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
+import { useScreenCheckIn } from '@/lib/screen-check-in';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
@@ -189,6 +190,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => setOpen(false), [pathname]);
   useLowStockAlerts(can('inventory.record'));
   useSecurityAlerts(can('staff.manage'));
+  useScreenCheckIn();
   const { signOut, dialog: unsyncedDialog } = useSignOut();
 
   const items = NAV.filter((n) => can(n.action));

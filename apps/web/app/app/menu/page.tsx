@@ -15,6 +15,7 @@ import { cn } from '@/components/ui/cn';
 import { ConfirmDialog, Sheet } from '@/components/ui/overlay';
 import { Badge, Card, EmptyState, Field, Input, Segmented, Select, Spinner, Switch, Textarea, VegMark } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { ScreensStatus } from '@/components/staff/screens-status';
 import { PageHeader } from '@/components/staff/shell';
 
 type Tab = 'items' | 'modifiers' | 'import';
@@ -32,6 +33,9 @@ export default function MenuPage() {
         subtitle={manage ? 'Changes reach every guest phone within seconds' : 'Mark dishes sold out or back in stock'}
         actions={manage ? <Segmented value={tab} onChange={setTab} options={[{ value: 'items', label: 'Dishes' }, { value: 'modifiers', label: 'Options & add-ons' }, { value: 'import', label: 'Import' }]} /> : undefined}
       />
+      <div className="px-4 lg:px-8">
+        <ScreensStatus className="mb-4 max-w-3xl" />
+      </div>
       {!menu.data ? (
         <div className="grid place-items-center py-24">
           <Spinner />

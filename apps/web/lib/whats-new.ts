@@ -25,6 +25,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         en: 'Loyalty: stamp cards, points, levels, birthday treats, paid memberships and a prepaid wallet. Use a guest\'s reward from their bill in one tap.',
         hi: 'लॉयल्टी: स्टैम्प कार्ड, पॉइंट, लेवल, जन्मदिन ट्रीट, पेड मेंबरशिप और प्रीपेड वॉलेट। मेहमान का इनाम बिल से एक टैप में इस्तेमाल करें।',
       },
+      {
+        en: 'Owners can see which screens and print computers have the latest menu and settings (Settings → Screens), name each screen, and reload one that is behind.',
+        hi: 'मालिक देख सकते हैं कि किन स्क्रीन और प्रिंट कंप्यूटर पर नया मेन्यू और सेटिंग है (सेटिंग्स → स्क्रीन), हर स्क्रीन का नाम रख सकते हैं, और पीछे रह गई स्क्रीन रीलोड कर सकते हैं।',
+      },
     ],
     moved: [
       {

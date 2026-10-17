@@ -13,6 +13,16 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 
+/** Runs maintenance, waiting while another test app holds its lock (test files run in parallel). */
+async function maintain() {
+  for (let i = 0; i < 100; i++) {
+    const result = await runMaintenance(t.ctx.adminDb);
+    if (result) return result;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error('The maintenance lock never came free');
+}
+
 describe('maintenance', () => {
   it('releases tables whose guests browsed hours ago but never ordered', async () => {
     const tableId = await createTable(t, tenant, 'M1');
@@ -26,8 +36,8 @@ describe('maintenance', () => {
     const freshTable = await createTable(t, tenant, 'M2');
     const fresh = await t.ctx.tx(tenant.tenantId, (tx) => getOrCreateSession(tx, freshTable));
 
-    const result = await runMaintenance(t.ctx.adminDb);
-    expect(result?.pending_sessions_closed).toBeGreaterThanOrEqual(1);
+    const result = await maintain();
+    expect(result.pending_sessions_closed).toBeGreaterThanOrEqual(1);
     const stale = await t.ctx.adminDb.selectFrom('table_sessions').select('status').where('id', '=', session.id).executeTakeFirstOrThrow();
     expect(stale.status).toBe('closed');
     const table = await t.ctx.adminDb.selectFrom('tables').select('current_session_id').where('id', '=', tableId).executeTakeFirstOrThrow();
@@ -40,7 +50,7 @@ describe('maintenance', () => {
     await sql`insert into outlet_events (tenant_id, outlet_id, seq, type, channels, payload, created_at)
       values (${tenant.tenantId}, ${tenant.outletId}, 900001, 'menu.updated', '{outlet}', '{}', now() - interval '4 days'),
              (${tenant.tenantId}, ${tenant.outletId}, 900002, 'menu.updated', '{outlet}', '{}', now())`.execute(t.ctx.adminDb);
-    await runMaintenance(t.ctx.adminDb);
+    await maintain();
     const left = await t.ctx.adminDb.selectFrom('outlet_events').select('seq').where('outlet_id', '=', tenant.outletId).where('seq', '>', 900000).execute();
     expect(left.map((r) => r.seq)).toEqual([900002]);
   });
