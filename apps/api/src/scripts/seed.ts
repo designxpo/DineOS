@@ -14,6 +14,7 @@ import { createOrder, transitionOrder } from '../modules/orders/service';
 import { getOrCreateSession, openSession } from '../modules/tables/sessions';
 import { createStaffSession } from '../modules/auth/service';
 import { purgeTenant } from '../lib/purge';
+import { attachDemoPhotos } from './demo-photos';
 
 const SLUG = 'aurum-courtyard';
 const PASSWORD = 'demo1234';
@@ -550,6 +551,8 @@ async function seedHistory(o: {
     await tx.db.deleteFrom('user_sessions').where('id', 'in', auths.map((a) => a.sessionId)).execute();
     await tx.db.updateTable('tables').set({ state: 'vacant', needs_cleaning: false }).where('outlet_id', '=', outletId).execute();
   });
+  // Every dish with a photo, as guests see the menu.
+  await attachDemoPhotos(ctx, t);
 }
 
 main().catch((err) => {

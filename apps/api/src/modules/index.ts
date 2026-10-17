@@ -11,6 +11,7 @@ import events from './events/routes';
 import guest from './guest/routes';
 import hub from './hub/routes';
 import inventory from './inventory/routes';
+import leads from './leads/routes';
 import loyalty from './loyalty/routes';
 import maintenance from './maintenance/routes';
 import menu from './menu/routes';
@@ -57,4 +58,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   pickup,
   screens,
   support,
+  leads,
 };

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: { default: 'DineOS', template: '%s · DineOS' },
   description: 'QR ordering, POS, kitchen display and owner portal for restaurants and cafes',
   applicationName: 'DineOS',
+  icons: { icon: '/icon.svg' },
   appleWebApp: { capable: true, title: 'DineOS', statusBarStyle: 'default' },
 };
 

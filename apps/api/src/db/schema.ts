@@ -291,6 +291,21 @@ export interface Customers {
   wallet_paid_paise: Generated<number>;
 }
 
+export interface DemoRequests {
+  city: string | null;
+  contacted_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  name: string;
+  note: string | null;
+  pains: Generated<string[]>;
+  phone: string;
+  plan: string | null;
+  restaurant: string;
+  status: Generated<string>;
+  tables: string | null;
+}
+
 export interface Devices {
   applied_at: Timestamp | null;
   applied_version: Int8 | null;
@@ -1016,6 +1031,7 @@ export interface DB {
   customer_memberships: CustomerMemberships;
   customer_rewards: CustomerRewards;
   customers: Customers;
+  demo_requests: DemoRequests;
   devices: Devices;
   idempotency_keys: IdempotencyKeys;
   ingredients: Ingredients;

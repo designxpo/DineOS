@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
 import type { AdminSupportCaseDTO } from '@dineos/shared/dto';
 import { rupeesToPaise } from '@dineos/shared/money';
+import { DEMO_PAIN_LABELS, type DemoPain } from '@dineos/shared/leads';
 import { SUPPORT_HOURS, SUPPORT_TARGET_MINUTES, type SupportSeverity, type SupportStatus } from '@dineos/shared/support';
 import { ApiError, apiFetch, errorMessage, type RequestOptions } from '@/lib/api';
 import { ago, date, dateTime, formatPaise, rupeesInput } from '@/lib/format';
@@ -16,7 +17,7 @@ import { Badge, Card, Field, Input, Segmented, Select, Spinner, Textarea } from 
 import { useToast } from '@/components/ui/toast';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Tab = 'tenants' | 'support' | 'invoices' | 'plans' | 'usage';
+type Tab = 'tenants' | 'leads' | 'support' | 'invoices' | 'plans' | 'usage';
 
 function useAdminApi() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function AdminPage() {
       <header className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
         <ShieldCheck className="size-6 text-[var(--brand)]" />
         <h1 className="font-semibold">DineOS admin</h1>
-        <Segmented value={tab} onChange={setTab} className="ml-4" options={[{ value: 'tenants', label: 'Restaurants' }, { value: 'support', label: 'Support' }, { value: 'invoices', label: 'Invoices' }, { value: 'plans', label: 'Plans' }, { value: 'usage', label: 'Usage' }]} />
+        <Segmented value={tab} onChange={setTab} className="ml-4" options={[{ value: 'tenants', label: 'Restaurants' }, { value: 'leads', label: 'Leads' }, { value: 'support', label: 'Support' }, { value: 'invoices', label: 'Invoices' }, { value: 'plans', label: 'Plans' }, { value: 'usage', label: 'Usage' }]} />
         <Button
           variant="ghost"
           className="ml-auto"
@@ -66,6 +67,7 @@ export default function AdminPage() {
       </header>
       <main className="p-6">
         {tab === 'tenants' && <Tenants api={api} />}
+        {tab === 'leads' && <Leads api={api} />}
         {tab === 'support' && <Support api={api} />}
         {tab === 'invoices' && <Invoices api={api} />}
         {tab === 'plans' && <Plans api={api} />}
@@ -669,3 +671,94 @@ function WhiteLabelSwitch({ tenant, plan, onChange }: { tenant: any; plan: any; 
     </div>
   );
 }
+
+interface DemoRequest {
+  id: string;
+  name: string;
+  restaurant: string;
+  phone: string;
+  city: string | null;
+  tables: string | null;
+  plan: string | null;
+  pains: DemoPain[];
+  note: string | null;
+  status: 'new' | 'contacted' | 'won' | 'lost';
+  created_at: string;
+}
+
+/** Restaurants that asked for a demo on the website, newest first. */
+function Leads({ api }: { api: Api }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data } = useQuery({ queryKey: ['admin-leads'], queryFn: () => api<DemoRequest[]>('/admin/demo-requests'), refetchInterval: 30_000 });
+  const setStatus = async (id: string, status: DemoRequest['status']) => {
+    try {
+      await api(`/admin/demo-requests/${id}`, { method: 'PATCH', body: { status } });
+      await qc.invalidateQueries({ queryKey: ['admin-leads'] });
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    }
+  };
+  const fresh = (data ?? []).filter((d) => d.status === 'new').length;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink-faint">Demo requests from the website. {fresh > 0 && <Badge tone="amber">{fresh} not contacted yet</Badge>}</p>
+      <Card className="overflow-x-auto">
+        <table className="w-full min-w-[60rem] text-sm">
+          <thead className="bg-stone-50 text-left text-xs text-ink-faint">
+            <tr>
+              {['When', 'Restaurant', 'Contact', 'Tables', 'Plan', 'What hurts', 'Status'].map((h) => (
+                <th key={h} className="px-4 py-2 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line align-top">
+            {(data ?? []).map((d) => (
+              <tr key={d.id}>
+                <td className="px-4 py-2.5 whitespace-nowrap text-ink-faint">{ago(d.created_at)}</td>
+                <td className="px-4 py-2.5">
+                  <p className="font-medium">{d.restaurant}</p>
+                  <p className="text-xs text-ink-faint">{d.city}</p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p>{d.name}</p>
+                  <p className="flex gap-2 text-xs">
+                    <a className="text-brand-700 underline" href={`tel:${d.phone}`}>
+                      {d.phone}
+                    </a>
+                    <a className="text-brand-700 underline" href={`https://wa.me/${d.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  </p>
+                </td>
+                <td className="px-4 py-2.5">{d.tables ?? ''}</td>
+                <td className="px-4 py-2.5">{d.plan ?? ''}</td>
+                <td className="max-w-80 px-4 py-2.5 text-xs text-ink-soft">
+                  {d.pains.map((p) => DEMO_PAIN_LABELS[p] ?? p).join('; ')}
+                  {d.note && <p className="mt-1 italic">“{d.note}”</p>}
+                </td>
+                <td className="px-4 py-2.5">
+                  <Select value={d.status} onChange={(e) => void setStatus(d.id, e.target.value as DemoRequest['status'])} className="h-9 w-32" aria-label="Status">
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="won">Won</option>
+                    <option value="lost">Lost</option>
+                  </Select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!data && (
+          <div className="grid place-items-center py-10">
+            <Spinner />
+          </div>
+        )}
+        {data?.length === 0 && <p className="py-10 text-center text-ink-faint">No demo requests yet.</p>}
+      </Card>
+    </div>
+  );
+}
+
