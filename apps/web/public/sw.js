@@ -50,3 +50,28 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// Staff phone alerts (Web Push): new orders to accept, waiter calls, bill requests.
+self.addEventListener('push', (event) => {
+  let msg = { title: 'DineOS', body: '', url: '/app', tag: undefined };
+  try {
+    msg = { ...msg, ...event.data.json() };
+  } catch {
+    // keep the defaults
+  }
+  event.waitUntil(
+    self.registration.showNotification(msg.title, { body: msg.body, tag: msg.tag, renotify: Boolean(msg.tag), icon: '/icon.svg', badge: '/icon.svg', data: { url: msg.url } }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || '/app', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((open) => {
+      const tab = open.find((c) => c.url.startsWith(self.location.origin));
+      if (tab) return tab.navigate(url).then((c) => (c || tab).focus());
+      return self.clients.openWindow(url);
+    }),
+  );
+});

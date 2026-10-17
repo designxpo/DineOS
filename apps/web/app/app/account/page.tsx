@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { rolesCan } from '@dineos/shared/permissions';
 import { errorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
+import { pushState, turnOffPush, turnOnPush, type PushState } from '@/lib/push-alerts';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
-import { Card, Field, Input, Segmented } from '@/components/ui/primitives';
+import { Card, Field, Input, Segmented, Switch } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { PageHeader } from '@/components/staff/shell';
 
@@ -66,6 +68,7 @@ export default function AccountPage() {
           </Button>
         </Card>
         <div className="space-y-4">
+          <PhoneAlerts />
           <Card className="space-y-3 p-5">
             <h2 className="font-semibold">Language</h2>
             <Segmented value={lang} onChange={setLang} options={[{ value: 'en', label: 'English' }, { value: 'hi', label: 'हिंदी' }]} />
@@ -86,5 +89,45 @@ export default function AccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Turns push alerts on or off for this device. Hidden until the server has push keys. */
+function PhoneAlerts() {
+  const { api, outletId, outlet } = useStaff();
+  const toast = useToast();
+  const config = useQuery({ queryKey: ['push-config'], queryFn: () => api<{ public_key: string }>('/push/config'), retry: false });
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void pushState().then(setState);
+  }, []);
+  if (!config.data || !state || state === 'unsupported') return null;
+
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    try {
+      if (on) await turnOnPush(api, outletId);
+      else await turnOffPush(api);
+      setState(await pushState());
+      toast(on ? 'Alerts are on for this phone' : 'Alerts are off for this phone');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : errorMessage(err), 'error');
+      setState(await pushState());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="space-y-3 p-5">
+      <div>
+        <h2 className="font-semibold">Alerts on this phone</h2>
+        <p className="mt-1 text-sm text-ink-soft">A buzz for new orders to accept, waiter calls and bill requests at {outlet?.name ?? 'this outlet'}, even when DineOS is closed.</p>
+      </div>
+      {state === 'needs_install' && <p className="text-sm text-amber-800">On iPhone, tap Share, then “Add to Home Screen”. Open DineOS from the Home Screen and turn alerts on there.</p>}
+      {state === 'blocked' && <p className="text-sm text-amber-800">Notifications are blocked for DineOS. Allow them in your browser’s site settings, then come back.</p>}
+      {(state === 'on' || state === 'off') && <Switch label="Alerts on this phone" checked={state === 'on'} disabled={busy} onChange={(v) => void toggle(v)} />}
+    </Card>
   );
 }

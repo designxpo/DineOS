@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { LoginResponseDTO, MeDTO, OutletDTO } from '@dineos/shared/dto';
 import type { Role } from '@dineos/shared/enums';
 import { rolesCan, type Action } from '@dineos/shared/permissions';
+import { turnOffPush } from '@/lib/push-alerts';
 import { ApiError, apiFetch, type RequestOptions } from './api';
 import { readLocal, writeLocal } from './storage';
 
@@ -96,6 +97,8 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
         }
       },
       logout: async () => {
+        // The next person on this phone must not get this account's alerts.
+        await turnOffPush((path, opts) => apiFetch(path, { ...opts, token })).catch(() => {});
         await apiFetch('/auth/logout', { method: 'POST', token }).catch(() => {});
         signOut();
       },

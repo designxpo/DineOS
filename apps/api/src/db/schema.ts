@@ -587,6 +587,19 @@ export interface PrintJobs {
   updated_at: Generated<Timestamp>;
 }
 
+export interface PushSubscriptions {
+  auth: string;
+  created_at: Generated<Timestamp>;
+  endpoint: string;
+  id: Generated<string>;
+  last_sent_at: Timestamp | null;
+  outlet_id: string;
+  p256dh: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  user_id: string;
+}
+
 export interface Recipes {
   ingredient_id: string;
   item_id: string;
@@ -812,6 +825,7 @@ export interface DB {
   platform_counters: PlatformCounters;
   platform_invoices: PlatformInvoices;
   print_jobs: PrintJobs;
+  push_subscriptions: PushSubscriptions;
   recipes: Recipes;
   reservations: Reservations;
   service_requests: ServiceRequests;

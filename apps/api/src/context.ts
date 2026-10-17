@@ -4,6 +4,7 @@ import type { Channel, EventType, OutletEvent } from '@dineos/shared/events';
 import type { Config } from './config';
 import { createDb, json, type Database, type DB } from './db';
 import { EventBus } from './lib/bus';
+import { webPushSender, type PushSender } from './lib/push';
 import { msg91Sender, type OtpSender } from './lib/sms';
 import { createStorage, type Storage } from './lib/storage';
 
@@ -38,6 +39,8 @@ export interface AppContext {
   storage: Storage;
   /** Delivers loyalty codes by SMS; null until MSG91 is set up. Tests swap in a fake. */
   otp: OtpSender | null;
+  /** Web Push to staff phones; null until VAPID keys are set. Tests swap in a fake. */
+  push: PushSender | null;
   log: FastifyBaseLogger;
   tx<T>(tenantId: string, fn: (tx: Tx) => Promise<T>): Promise<T>;
   close(): Promise<void>;
@@ -113,6 +116,10 @@ export function createContext(config: Config, log: FastifyBaseLogger): AppContex
     bus,
     storage,
     otp: config.MSG91_AUTH_KEY && config.MSG91_OTP_TEMPLATE_ID ? msg91Sender({ authKey: config.MSG91_AUTH_KEY, templateId: config.MSG91_OTP_TEMPLATE_ID }) : null,
+    push:
+      config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY
+        ? webPushSender({ publicKey: config.VAPID_PUBLIC_KEY, privateKey: config.VAPID_PRIVATE_KEY, subject: config.VAPID_SUBJECT })
+        : null,
     log,
     tx,
     async close() {

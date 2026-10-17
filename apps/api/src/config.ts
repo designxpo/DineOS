@@ -45,6 +45,11 @@ const schema = z.object({
   /** MSG91 auth key and DLT OTP template: with both set, loyalty asks guests for a code by SMS. */
   MSG91_AUTH_KEY: z.string().optional(),
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  /** Web Push (VAPID) keys: with both set, staff can turn on alerts on their phones. */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  /** Contact the push services can reach about abuse, e.g. mailto:ops@yourcompany.in. */
+  VAPID_SUBJECT: z.string().default('mailto:ops@dineos.app'),
 });
 
 export type Config = z.infer<typeof schema> & { corsOrigins: string[]; storageDir: string };

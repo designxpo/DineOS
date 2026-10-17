@@ -11,6 +11,7 @@ import { registerErrorHandler } from './lib/errors';
 import { registerIdempotency } from './lib/idempotency';
 import { registerFileRoute } from './lib/storage';
 import { modules } from './modules';
+import { registerPushAlerts } from './modules/push/alerts';
 
 export interface BuildOptions {
   config?: Config;
@@ -84,7 +85,9 @@ export async function buildApp(
     app.log.debug(`module ${name} registered`);
   }
 
+  const stopPushAlerts = registerPushAlerts(ctx);
   app.addHook('onClose', async () => {
+    stopPushAlerts();
     await ctx.close();
   });
 
