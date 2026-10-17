@@ -148,9 +148,11 @@ describe('customer book', () => {
     const guest = api(t, (await t.app.inject({ method: 'POST', url: '/v1/guest/join', payload: { qr_token: qr } })).json().guest_token);
     const res = await guest({ method: 'POST', url: '/v1/guest/loyalty', payload: { phone: '9876500060', name: 'Impostor', marketing_opt_in: true, consent: true } });
     expect(res.json()).toEqual({ phone_last4: '0060' });
-    const session = (await guest({ method: 'GET', url: '/v1/guest/session' })).body;
-    expect(session).not.toContain('400');
-    expect(session).not.toContain('Impostor');
+    // Every value in the response, so ids or timestamps that happen to contain "400" do not count.
+    const values: unknown[] = [];
+    JSON.parse((await guest({ method: 'GET', url: '/v1/guest/session' })).body, (_key, value) => (values.push(value), value));
+    expect(values).not.toContain(400);
+    expect(values).not.toContain('Impostor');
     const row = await t.ctx.adminDb.selectFrom('customers').select(['name', 'marketing_opt_in', 'consent_source']).where('id', '=', memberId).executeTakeFirstOrThrow();
     expect(row).toEqual({ name: null, marketing_opt_in: false, consent_source: 'staff' });
   });
