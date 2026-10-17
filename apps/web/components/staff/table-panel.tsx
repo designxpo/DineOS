@@ -246,7 +246,7 @@ export function TablePanel({ table, tables, onClose }: { table: TableDTO | null;
           <h3 className="text-sm font-semibold text-ink-soft">{t('floor.orders')}</h3>
           {(orders.data ?? []).length === 0 && <p className="text-sm text-ink-faint">{t('floor.no_orders')}</p>}
           {[...(orders.data ?? [])].reverse().map((o) => (
-            <OrderCard key={o.id} order={o} />
+            <OrderCard key={o.id} order={o} billable={false} />
           ))}
         </div>
       )}

@@ -1,9 +1,10 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Ban, Clock, Gift, HandPlatter, Pencil, Printer, QrCode, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
+import { Ban, Clock, Gift, HandPlatter, Pencil, Printer, QrCode, ReceiptIndianRupee, ShieldAlert, Smartphone, StickyNote, UserRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import type { OrderDTO } from '@dineos/shared/dto';
+import type { BillDTO, OrderDTO } from '@dineos/shared/dto';
 import type { OrderStatus } from '@dineos/shared/enums';
 import { ApiError, errorMessage } from '@/lib/api';
 import { ago, formatPaise, minutesSince } from '@/lib/format';
@@ -46,6 +47,7 @@ export function useOrderActions() {
   const qc = useQueryClient();
   const toast = useToast();
   const withApproval = useWithApproval();
+  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function setStatus(order: OrderDTO, status: OrderStatus, reason?: string) {
@@ -103,13 +105,29 @@ export function useOrderActions() {
     }
   }
 
-  return { setStatus, serveReady, reprint, busy };
+  /** Opens the bill this order goes on: the table's bill for dine-in, its own for anything else. */
+  async function openBill(order: OrderDTO) {
+    setBusy(`${order.id}:bill`);
+    try {
+      const bill = await api<BillDTO>('/bills', { method: 'POST', body: order.table_session_id ? { table_session_id: order.table_session_id } : { order_id: order.id } });
+      router.push(`/app/bills/${bill.id}`);
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return { setStatus, serveReady, reprint, openBill, busy };
 }
 
-export function OrderCard({ order, highlight, compact }: { order: OrderDTO; highlight?: boolean; compact?: boolean }) {
+/** `billable`: offer the bill from the card (off inside a table's panel, which has its own). */
+export function OrderCard({ order, highlight, compact, billable = true }: { order: OrderDTO; highlight?: boolean; compact?: boolean; billable?: boolean }) {
   const { can, api } = useStaff();
   const { t } = useI18n();
-  const { setStatus, serveReady, reprint, busy } = useOrderActions();
+  const { setStatus, serveReady, reprint, openBill, busy } = useOrderActions();
+  const canBill = billable && can('bill.manage');
+  const billLabel = order.table_label ? t('act.bill_table', { label: order.table_label }) : t('act.bill');
   const [rejecting, setRejecting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -276,6 +294,11 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
                   <Gift className="size-[18px]" />
                 </IconButton>
               )}
+              {canBill && (
+                <IconButton label={billLabel} onClick={() => void openBill(order)}>
+                  <ReceiptIndianRupee className="size-[18px]" />
+                </IconButton>
+              )}
               <IconButton label={t('act.reprint')} onClick={() => void reprint(order)}>
                 <Printer className="size-[18px]" />
               </IconButton>
@@ -286,6 +309,27 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
               )}
             </div>
           )}
+        </footer>
+      )}
+
+      {/* Served: the next step is the bill, also from the "Served" column and for takeaways. */}
+      {order.status === 'served' && (
+        <footer className="flex flex-wrap items-center gap-2 border-t border-line p-3">
+          {canBill && (
+            <Button className="min-w-32 flex-1" loading={busy === `${order.id}:bill`} onClick={() => void openBill(order)}>
+              <ReceiptIndianRupee className="size-4" /> {billLabel}
+            </Button>
+          )}
+          <div className="ml-auto flex shrink-0 items-center">
+            {canComp && (
+              <IconButton label={t('comp.title')} onClick={() => setGiving(true)}>
+                <Gift className="size-[18px]" />
+              </IconButton>
+            )}
+            <IconButton label={t('act.reprint')} onClick={() => void reprint(order)}>
+              <Printer className="size-[18px]" />
+            </IconButton>
+          </div>
         </footer>
       )}
 
