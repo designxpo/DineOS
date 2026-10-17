@@ -166,3 +166,59 @@ describe('inventory', () => {
     expect(csv.body.split('\n')[0]).toContain('used_qty');
   });
 });
+
+describe('cancelled dishes', () => {
+  const approval = async () =>
+    (await waiter({ method: 'POST', url: '/v1/approvals', payload: { outlet_id: outlet(), action: 'order.cancel_after_accept', login: manager.login, pin: '1122' } })).json().approval_token as string;
+  const cancel = async (o: OrderDTO, line: Record<string, unknown>) => {
+    const res = await owner({ method: 'PATCH', url: `/v1/orders/${o.id}/items`, payload: { cancel: [{ order_item_id: o.items[0]!.id, reason: 'Guest changed mind', ...line }] }, headers: { 'x-approval-token': await approval() } });
+    expect(res.statusCode).toBe(200);
+  };
+  const shelf = async () => {
+    const s = await stock();
+    return { milk: s.Milk!.stock_qty, coffee: s['Coffee beans']!.stock_qty };
+  };
+  const coffeeMoves = async (type: string): Promise<StockMovementDTO[]> =>
+    (await kitchen({ method: 'GET', url: `/v1/inventory/movements?outlet_id=${outlet()}&ingredient_id=${ing.coffee}&type=${type}` })).json();
+
+  it('counts a dish cancelled after the kitchen made it as wastage, and does not put it back on the shelf', async () => {
+    const start = await shelf();
+    const o = await order([{ item_id: menu.coldCoffee, qty: 1, modifier_ids: [menu.large] }]);
+    expect(await shelf()).toEqual({ milk: start.milk - 0.25, coffee: start.coffee - 10 });
+    expect((await kitchen({ method: 'PATCH', url: `/v1/order-items/${o.items[0]!.id}/status`, payload: { status: 'preparing' } })).statusCode).toBe(200);
+
+    await cancel(o, {});
+    // Still gone from the shelf, now as wastage rather than as food sold.
+    expect(await shelf()).toEqual({ milk: start.milk - 0.25, coffee: start.coffee - 10 });
+    const wasted = await coffeeMoves('wastage');
+    expect(wasted[0]).toMatchObject({ qty: -10, stock_after: start.coffee - 10 });
+    expect(wasted[0]!.note).toMatch(/^Order #\d+, cancelled after it was made$/);
+    const audit = await t.ctx.adminDb.selectFrom('audit_log').select('after').where('entity_id', '=', o.items[0]!.id).where('action', '=', 'order_item.cancel').executeTakeFirstOrThrow();
+    expect(audit.after).toMatchObject({ made: true });
+
+    const report = (await owner({ method: 'GET', url: `/v1/reports/inventory?outlet_id=${outlet()}` })).json();
+    const coffee = report.ingredients.find((i: { name: string }) => i.name === 'Coffee beans');
+    expect(coffee).toMatchObject({ used_qty: 40, wasted_qty: 10 });
+  });
+
+  it('takes the word of whoever cancels it over the kitchen screen', async () => {
+    const start = await shelf();
+    // Accepted but never marked as started: made anyway, the kitchen just did not tap it.
+    const o = await order([{ item_id: menu.coldCoffee, qty: 1, modifier_ids: [menu.large] }]);
+    await cancel(o, { made: true });
+    expect(await shelf()).toEqual({ milk: start.milk - 0.25, coffee: start.coffee - 10 });
+    expect((await coffeeMoves('wastage'))[0]!.qty).toBe(-10);
+  });
+
+  it('puts back exactly what the dish took, even if its recipe changed since', async () => {
+    const start = await shelf();
+    const o = await order([{ item_id: menu.coldCoffee, qty: 2, modifier_ids: [menu.large] }]);
+    expect(await shelf()).toEqual({ milk: start.milk - 0.5, coffee: start.coffee - 20 });
+    const recipe = await owner({ method: 'PUT', url: `/v1/inventory/recipes/items/${menu.coldCoffee}`, payload: { lines: [{ ingredient_id: ing.milk, qty: 0.3 }, { ingredient_id: ing.coffee, qty: 12 }] } });
+    expect(recipe.statusCode).toBe(200);
+
+    await cancel(o, {});
+    expect(await shelf()).toEqual(start);
+    expect((await coffeeMoves('return'))[0]).toMatchObject({ qty: 20, stock_after: start.coffee });
+  });
+});

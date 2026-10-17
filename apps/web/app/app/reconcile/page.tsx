@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, StatementDetailDTO } from '@dineos/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { date, dateTime, formatPaise } from '@/lib/format';
+import { missingNote } from '@/lib/reconcile';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -150,7 +151,7 @@ function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: Statemen
         empty="Every UPI payment in these dates reached the bank."
       >
         {d.missing.map((m) => (
-          <Row key={m.id} amount={m.amount_paise} title={`${m.invoice_no ?? 'Bill'}${m.table_label ? ` · ${m.table_label}` : ''}`} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
+          <Row key={m.id} amount={m.amount_paise} note={missingNote(m)} title={`${m.invoice_no ?? 'Bill'}${m.table_label ? ` · ${m.table_label}` : ''}`} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
             {m.late_possible && <Badge tone="neutral">May post on the next statement</Badge>}
             <Button size="sm" variant="outline" onClick={() => setMatching({ payment: m })} disabled={!unrecorded.some((c) => c.amount_paise === m.amount_paise)}>
               Match…
@@ -241,12 +242,13 @@ function Section({ tone, title, hint, empty, children }: { tone: 'rose' | 'amber
   );
 }
 
-function Row({ title, sub, amount, children }: { title: string; sub: string; amount: number; children?: React.ReactNode }) {
+function Row({ title, sub, note, amount, children }: { title: string; sub: string; note?: string | null; amount: number; children?: React.ReactNode }) {
   return (
     <li className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{title}</p>
         <p className="truncate text-xs text-ink-faint">{sub}</p>
+        {note && <p className="mt-0.5 text-xs text-rose-700">{note}</p>}
       </div>
       <span className="w-24 text-right font-semibold tabular">{formatPaise(amount)}</span>
       <div className="flex items-center gap-2">{children}</div>

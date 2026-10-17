@@ -33,6 +33,11 @@ export function isTerminal(status: OrderStatus): boolean {
   return TRANSITIONS[status].length === 0;
 }
 
+/** The kitchen had started or finished the dish, so cancelling it now wastes its ingredients. */
+export function itemWasMade(status: ItemStatus): boolean {
+  return status === 'preparing' || status === 'ready' || status === 'served';
+}
+
 /** Items can move forward independently (one dish ready before another). */
 export function canItemTransition(from: ItemStatus, to: ItemStatus): boolean {
   if (from === 'cancelled') return false;

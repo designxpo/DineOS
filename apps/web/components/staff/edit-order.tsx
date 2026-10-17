@@ -3,7 +3,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, Undo2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { MenuItemDTO, OrderDTO } from '@dineos/shared/dto';
+import type { MenuItemDTO, OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
+import { itemWasMade } from '@dineos/shared/order-state';
 import { errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
 import { useStaffMenu } from '@/lib/menu-cache';
@@ -37,6 +38,8 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
   const menu = useStaffMenu();
   const [qty, setQty] = useState<Record<string, number>>({});
   const [cancel, setCancel] = useState<Record<string, string>>({});
+  // Whether the kitchen had made a cancelled dish (its ingredients are wasted); defaults from its status.
+  const [made, setMade] = useState<Record<string, boolean>>({});
   const [adds, setAdds] = useState<NewLine[]>([]);
   const [search, setSearch] = useState('');
   const [picking, setPicking] = useState<MenuItemDTO | null>(null);
@@ -46,11 +49,13 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
     if (!open) return;
     setQty({});
     setCancel({});
+    setMade({});
     setAdds([]);
     setSearch('');
   }, [open]);
 
   const placed = order.status === 'placed';
+  const madeOf = (i: OrderItemDTO) => made[i.id] ?? itemWasMade(i.status);
   const canAdd = ['placed', 'accepted', 'preparing'].includes(order.status);
   const active = order.items.filter((i) => i.status !== 'cancelled');
   const allMods = useMemo(() => menu.data?.modifier_groups.flatMap((g) => g.modifiers) ?? [], [menu.data]);
@@ -79,7 +84,14 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
     try {
       const body = {
         ...(Object.keys(qty).length ? { set_qty: Object.entries(qty).map(([order_item_id, q]) => ({ order_item_id, qty: q })) } : {}),
-        ...(Object.keys(cancel).length ? { cancel: Object.entries(cancel).map(([order_item_id, reason]) => ({ order_item_id, reason: reason.trim() })) } : {}),
+        ...(Object.keys(cancel).length
+          ? {
+              cancel: Object.entries(cancel).map(([order_item_id, reason]) => {
+                const item = order.items.find((i) => i.id === order_item_id)!;
+                return { order_item_id, reason: reason.trim(), ...(item.status === 'placed' ? {} : { made: madeOf(item) }) };
+              }),
+            }
+          : {}),
         ...(adds.length ? { add: adds.map((l) => ({ item_id: l.item.id, qty: l.qty, modifier_ids: l.modifierIds })) } : {}),
       };
       const res = await withApproval((approvalToken) => api<OrderDTO>(`/orders/${order.id}/items`, { method: 'PATCH', body, approvalToken }));
@@ -155,6 +167,22 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
                     {CANCEL_REASONS.map((r) => (
                       <button key={r} onClick={() => setCancel({ ...cancel, [i.id]: r })} className={cn('h-8 cursor-pointer rounded-full border px-2.5 text-xs', cancel[i.id] === r ? 'border-rose-400 bg-rose-50 text-rose-800' : 'border-line')}>
                         {r}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cancelled && i.status !== 'placed' && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 pl-6" role="radiogroup" aria-label={`Had the kitchen made ${i.name}?`}>
+                    {[false, true].map((m) => (
+                      <button
+                        key={String(m)}
+                        type="button"
+                        role="radio"
+                        aria-checked={madeOf(i) === m}
+                        onClick={() => setMade({ ...made, [i.id]: m })}
+                        className={cn('h-8 cursor-pointer rounded-full border px-2.5 text-xs', madeOf(i) === m ? 'border-stone-500 bg-stone-100 font-medium text-ink' : 'border-line text-ink-soft')}
+                      >
+                        {m ? 'Already made (wasted)' : 'Not made yet'}
                       </button>
                     ))}
                   </div>

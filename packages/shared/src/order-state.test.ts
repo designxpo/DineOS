@@ -5,6 +5,7 @@ import {
   cancelNeedsManager,
   deriveOrderStatus,
   itemStatusForOrder,
+  itemWasMade,
   readyNews,
   type ReadyItem,
 } from './order-state';
@@ -82,5 +83,12 @@ describe('ready to serve', () => {
   it('says nothing when nothing became ready', () => {
     expect(readyNews([item('mojito', 'bar', 'served')], new Set())).toBeNull();
     expect(readyNews([item('mojito', 'bar', 'served')], new Set(['mojito']))).toBeNull();
+  });
+});
+
+describe('cancelled dishes', () => {
+  it('counts a dish as made once the kitchen has started it', () => {
+    expect(['placed', 'accepted'].map((s) => itemWasMade(s as 'placed'))).toEqual([false, false]);
+    expect(['preparing', 'ready', 'served'].map((s) => itemWasMade(s as 'ready'))).toEqual([true, true, true]);
   });
 });

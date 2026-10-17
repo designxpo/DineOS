@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { date, dateTime, formatPaise } from '@/lib/format';
+import { missingNote } from '@/lib/reconcile';
 import { useStaff } from '@/lib/staff';
 import { Card, Spinner, Stat } from '@/components/ui/primitives';
 import { ColumnChart } from '@/components/staff/column-chart';
@@ -188,6 +189,7 @@ function UpiCheckCard() {
                   {p.invoice_no ?? 'Bill'}
                   {p.table_label && ` · ${p.table_label}`} · {dateTime(p.created_at)}
                   {p.confirmed_by_name && ` · confirmed by ${p.confirmed_by_name}`}
+                  {missingNote(p) && <span className="block text-xs opacity-80">{missingNote(p)}</span>}
                 </span>
                 <span className="font-semibold tabular">{formatPaise(p.amount_paise)}</span>
               </li>

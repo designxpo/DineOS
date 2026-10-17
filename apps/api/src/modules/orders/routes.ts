@@ -126,7 +126,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const body = parse(
         z.object({
           add: z.array(line).max(50).optional(),
-          cancel: z.array(z.object({ order_item_id: z.uuid(), reason: z.string().min(1).max(200) })).max(100).optional(),
+          cancel: z.array(z.object({ order_item_id: z.uuid(), reason: z.string().min(1).max(200), made: z.boolean().optional() })).max(100).optional(),
           set_qty: z.array(z.object({ order_item_id: z.uuid(), qty: z.number().int().min(1).max(99) })).max(100).optional(),
         }),
         req.body,

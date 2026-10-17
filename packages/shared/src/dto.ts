@@ -726,6 +726,17 @@ export interface ReconPaymentDTO {
   created_at: string;
 }
 
+/** What can be told about a UPI payment the bank shows no credit for. */
+export interface MissingHints {
+  /**
+   * Payments of the same amount within a day that were matched on amount and date alone. Above 0,
+   * the bank got fewer of this amount than staff recorded, and any of them may be the one it lacks.
+   */
+  lookalikes: number;
+  /** A bank credit carries the UTR staff recorded, for this amount instead: the guest paid something else. */
+  utr_credit_paise: number | null;
+}
+
 export interface BankCreditDTO {
   id: string;
   txn_date: string;
@@ -743,7 +754,7 @@ export interface StatementDetailDTO {
   statement: BankStatementDTO;
   credits: BankCreditDTO[];
   /** UPI payments in the statement's dates with no bank credit; those on its last day may still post. */
-  missing: (ReconPaymentDTO & { late_possible: boolean })[];
+  missing: (ReconPaymentDTO & MissingHints & { late_possible: boolean })[];
 }
 
 /** How the last few days of UPI payments stand against imported bank statements. */
@@ -755,7 +766,7 @@ export interface UpiCheckDTO {
   /** Found in a statement. */
   checked: { count: number; amount_paise: number };
   /** A statement covers the day, and runs past it, with no matching credit: the bank never got it. */
-  not_received: { count: number; amount_paise: number; payments: ReconPaymentDTO[] };
+  not_received: { count: number; amount_paise: number; payments: (ReconPaymentDTO & MissingHints)[] };
   /** No statement covers the day yet, or only as its last day (late payments post the next morning). */
   unchecked: { count: number; amount_paise: number; oldest_day: string | null };
 }

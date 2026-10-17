@@ -11,6 +11,7 @@ import {
   cancelNeedsManager,
   deriveOrderStatus,
   itemStatusForOrder,
+  itemWasMade,
   readyNews,
 } from '@dineos/shared/order-state';
 import type { Action } from '@dineos/shared/permissions';
@@ -548,7 +549,10 @@ export async function transitionOrder(
     if (next !== item.status) {
       await tx.db
         .updateTable('order_items')
-        .set({ status: next, ...(next === 'cancelled' && reason ? { cancelled_reason: reason } : {}) })
+        .set({
+          status: next,
+          ...(next === 'cancelled' ? { cancelled_made: itemWasMade(item.status as ItemStatus), ...(reason ? { cancelled_reason: reason } : {}) } : {}),
+        })
         .where('id', '=', item.id)
         .execute();
     }

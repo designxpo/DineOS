@@ -58,6 +58,10 @@ function hdfcCsv(): Buffer {
   );
 }
 
+/** An HDFC-style CSV with the given transaction lines. */
+const statementCsv = (lines: string[]) =>
+  Buffer.from(['HDFC BANK Ltd.,,,,,,', ',,,,,,', 'Date,Narration,Chq./Ref.No.,Value Dt,Withdrawal Amt.,Deposit Amt.,Closing Balance', ...lines].join('\n'));
+
 const credit = (d: StatementDetailDTO, narration: string) => d.credits.find((c) => c.narration.includes(narration))!;
 
 describe('UPI reconciliation', () => {
@@ -146,6 +150,80 @@ describe('UPI reconciliation', () => {
     const actions = (await t.ctx.adminDb.selectFrom('audit_log').select('action').where('tenant_id', '=', tenant.tenantId).where('action', 'like', 'reconciliation.%').execute()).map((a) => a.action);
     expect(actions).toEqual(expect.arrayContaining(['reconciliation.import', 'reconciliation.unmatch', 'reconciliation.match', 'reconciliation.dismiss']));
     expect((await cashier({ method: 'GET', url: `/v1/reconciliation/statements/${first.id}` })).statusCode).toBe(403);
+  });
+
+  it('does not match a UTR to a payment of another amount, and says what the bank got instead', async () => {
+    // The guest showed a ₹263 payment for a bill staff recorded as ₹1,050 under its UTR.
+    const short = await upiPayment(4, 'UTR 311122223333', '2026-10-20T14:00:00+05:30');
+    const sameAsCredit = await upiPayment(1, null, '2026-10-20T15:00:00+05:30');
+    const d: StatementDetailDTO = (
+      await upload(
+        'short.csv',
+        statementCsv([
+          `20/10/26,UPI-RAHUL-r@okaxis-UTIB0000001-311122223333-PAY,0000311122223333,20/10/26,,${rupees(sameAsCredit.amount)},500.00`,
+          '21/10/26,CASH DEPOSIT BY SELF,,21/10/26,,"1,000.00",1500.00',
+        ]),
+      )
+    ).json();
+    // The credit belongs to the short payment, so it is not matched to the other one by amount either.
+    expect(credit(d, 'RAHUL').payment).toBeNull();
+    const missing = Object.fromEntries(d.missing.map((m) => [m.id, m]));
+    expect(missing[short.id]).toMatchObject({ utr_credit_paise: sameAsCredit.amount, lookalikes: 0 });
+    expect(missing[sameAsCredit.id]).toMatchObject({ utr_credit_paise: null, lookalikes: 0 });
+
+    const c: UpiCheckDTO = (await owner({ method: 'GET', url: `/v1/reconciliation/upi-check?outlet_id=${tenant.outletId}&to=2026-10-20&days=1` })).json();
+    expect(c.not_received.payments.find((p) => p.id === short.id)).toMatchObject({ utr_credit_paise: sameAsCredit.amount });
+  });
+
+  it('says when it cannot tell which of several same-amount payments the bank lacks', async () => {
+    const three = [
+      await upiPayment(2, null, '2026-10-23T12:00:00+05:30'),
+      await upiPayment(2, null, '2026-10-23T12:30:00+05:30'),
+      await upiPayment(2, null, '2026-10-23T13:00:00+05:30'),
+    ];
+    const amount = rupees(three[0]!.amount);
+    const d: StatementDetailDTO = (
+      await upload(
+        'two-of-three.csv',
+        statementCsv([`23/10/26,UPI-ASHA-a@ybl-YESB0000001-321000000001-PAY,0000321000000001,23/10/26,,${amount},500.00`, `23/10/26,UPI-KARAN-k@ybl-YESB0000001-321000000002-PAY,0000321000000002,23/10/26,,${amount},1000.00`, '24/10/26,CASH DEPOSIT BY SELF,,24/10/26,,"1,000.00",2000.00']),
+      )
+    ).json();
+    expect(d.credits.filter((c) => c.is_upi).map((c) => c.match_kind)).toEqual(['amount_date', 'amount_date']);
+    expect(d.statement.summary).toMatchObject({ matched: 2, missing: 1, missing_paise: three[0]!.amount });
+    expect(d.missing).toHaveLength(1);
+    expect(d.missing[0]).toMatchObject({ lookalikes: 2, utr_credit_paise: null });
+  });
+
+  it('pairs as many same-amount payments as it can across midnight', async () => {
+    // Paid at 11:50 pm and the next noon; the bank shows one on each of the next two days. Pairing the
+    // first credit with the same-day payment would leave the second with nothing.
+    const late = await upiPayment(5, null, '2026-10-26T23:50:00+05:30');
+    const noon = await upiPayment(5, null, '2026-10-27T12:00:00+05:30');
+    const amount = rupees(late.amount);
+    const d: StatementDetailDTO = (
+      await upload(
+        'midnight.csv',
+        statementCsv([`27/10/26,UPI-NEHA-n@ybl-YESB0000001-327000000001-PAY,0000327000000001,27/10/26,,${amount},500.00`, `28/10/26,UPI-OMAR-o@ybl-YESB0000001-328000000001-PAY,0000328000000001,28/10/26,,${amount},1000.00`]),
+      )
+    ).json();
+    expect(credit(d, 'NEHA').payment?.id).toBe(late.id);
+    expect(credit(d, 'OMAR').payment?.id).toBe(noon.id);
+    expect(d.missing).toEqual([]);
+  });
+
+  it('does not take the last digits of a UTR as proof when two credits end the same way', async () => {
+    const typed = await upiPayment(6, '4321', '2026-10-30T19:00:00+05:30');
+    const amount = rupees(typed.amount);
+    const d: StatementDetailDTO = (
+      await upload(
+        'same-tail.csv',
+        statementCsv([`30/10/26,UPI-PRIYA-p@ybl-YESB0000001-330000004321-PAY,0000330000004321,30/10/26,,${amount},500.00`, `30/10/26,UPI-SAM-s@ybl-YESB0000001-330000014321-PAY,0000330000014321,30/10/26,,${amount},1000.00`]),
+      )
+    ).json();
+    // The payment is in the bank either way, but not by its UTR.
+    const matched = d.credits.filter((c) => c.payment);
+    expect(matched).toHaveLength(1);
+    expect(matched[0]).toMatchObject({ match_kind: 'amount_date', payment: { id: typed.id } });
   });
 
   it('explains files it cannot read', async () => {

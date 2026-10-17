@@ -1,6 +1,6 @@
 import type { OrderDTO } from '@dineos/shared/dto';
 import type { ItemStatus, OrderStatus } from '@dineos/shared/enums';
-import { deriveOrderStatus } from '@dineos/shared/order-state';
+import { deriveOrderStatus, itemWasMade } from '@dineos/shared/order-state';
 import type { Tx } from '../../context';
 import { requireApproval } from '../../lib/approvals';
 import { audit } from '../../lib/audit';
@@ -12,7 +12,8 @@ import { announceOrder, createKots, insertOrderItems, loadOutlet, prepareLines, 
 
 export interface EditItemsInput {
   add?: OrderLineInput[];
-  cancel?: { order_item_id: string; reason: string }[];
+  /** `made`: the kitchen had made it, so its ingredients are wasted (defaults from its status). */
+  cancel?: { order_item_id: string; reason: string; made?: boolean }[];
   set_qty?: { order_item_id: string; qty: number }[];
 }
 
@@ -53,14 +54,15 @@ export async function editOrderItems(
   if (input.cancel?.length) {
     let approvedBy: string | null = null;
     if (accepted) approvedBy = await requireApproval(tx, auth, order.outlet_id, 'order.cancel_after_accept', approvalToken);
-    for (const { order_item_id, reason } of input.cancel) {
+    for (const { order_item_id, reason, made } of input.cancel) {
       const item = byId.get(order_item_id);
       if (!item) throw badRequest('invalid_item', 'Item is not part of this order');
       if (item.status === 'cancelled') continue;
       if (!reason.trim()) throw badRequest('reason_required', 'Give a reason for cancelling');
+      const wasMade = item.status !== 'placed' && (made ?? itemWasMade(item.status as ItemStatus));
       await tx.db
         .updateTable('order_items')
-        .set({ status: 'cancelled', cancelled_reason: reason.trim() })
+        .set({ status: 'cancelled', cancelled_reason: reason.trim(), cancelled_made: wasMade })
         .where('id', '=', order_item_id)
         .execute();
       if (item.status !== 'placed') cancelledAfterAccept.push(order_item_id);
@@ -71,7 +73,7 @@ export async function editOrderItems(
           entity: 'order_item',
           entityId: order_item_id,
           before: { status: item.status, name: item.name_snapshot, qty: item.qty },
-          after: { status: 'cancelled' },
+          after: { status: 'cancelled', made: wasMade },
           reason,
           approvedBy,
         });

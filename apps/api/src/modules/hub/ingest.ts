@@ -5,7 +5,7 @@
 import { computeBill } from '@dineos/shared/billing';
 import type { ItemStatus, OrderStatus } from '@dineos/shared/enums';
 import { groupSyncPayload, type HubBill, type HubOrder, type HubSession, type HubSyncGroup, type HubSyncPayload, type HubSyncResult } from '@dineos/shared/hub';
-import { canItemTransition, canTransition } from '@dineos/shared/order-state';
+import { canItemTransition, canTransition, itemWasMade } from '@dineos/shared/order-state';
 import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { audit } from '../../lib/audit';
@@ -157,7 +157,11 @@ async function upsertOrder(tx: Tx, outletId: string, o: HubOrder): Promise<void>
         })
         .execute();
     } else if (have.status !== i.status && (canItemTransition(have.status as ItemStatus, i.status) || i.status === 'cancelled')) {
-      await tx.db.updateTable('order_items').set({ status: i.status, cancelled_reason: i.cancelled_reason }).where('id', '=', i.id).execute();
+      await tx.db
+        .updateTable('order_items')
+        .set({ status: i.status, cancelled_reason: i.cancelled_reason, ...(i.status === 'cancelled' ? { cancelled_made: itemWasMade(have.status as ItemStatus) } : {}) })
+        .where('id', '=', i.id)
+        .execute();
     }
   }
   await syncStock(tx, o.id, o.created_by);

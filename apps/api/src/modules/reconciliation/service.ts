@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
-import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
+import type { BankCreditDTO, BankStatementDTO, MissingHints, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
 import type { Tx } from '../../context';
 import { notFound } from '../../lib/errors';
 import type { ParsedStatement } from './statement';
@@ -51,11 +51,43 @@ export async function importStatement(tx: Tx, outletId: string, userId: string, 
   return { id: statement.id, inserted };
 }
 
+type OpenCredit = { id: string; txn_date: string; amount_paise: number; utr: string | null; is_upi: boolean };
+type OpenPayment = { id: string; amount_paise: number; reference: string | null; day: string };
+
 /**
- * First by UTR (the 12-digit reference staff typed or pasted, or its last digits with the same
- * amount), then, for UPI credits only, by the same amount on the same or the previous day
- * (late-night payments post the next morning). Runs over every open credit in the dates, so a
- * later upload also settles credits an earlier one could not.
+ * Pairs as many credits with payments of their amount as possible, a credit taking a payment from
+ * its own day or the day before (late-night payments post the next morning), the same day first.
+ * Augmenting paths (Kuhn) so an early greedy choice never leaves a payment unpaired that could be.
+ */
+function pairByDate(credits: OpenCredit[], payments: OpenPayment[]): Map<string, string> {
+  const onDay = new Map<string, string[]>();
+  for (const p of payments) onDay.set(p.day, [...(onDay.get(p.day) ?? []), p.id]);
+  const options = new Map(credits.map((c) => [c.id, [...(onDay.get(c.txn_date) ?? []), ...(onDay.get(shift(c.txn_date, -1)) ?? [])]]));
+  const creditOf = new Map<string, string>();
+  const place = (creditId: string, seen: Set<string>): boolean => {
+    for (const paymentId of options.get(creditId)!) {
+      if (seen.has(paymentId)) continue;
+      seen.add(paymentId);
+      const holder = creditOf.get(paymentId);
+      if (holder === undefined || place(holder, seen)) {
+        creditOf.set(paymentId, creditId);
+        return true;
+      }
+    }
+    return false;
+  };
+  for (const c of credits) place(c.id, new Set());
+  return creditOf;
+}
+
+/**
+ * First by UTR: the 12-digit number anywhere in the reference staff typed or pasted, with the same
+ * amount. The same UTR on a different amount means the guest paid something else, so neither side
+ * is matched and both wait for a person. Typing just the last digits counts with the same amount
+ * and day when exactly one payment and one credit fit. Then, for UPI credits only, by amount and
+ * date (pairByDate). Where the bank has fewer credits of an amount than staff recorded, which
+ * payment it lacks cannot be known; missingHints says so. Runs over every open credit in the
+ * dates, so a later upload also settles credits an earlier one could not.
  */
 export async function autoMatch(tx: Tx, outletId: string, periodFrom: string, periodTo: string): Promise<number> {
   const outlet = await tx.db.selectFrom('outlets').select('timezone').where('id', '=', outletId).executeTakeFirstOrThrow();
@@ -86,32 +118,41 @@ export async function autoMatch(tx: Tx, outletId: string, periodFrom: string, pe
     .orderBy('payments.created_at')
     .execute();
 
-  const taken = new Set<string>();
   const matches: { creditId: string; paymentId: string; kind: 'utr' | 'amount_date' }[] = [];
+  // Matched, or waiting for a person: out of the amount-and-date pass either way.
+  const used = new Set<string>();
+  const link = (c: OpenCredit, p: OpenPayment) => {
+    used.add(c.id).add(p.id);
+    matches.push({ creditId: c.id, paymentId: p.id, kind: 'utr' });
+  };
+  const near = (p: OpenPayment, c: OpenCredit) => p.day === c.txn_date || p.day === shift(c.txn_date, -1);
   for (const c of credits) {
     if (!c.utr) continue;
-    const p =
-      payments.find((x) => !taken.has(x.id) && digits(x.reference).includes(c.utr!)) ??
-      payments.find((x) => {
-        const ref = digits(x.reference);
-        return !taken.has(x.id) && ref.length >= 4 && c.utr!.endsWith(ref) && x.amount_paise === c.amount_paise;
-      });
-    if (p) {
-      taken.add(p.id);
-      matches.push({ creditId: c.id, paymentId: p.id, kind: 'utr' });
+    const named = payments.filter((x) => !used.has(x.id) && digits(x.reference).includes(c.utr!));
+    if (named.length) {
+      const same = named.find((x) => x.amount_paise === c.amount_paise);
+      if (same) link(c, same);
+      else for (const x of [c, ...named]) used.add(x.id);
+      continue;
     }
+    const tails = payments.filter((x) => {
+      const ref = digits(x.reference);
+      return !used.has(x.id) && ref.length >= 4 && c.utr!.endsWith(ref) && x.amount_paise === c.amount_paise && near(x, c);
+    });
+    if (tails.length !== 1) continue;
+    const ref = digits(tails[0]!.reference);
+    const rivals = credits.filter((o) => !used.has(o.id) && o.utr?.endsWith(ref) && o.amount_paise === c.amount_paise && near(tails[0]!, o));
+    if (rivals.length === 1) link(c, tails[0]!);
   }
-  const matched = new Set(matches.map((m) => m.creditId));
-  for (const c of credits) {
-    if (matched.has(c.id) || !c.is_upi) continue;
-    const window = [c.txn_date, shift(c.txn_date, -1)];
-    const p =
-      payments.find((x) => !taken.has(x.id) && x.amount_paise === c.amount_paise && x.day === window[0]) ??
-      payments.find((x) => !taken.has(x.id) && x.amount_paise === c.amount_paise && x.day === window[1]);
-    if (p) {
-      taken.add(p.id);
-      matches.push({ creditId: c.id, paymentId: p.id, kind: 'amount_date' });
-    }
+
+  const open = credits.filter((c) => c.is_upi && !used.has(c.id));
+  const free = payments.filter((p) => !used.has(p.id));
+  for (const amount of new Set(open.map((c) => c.amount_paise))) {
+    const pairs = pairByDate(
+      open.filter((c) => c.amount_paise === amount),
+      free.filter((p) => p.amount_paise === amount),
+    );
+    for (const [paymentId, creditId] of pairs) matches.push({ creditId, paymentId, kind: 'amount_date' });
   }
   for (const m of matches) {
     await tx.db.updateTable('bank_credits').set({ payment_id: m.paymentId, match_kind: m.kind, matched_at: new Date() }).where('id', '=', m.creditId).execute();
@@ -133,6 +174,50 @@ async function paymentDtos(tx: Tx, ids: string[]): Promise<Map<string, ReconPaym
   return new Map(rows.map((r) => [r.id, { ...r, created_at: r.created_at.toISOString() }]));
 }
 
+/**
+ * What can be told about UPI payments the bank shows no credit for: how many payments of the same
+ * amount, within a day, were matched on amount and date alone (any of them may be the one the bank
+ * lacks), and an open credit carrying the UTR staff recorded but for another amount.
+ */
+async function missingHints(tx: Tx, outletId: string, timezone: string, missing: OpenPayment[]): Promise<Map<string, MissingHints>> {
+  const out = new Map<string, MissingHints>();
+  if (!missing.length) return out;
+  const days = missing.map((m) => m.day).sort();
+  const from = shift(days[0]!, -1);
+  const to = shift(days.at(-1)!, 1);
+  const day = sql<string>`(payments.created_at at time zone ${timezone})::date::text`;
+  const alike = await tx.db
+    .selectFrom('payments')
+    .innerJoin('bank_credits', 'bank_credits.payment_id', 'payments.id')
+    .select(['payments.amount_paise', day.as('day')])
+    .where('payments.outlet_id', '=', outletId)
+    .where('bank_credits.match_kind', '=', 'amount_date')
+    .where('payments.amount_paise', 'in', [...new Set(missing.map((m) => m.amount_paise))])
+    .where(day, '>=', from)
+    .where(day, '<=', to)
+    .execute();
+  const named = await tx.db
+    .selectFrom('bank_credits')
+    .select(['utr', 'amount_paise'])
+    .where('outlet_id', '=', outletId)
+    .where('payment_id', 'is', null)
+    .where('dismissed_reason', 'is', null)
+    .where('utr', 'is not', null)
+    .where('txn_date', '>=', from)
+    .where('txn_date', '<=', shift(to, 1))
+    .execute();
+  for (const m of missing) {
+    const around = new Set([shift(m.day, -1), m.day, shift(m.day, 1)]);
+    const ref = digits(m.reference);
+    const credit = ref ? named.find((c) => ref.includes(c.utr!) && c.amount_paise !== m.amount_paise) : undefined;
+    out.set(m.id, {
+      lookalikes: alike.filter((a) => a.amount_paise === m.amount_paise && around.has(a.day)).length,
+      utr_credit_paise: credit?.amount_paise ?? null,
+    });
+  }
+  return out;
+}
+
 /** UPI payments taken on the statement's dates that no bank credit accounts for. */
 async function missingPayments(tx: Tx, outletId: string, from: string, to: string): Promise<StatementDetailDTO['missing']> {
   const outlet = await tx.db.selectFrom('outlets').select('timezone').where('id', '=', outletId).executeTakeFirstOrThrow();
@@ -148,8 +233,9 @@ async function missingPayments(tx: Tx, outletId: string, from: string, to: strin
     .where(({ not, exists, selectFrom }) => not(exists(selectFrom('bank_credits').select('bank_credits.id').whereRef('bank_credits.payment_id', '=', 'payments.id'))))
     .execute();
   const dtos = await paymentDtos(tx, rows.map((r) => r.id));
+  const hints = await missingHints(tx, outletId, outlet.timezone, rows.map((r) => ({ ...dtos.get(r.id)!, day: r.day })));
   return rows
-    .map((r) => ({ ...dtos.get(r.id)!, late_possible: r.day === to }))
+    .map((r) => ({ ...dtos.get(r.id)!, late_possible: r.day === to, ...hints.get(r.id)! }))
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
@@ -262,6 +348,7 @@ export async function upiCheck(tx: Tx, outletId: string, to: string, days = 7): 
   const pending = rows.filter((r) => !r.matched && !settled(r.day));
   const sum = (xs: { amount_paise: number }[]) => xs.reduce((a, x) => a + x.amount_paise, 0);
   const dtos = await paymentDtos(tx, missing.map((r) => r.id));
+  const hints = await missingHints(tx, outletId, outlet.timezone, missing.map((r) => ({ ...dtos.get(r.id)!, day: r.day })));
   return {
     from,
     to,
@@ -270,7 +357,7 @@ export async function upiCheck(tx: Tx, outletId: string, to: string, days = 7): 
     not_received: {
       count: missing.length,
       amount_paise: sum(missing),
-      payments: missing.map((r) => dtos.get(r.id)!).sort((a, b) => a.created_at.localeCompare(b.created_at)),
+      payments: missing.map((r) => ({ ...dtos.get(r.id)!, ...hints.get(r.id)! })).sort((a, b) => a.created_at.localeCompare(b.created_at)),
     },
     unchecked: { count: pending.length, amount_paise: sum(pending), oldest_day: pending.map((r) => r.day).sort()[0] ?? null },
   };

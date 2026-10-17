@@ -396,6 +396,7 @@ export interface Modifiers {
 }
 
 export interface OrderItems {
+  cancelled_made: boolean | null;
   cancelled_reason: string | null;
   created_at: Generated<Timestamp>;
   hsn_sac: string | null;
@@ -413,6 +414,7 @@ export interface OrderItems {
   station: string;
   status: Generated<string>;
   stock_applied: Generated<boolean>;
+  stock_used: Json | null;
   tax_rate_bp: number;
   tenant_id: string;
   unit_price_paise: number;
