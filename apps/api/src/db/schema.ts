@@ -796,6 +796,38 @@ export interface Subscriptions {
   updated_at: Generated<Timestamp>;
 }
 
+export interface SupportCases {
+  assignee_admin_id: string | null;
+  closed_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  diagnostics: Json | null;
+  first_response_at: Timestamp | null;
+  id: Generated<string>;
+  number: Generated<number>;
+  outlet_id: string;
+  raised_by: string | null;
+  reopened: Generated<number>;
+  resolved_at: Timestamp | null;
+  resumed_at: Timestamp | null;
+  severity: string;
+  status: Generated<string>;
+  summary: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface SupportMessages {
+  admin_id: string | null;
+  author: string;
+  body: string;
+  case_id: string;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  user_id: string | null;
+}
+
 export interface Tables {
   assigned_waiter_id: string | null;
   camera_at: Timestamp | null;
@@ -1015,6 +1047,8 @@ export interface DB {
   service_requests: ServiceRequests;
   stock_movements: StockMovements;
   subscriptions: Subscriptions;
+  support_cases: SupportCases;
+  support_messages: SupportMessages;
   table_sessions: TableSessions;
   table_state_events: TableStateEvents;
   tables: Tables;

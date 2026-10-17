@@ -29,6 +29,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         en: 'Owners can see which screens and print computers have the latest menu and settings (Settings → Screens), name each screen, and reload one that is behind.',
         hi: 'मालिक देख सकते हैं कि किन स्क्रीन और प्रिंट कंप्यूटर पर नया मेन्यू और सेटिंग है (सेटिंग्स → स्क्रीन), हर स्क्रीन का नाम रख सकते हैं, और पीछे रह गई स्क्रीन रीलोड कर सकते हैं।',
       },
+      {
+        en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from DineOS support is on it, and you close it only when it works.',
+        hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। DineOS सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
+      },
     ],
     moved: [
       {

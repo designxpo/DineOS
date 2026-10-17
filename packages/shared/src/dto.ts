@@ -17,6 +17,7 @@ import type {
   TableState,
 } from './enums';
 import type { EarnRule, LoyaltyConfig, MembershipBenefits, MembershipPlanInput, MembershipTemplateKey, ProgramTemplateKey, Reward, WalletPackInput } from './loyalty';
+import type { SupportSeverity, SupportStatus } from './support';
 import type { CameraState } from './table-state';
 
 export interface ApiErrorBody {
@@ -780,6 +781,46 @@ export interface ScreensDTO {
   /** Screens seen in the last day, the most recent first. */
   screens: ScreenDTO[];
   print_computers: PrintComputerStateDTO[];
+}
+
+// ---------- Help cases ----------
+
+export interface SupportMessageDTO {
+  id: string;
+  author: 'outlet' | 'support' | 'system';
+  author_name: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface SupportCaseDTO {
+  id: string;
+  number: number;
+  outlet_id: string;
+  severity: SupportSeverity;
+  status: SupportStatus;
+  summary: string;
+  raised_by_name: string | null;
+  /** Who at DineOS owns it; null until someone picks it up. */
+  assignee_name: string | null;
+  created_at: string;
+  first_response_at: string | null;
+  resumed_at: string | null;
+  resolved_at: string | null;
+  closed_at: string | null;
+  reopened: number;
+  last_message_at: string;
+  /** In a single case's view. */
+  messages?: SupportMessageDTO[];
+}
+
+/** The support team's view adds where the case is from and the technical report. */
+export interface AdminSupportCaseDTO extends SupportCaseDTO {
+  tenant_id: string;
+  tenant_name: string;
+  outlet_name: string;
+  diagnostics: Record<string, unknown> | null;
+  missed_target: boolean;
 }
 
 // ---------- Reservations and waitlist (Phase 2) ----------

@@ -12,7 +12,7 @@ const KEY = 'dineos.screen.id';
 const EVERY_MS = 30_000;
 
 /** This browser's screen id, kept so it stays the same screen (and name) across reloads. */
-function screenId(): string {
+export function screenId(): string {
   try {
     let id = localStorage.getItem(KEY);
     if (!id) {

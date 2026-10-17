@@ -24,6 +24,7 @@ import { homeFor } from '@/components/staff/shell';
 import { useSignOut } from '@/components/staff/sign-out';
 import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
+import { HelpButton } from '@/components/staff/help';
 import { SoundButton } from '@/components/staff/sound-sheet';
 
 const NEXT: Partial<Record<ItemStatus, ItemStatus>> = { accepted: 'preparing', preparing: 'ready' };
@@ -133,6 +134,7 @@ export default function KdsPage() {
           <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-10 cursor-pointer rounded-xl px-3 text-sm font-semibold text-stone-300 hover:bg-stone-800">
             {t('common.language')}
           </button>
+          <HelpButton dark />
           <SoundButton dark />
           <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="hidden size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800 sm:grid">
             <Maximize className="size-5" />

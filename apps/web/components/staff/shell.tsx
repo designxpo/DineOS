@@ -10,6 +10,7 @@ import {
   House,
   Landmark,
   LayoutGrid,
+  LifeBuoy,
   LogOut,
   MoreHorizontal,
   Package,
@@ -36,6 +37,7 @@ import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { HelpButton } from './help';
 import { HubModeBanner, HubSwitchBanner } from './offline-hub';
 import { OutboxBadge } from './outbox-panel';
 import { PrintProblems } from './print-problems';
@@ -285,6 +287,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
           <div className="ml-auto flex items-center gap-1">
             <WhatsNewPill />
+            <HelpButton />
             <SoundButton />
           </div>
           <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
@@ -327,6 +330,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="flex-1 truncate">
               {me.user.name} · {t('nav.account')}
             </span>
+          </Link>
+          <Link href="/app/help" className="flex h-12 items-center gap-3 px-4 text-sm text-ink">
+            <LifeBuoy className="size-4 text-ink-faint" /> {t('help.title')}
           </Link>
           <button onClick={() => setNews(true)} className="flex h-12 w-full cursor-pointer items-center gap-3 px-4 text-sm text-ink">
             <Sparkles className="size-4 text-ink-faint" /> {t('whatsnew.title')}

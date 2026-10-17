@@ -55,10 +55,13 @@ export interface PushAlert {
   action: Action;
   roles?: readonly Role[];
   assignedWaiterId?: string | null;
+  /** Only this person (e.g. whoever raised a help case). */
+  userId?: string;
 }
 
 /** Whether a staff member with these roles at the outlet should get the alert on their phone. */
 export function wantsAlert(alert: PushAlert, userId: string, roles: readonly Role[]): boolean {
+  if (alert.userId) return alert.userId === userId;
   if (!roles.some((r) => roleCan(r, alert.action) && (!alert.roles || alert.roles.includes(r)))) return false;
   // Waiters with no other duties handle their own tables and unassigned ones, as on screen.
   const floorOnly = roles.length > 0 && roles.every((r) => r === 'waiter');
@@ -81,6 +84,15 @@ function orderWhere(o: Pick<ItemsReadyDTO, 'table_label' | 'order_type' | 'order
  * entering their own do not), waiter calls, bill requests, and food or drinks ready to serve.
  */
 export function pushFor(event: OutletEvent): PushAlert | null {
+  if (event.type === 'support.updated') {
+    const p = event.payload as { case_id: string; number: number; status_words: string; notify_user_id: string | null; reply: string | null };
+    if (!p.notify_user_id) return null;
+    return {
+      action: 'order.view',
+      userId: p.notify_user_id,
+      message: { title: `Help case #${p.number}: ${p.status_words}`, body: p.reply ?? 'Tap to see the reply', url: `/app/help?case=${p.case_id}`, tag: `support-${p.case_id}` },
+    };
+  }
   if (event.type === 'order.placed') {
     const order = (event.payload as { order: OrderDTO }).order;
     if (order.source !== 'guest_qr') return null;

@@ -23,6 +23,7 @@ import reconciliation from './reconciliation/routes';
 import reports from './reports/routes';
 import reservations from './reservations/routes';
 import screens from './screens/routes';
+import support from './support/routes';
 import staff from './staff/routes';
 import tables from './tables/routes';
 import vision from './vision/routes';
@@ -55,4 +56,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   maintenance,
   pickup,
   screens,
+  support,
 };

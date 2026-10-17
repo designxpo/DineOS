@@ -3,10 +3,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, LogOut, Plus, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import type { AdminSupportCaseDTO } from '@dineos/shared/dto';
 import { rupeesToPaise } from '@dineos/shared/money';
+import { SUPPORT_HOURS, SUPPORT_TARGET_MINUTES, type SupportSeverity, type SupportStatus } from '@dineos/shared/support';
 import { ApiError, apiFetch, errorMessage, type RequestOptions } from '@/lib/api';
-import { date, formatPaise, rupeesInput } from '@/lib/format';
+import { ago, date, dateTime, formatPaise, rupeesInput } from '@/lib/format';
 import { readLocal, writeLocal } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/overlay';
@@ -14,7 +16,7 @@ import { Badge, Card, Field, Input, Segmented, Select, Spinner, Textarea } from 
 import { useToast } from '@/components/ui/toast';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Tab = 'tenants' | 'invoices' | 'plans' | 'usage';
+type Tab = 'tenants' | 'support' | 'invoices' | 'plans' | 'usage';
 
 function useAdminApi() {
   const router = useRouter();
@@ -48,7 +50,7 @@ export default function AdminPage() {
       <header className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
         <ShieldCheck className="size-6 text-[var(--brand)]" />
         <h1 className="font-semibold">DineOS admin</h1>
-        <Segmented value={tab} onChange={setTab} className="ml-4" options={[{ value: 'tenants', label: 'Restaurants' }, { value: 'invoices', label: 'Invoices' }, { value: 'plans', label: 'Plans' }, { value: 'usage', label: 'Usage' }]} />
+        <Segmented value={tab} onChange={setTab} className="ml-4" options={[{ value: 'tenants', label: 'Restaurants' }, { value: 'support', label: 'Support' }, { value: 'invoices', label: 'Invoices' }, { value: 'plans', label: 'Plans' }, { value: 'usage', label: 'Usage' }]} />
         <Button
           variant="ghost"
           className="ml-auto"
@@ -64,6 +66,7 @@ export default function AdminPage() {
       </header>
       <main className="p-6">
         {tab === 'tenants' && <Tenants api={api} />}
+        {tab === 'support' && <Support api={api} />}
         {tab === 'invoices' && <Invoices api={api} />}
         {tab === 'plans' && <Plans api={api} />}
         {tab === 'usage' && <Usage api={api} />}
@@ -449,5 +452,180 @@ function Usage({ api }: { api: Api }) {
         </table>
       </Card>
     </div>
+  );
+}
+
+const SEVERITY_LABEL: Record<SupportSeverity, string> = { stopped: 'Stopped', degraded: 'Degraded', question: 'Question' };
+const SEVERITY_TONE: Record<SupportSeverity, 'rose' | 'amber' | 'blue'> = { stopped: 'rose', degraded: 'amber', question: 'blue' };
+const STATUS_LABEL: Record<SupportStatus, string> = { open: 'New', in_progress: 'Working', waiting_on_outlet: 'Waiting on outlet', resolved: 'Fixed, awaiting outlet', closed: 'Closed' };
+
+/** Every restaurant's help cases: the most urgent and oldest first, with the first-answer targets. */
+function Support({ api }: { api: Api }) {
+  const [include, setInclude] = useState<'open' | 'all'>('open');
+  const [open, setOpen] = useState<string | null>(null);
+  const { data } = useQuery({ queryKey: ['admin-support', include], queryFn: () => api<AdminSupportCaseDTO[]>(`/admin/support/cases?include=${include}`), refetchInterval: 15_000 });
+  const late = (data ?? []).filter((c) => c.missed_target && !c.first_response_at).length;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented value={include} onChange={setInclude} options={[{ value: 'open', label: 'Open' }, { value: 'all', label: 'All' }]} />
+        <p className="text-sm text-ink-faint">
+          Targets for a first answer: stopped {SUPPORT_TARGET_MINUTES.stopped} min, degraded {SUPPORT_TARGET_MINUTES.degraded} min, during {SUPPORT_HOURS.label} India time.
+        </p>
+        {late > 0 && <Badge tone="rose">{late} past target, not answered</Badge>}
+      </div>
+      <Card className="overflow-x-auto">
+        <table className="w-full min-w-[56rem] text-sm">
+          <thead className="bg-stone-50 text-left text-xs text-ink-faint">
+            <tr>
+              {['', 'Case', 'Restaurant', 'Problem', 'Status', 'Owner', 'Raised', ''].map((h, i) => (
+                <th key={i} className="px-4 py-2 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {(data ?? []).map((c) => (
+              <tr key={c.id} className="cursor-pointer hover:bg-stone-50" onClick={() => setOpen(c.id)}>
+                <td className="px-4 py-2.5">
+                  <Badge tone={SEVERITY_TONE[c.severity]}>{SEVERITY_LABEL[c.severity]}</Badge>
+                </td>
+                <td className="px-4 py-2.5 tabular text-ink-soft">#{c.number}</td>
+                <td className="px-4 py-2.5">
+                  <p className="font-medium">{c.tenant_name}</p>
+                  <p className="text-xs text-ink-faint">{c.outlet_name}</p>
+                </td>
+                <td className="max-w-72 truncate px-4 py-2.5">{c.summary}</td>
+                <td className="px-4 py-2.5">
+                  {STATUS_LABEL[c.status]}
+                  {c.resumed_at && c.status !== 'closed' && <span className="block text-xs text-emerald-700">Running again</span>}
+                </td>
+                <td className="px-4 py-2.5 text-ink-soft">{c.assignee_name ?? <span className="text-ink-faint">Nobody yet</span>}</td>
+                <td className="px-4 py-2.5 text-ink-faint">{ago(c.created_at)}</td>
+                <td className="px-4 py-2.5">{c.missed_target && <Badge tone="rose">Missed target</Badge>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!data && (
+          <div className="grid place-items-center py-10">
+            <Spinner />
+          </div>
+        )}
+        {data?.length === 0 && <p className="py-10 text-center text-ink-faint">No {include === 'open' ? 'open ' : ''}cases.</p>}
+      </Card>
+      {open && <SupportCase api={api} id={open} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}
+
+function SupportCase({ api, id, onClose }: { api: Api; id: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data: c } = useQuery({ queryKey: ['admin-support-case', id], queryFn: () => api<AdminSupportCaseDTO>(`/admin/support/cases/${id}`), refetchInterval: 15_000 });
+  const [body, setBody] = useState('');
+  const [status, setStatus] = useState<'in_progress' | 'waiting_on_outlet' | 'resolved'>('in_progress');
+  const [busy, setBusy] = useState(false);
+  const post = async (path: string, payload: object | undefined, done: string) => {
+    setBusy(true);
+    try {
+      await api(`/admin/support/cases/${id}/${path}`, { method: 'POST', body: payload });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['admin-support'] }), qc.invalidateQueries({ queryKey: ['admin-support-case', id] })]);
+      setBody('');
+      toast(done);
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!c) return null;
+  const closed = c.status === 'closed';
+  return (
+    <Sheet open wide onClose={onClose} title={`#${c.number} · ${c.summary}`}>
+      <div className="space-y-5 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={SEVERITY_TONE[c.severity]}>{SEVERITY_LABEL[c.severity]}</Badge>
+          <Badge tone="neutral">{STATUS_LABEL[c.status]}</Badge>
+          {c.missed_target && <Badge tone="rose">Missed target</Badge>}
+          <span className="text-ink-soft">
+            {c.tenant_name} · {c.outlet_name}
+          </span>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-ink-soft sm:grid-cols-4">
+          {(
+            [
+              ['Raised', `${dateTime(c.created_at)}${c.raised_by_name ? ` by ${c.raised_by_name}` : ''}`],
+              ['First answer', c.first_response_at ? dateTime(c.first_response_at) : '—'],
+              ['Running again', c.resumed_at ? dateTime(c.resumed_at) : '—'],
+              ['Owner', c.assignee_name ?? '—'],
+            ] as const
+          ).map(([k, v]) => (
+            <div key={k}>
+              <dt className="text-xs text-ink-faint">{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {c.diagnostics ? (
+          <details className="rounded-xl bg-stone-50 p-3">
+            <summary className="cursor-pointer font-medium">Technical report</summary>
+            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+              {Object.entries(c.diagnostics).map(([k, v]) => (
+                <Fragment key={k}>
+                  <dt className="text-ink-faint">{k.replace(/_/g, ' ')}</dt>
+                  <dd className="break-all">{String(v)}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          </details>
+        ) : (
+          <p className="text-xs text-ink-faint">No technical report attached.</p>
+        )}
+        <ol className="space-y-2 rounded-xl border border-line p-3">
+          {(c.messages ?? []).map((m) => (
+            <li key={m.id} className={m.author === 'system' ? 'text-center text-xs text-ink-faint' : ''}>
+              {m.author === 'system' ? (
+                `${m.body} · ${ago(m.created_at)}`
+              ) : (
+                <>
+                  <p className="text-xs text-ink-faint">
+                    {m.author === 'support' ? `${m.author_name ?? 'Support'} (support)` : `${m.author_name ?? 'Outlet'} (outlet)`} · {ago(m.created_at)}
+                  </p>
+                  <p className="whitespace-pre-wrap">{m.body}</p>
+                </>
+              )}
+            </li>
+          ))}
+        </ol>
+        {!closed && (
+          <div className="space-y-3 rounded-2xl bg-stone-50 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => void post('assign', undefined, 'You own this case')}>
+                Assign to me
+              </Button>
+              {c.severity !== 'question' && !c.resumed_at && (
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => void post('resumed', undefined, 'Recorded: running again')}>
+                  Mark running again
+                </Button>
+              )}
+            </div>
+            <Field label="Reply to the outlet">{(fid) => <Textarea id={fid} value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} placeholder="What you found, what you did, or what you need from them" />}</Field>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="h-10 w-60" aria-label="Then">
+                <option value="in_progress">Keep working on it</option>
+                <option value="waiting_on_outlet">Waiting on the outlet</option>
+                <option value="resolved">Fixed: ask them to confirm</option>
+              </Select>
+              <Button disabled={busy || !body.trim()} onClick={() => void post('reply', { body: body.trim(), status }, 'Reply sent')}>
+                Send reply
+              </Button>
+            </div>
+            <p className="text-xs text-ink-faint">Only the outlet closes a case, by confirming it works. The person who raised it gets your reply on their phone.</p>
+          </div>
+        )}
+      </div>
+    </Sheet>
   );
 }
