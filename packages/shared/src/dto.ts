@@ -50,7 +50,7 @@ export interface BrandingDTO {
   primary_color?: string | null;
   /** A wide photo across the top of the QR menu. */
   cover_url?: string | null;
-  /** Headings in a serif (the default) or a plain sans. */
+  /** Headings in a plain sans (the default) or a classic serif. */
   heading_style?: HeadingStyle | null;
 }
 
@@ -822,7 +822,7 @@ export interface SupportCaseDTO {
   status: SupportStatus;
   summary: string;
   raised_by_name: string | null;
-  /** Who at DineOS owns it; null until someone picks it up. */
+  /** Who at Mezmitra support owns it; null until someone picks it up. */
   assignee_name: string | null;
   created_at: string;
   first_response_at: string | null;
@@ -932,7 +932,7 @@ export interface RecipesDTO {
 export interface ReconSummaryDTO {
   matched: number;
   matched_paise: number;
-  /** UPI credits in the bank with no payment recorded in DineOS. */
+  /** UPI credits in the bank with no payment recorded in Mezmitra. */
   unrecorded_upi: number;
   unrecorded_upi_paise: number;
   /** Cash deposits, card settlements and other credits: shown, not flagged. */

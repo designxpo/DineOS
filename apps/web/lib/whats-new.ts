@@ -14,6 +14,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
     date: '17 Oct 2026',
     items: [
       {
+        en: 'DineOS is now Mezmitra: a new name, logo and colours. Everything works as before, and your restaurant\'s own logo and colours stay as they are.',
+        hi: 'DineOS अब Mezmitra है: नया नाम, लोगो और रंग। सब कुछ पहले जैसा काम करता है, और आपके रेस्टोरेंट का अपना लोगो और रंग वैसे ही रहते हैं।',
+      },
+      {
         en: 'Your own brand: on paid plans, your logo, colours and cover photo appear on every staff screen, the QR menu, order tracking and the pickup screen. Owners set it up in Settings → Brand & plan.',
         hi: 'आपका अपना ब्रांड: पेड प्लान पर आपका लोगो, रंग और कवर फ़ोटो हर स्टाफ़ स्क्रीन, QR मेन्यू, ऑर्डर ट्रैकिंग और पिकअप स्क्रीन पर दिखते हैं। मालिक इसे सेटिंग्स → Brand & plan में सेट करते हैं।',
       },
@@ -34,8 +38,8 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         hi: 'मालिक देख सकते हैं कि किन स्क्रीन और प्रिंट कंप्यूटर पर नया मेन्यू और सेटिंग है (सेटिंग्स → स्क्रीन), हर स्क्रीन का नाम रख सकते हैं, और पीछे रह गई स्क्रीन रीलोड कर सकते हैं।',
       },
       {
-        en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from DineOS support is on it, and you close it only when it works.',
-        hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। DineOS सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
+        en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from Mezmitra support is on it, and you close it only when it works.',
+        hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। Mezmitra सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
       },
       {
         en: 'Reports explain themselves: tap the (i) by any figure to see what it counts. Owners can download a month-end pack for the accountant (Reports → Month-end pack) and save the reports they open often.',

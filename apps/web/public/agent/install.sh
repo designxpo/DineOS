@@ -1,7 +1,7 @@
 #!/bin/sh
-# DineOS print agent installer for macOS, Linux and Raspberry Pi.
+# Mezmitra print agent installer for macOS, Linux and Raspberry Pi.
 #
-# Copy the command from DineOS > Settings > Printers > Add print computer:
+# Copy the command from Mezmitra > Settings > Printers > Add print computer:
 #   Linux / Raspberry Pi:  curl -fsSL https://<site>/agent/install.sh | sudo sh -s -- --web ... --api ... --token dv_...
 #   Mac (no sudo):         curl -fsSL https://<site>/agent/install.sh | sh -s -- --web ... --api ... --token dv_...
 #
@@ -31,17 +31,17 @@ while [ $# -gt 0 ]; do
 done
 case "$TOKEN" in
   dv_*) ;;
-  *) echo "Copy the full command from DineOS (Settings > Printers) and run it again." >&2; exit 1 ;;
+  *) echo "Copy the full command from Mezmitra (Settings > Printers) and run it again." >&2; exit 1 ;;
 esac
 if [ -z "$WEB" ] || [ -z "$API" ]; then
-  echo "Copy the full command from DineOS (Settings > Printers) and run it again." >&2
+  echo "Copy the full command from Mezmitra (Settings > Printers) and run it again." >&2
   exit 1
 fi
 # The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
 for url in "$WEB" "$API"; do
   case "$url" in
     https://* | http://localhost* | http://127.0.0.1*) ;;
-    *) echo "The DineOS address must start with https:// ($url)" >&2; exit 1 ;;
+    *) echo "The Mezmitra address must start with https:// ($url)" >&2; exit 1 ;;
   esac
 done
 
@@ -66,9 +66,11 @@ fi
 NODE=$(command -v node)
 
 if [ -z "$DIR" ]; then
+  # The folder and service names keep the product's earlier name (DineOS), so print computers
+  # that already run the agent upgrade in place instead of getting a second copy.
   if [ "$OS" = "Darwin" ]; then DIR="$HOME/Library/Application Support/DineOS"; else DIR=/opt/dineos; fi
 fi
-say "Installing the DineOS print agent in $DIR"
+say "Installing the Mezmitra print agent in $DIR"
 mkdir -p "$DIR"
 curl -fsSL "$WEB/agent/dineos-agent.mjs" -o "$DIR/dineos-agent.mjs.new"
 # Install only the exact file published with the site (a damaged, cut-off or stale download is
@@ -134,5 +136,5 @@ EOF
   fi
 fi
 
-say "Done. In DineOS (Settings > Printers) this computer shows as Online within a minute; choose its printers there."
+say "Done. In Mezmitra (Settings > Printers) this computer shows as Online within a minute; choose its printers there."
 echo "Log: $DIR/agent.log"

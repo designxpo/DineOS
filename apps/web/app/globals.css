@@ -1,25 +1,36 @@
 @import 'tailwindcss';
 
-/* DineOS design tokens. Warm neutrals, one brand colour (tenants can override --brand on the
-   guest menu), and fixed status colours so a table means the same thing on every screen. */
+/* Mezmitra design tokens (Spice & Ink): burnt-orange actions, midnight ink, a warm cream page and
+   a peach accent. Restaurants with their own look override the brand shades on their screens.
+   Status colours stay fixed so a table means the same thing on every screen. */
 @theme {
-  --font-sans: var(--font-inter), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-manrope), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif;
+  /* A restaurant's own "classic" headings. */
+  --font-serif: var(--font-fraunces), Georgia, serif;
 
-  --color-brand-50: #fdf4ef;
-  --color-brand-100: #fae5d8;
-  --color-brand-200: #f4c7ad;
-  --color-brand-500: #c2531f;
-  --color-brand-600: #a8441a;
-  --color-brand-700: #8a3717;
-  --color-brand-900: #4a1d0c;
+  --color-brand-50: #f9efed;
+  --color-brand-100: #f4dfdb;
+  --color-brand-200: #e6b7ae;
+  --color-brand-500: #c15039;
+  --color-brand-600: #b9381e;
+  --color-brand-700: #982e19;
+  --color-brand-900: #4a160c;
 
-  --color-ink: #1c1917;
-  --color-ink-soft: #57534e;
-  --color-ink-faint: #78716c;
-  --color-line: #e7e2dc;
-  --color-paper: #fbf9f6;
+  /* Midnight ink for text and dark surfaces; muted and faint text both read at 4.5:1 or more. */
+  --color-ink: #241c36;
+  --color-ink-soft: #665a65;
+  --color-ink-faint: #75686f;
+  --color-line: #e5dad6;
+  --color-paper: #fff4ec;
   --color-surface: #ffffff;
+  /* Highlights with dark text, and accents on midnight. */
+  --color-accent: #ffb980;
+
+  /* Light neutrals warmed to sit on the cream page. */
+  --color-stone-50: #fbf3ee;
+  --color-stone-100: #f5ebe5;
+  --color-stone-200: #eadfd9;
 
   --color-veg: #1f8a3b;
   --color-nonveg: #8b3a1b;
@@ -88,7 +99,6 @@ html {
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-feature-settings: 'cv11', 'ss01';
 }
 
 /* Money and counts line up in columns. */

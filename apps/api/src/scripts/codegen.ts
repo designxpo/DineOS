@@ -17,7 +17,7 @@ execFileSync(
     '--out-file', resolve(API_ROOT, 'src/db/schema.ts'),
     '--date-parser', 'string',
     '--numeric-parser', 'number',
-    // Only DineOS's own schema; hosts like Supabase add their own (auth, storage, ...).
+    // Only Mezmitra's own schema; hosts like Supabase add their own (auth, storage, ...).
     '--include-pattern', 'public.*',
     '--exclude-pattern', 'public.schema_migrations',
     ...(process.argv.includes('--verify') ? ['--verify'] : []),

@@ -1,7 +1,7 @@
 /* global self, caches, fetch, URL */
-// DineOS service worker: caches the app shell and static assets so staff screens open during a
+// Mezmitra service worker: caches the app shell and static assets so staff screens open during a
 // short internet drop. API calls are never cached here; the app keeps its own offline queue.
-const CACHE = 'dineos-shell-v1';
+const CACHE = 'dineos-shell-v2';
 const SHELL = ['/app', '/app/inbox', '/app/kds', '/app/pos', '/app/floor', '/login', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -53,14 +53,14 @@ self.addEventListener('fetch', (event) => {
 
 // Staff phone alerts (Web Push): new orders to accept, waiter calls, bill requests.
 self.addEventListener('push', (event) => {
-  let msg = { title: 'DineOS', body: '', url: '/app', tag: undefined };
+  let msg = { title: 'Mezmitra', body: '', url: '/app', tag: undefined };
   try {
     msg = { ...msg, ...event.data.json() };
   } catch {
     // keep the defaults
   }
   event.waitUntil(
-    self.registration.showNotification(msg.title, { body: msg.body, tag: msg.tag, renotify: Boolean(msg.tag), icon: '/icon.svg', badge: '/icon.svg', data: { url: msg.url } }),
+    self.registration.showNotification(msg.title, { body: msg.body, tag: msg.tag, renotify: Boolean(msg.tag), icon: '/brand/icon-192.png', badge: '/brand/badge-96.png', data: { url: msg.url } }),
   );
 });
 

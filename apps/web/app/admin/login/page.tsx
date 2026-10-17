@@ -30,9 +30,11 @@ export default function AdminLogin() {
   return (
     <main className="grid min-h-dvh place-items-center bg-stone-900 p-6">
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-3xl bg-surface p-6">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-6 text-[var(--brand)]" />
-          <h1 className="text-xl font-semibold">DineOS platform admin</h1>
+        <div className="space-y-3">
+          <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-9 w-auto" />
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
+            <ShieldCheck className="size-5 text-[var(--brand)]" /> Platform admin
+          </h1>
         </div>
         <Field label="Email">{(id) => <Input id={id} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />}</Field>
         <Field label="Password">{(id) => <Input id={id} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />}</Field>

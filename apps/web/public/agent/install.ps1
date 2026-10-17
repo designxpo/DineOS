@@ -1,8 +1,8 @@
-# DineOS print agent installer for Windows (the billing PC).
+# Mezmitra print agent installer for Windows (the billing PC).
 #
-# Copy the command from DineOS > Settings > Printers > Add print computer. Run it in PowerShell
+# Copy the command from Mezmitra > Settings > Printers > Add print computer. Run it in PowerShell
 # opened with "Run as administrator". It sets DINEOS_WEB, DINEOS_API and DINEOS_TOKEN, then runs:
-#   irm https://<your DineOS site>/agent/install.ps1 | iex
+#   irm https://<your Mezmitra site>/agent/install.ps1 | iex
 #
 # It installs Node.js 22 LTS if needed, puts the agent in C:\ProgramData\DineOS and starts it as a
 # scheduled task that runs at startup (as SYSTEM) and restarts if it stops. Run it again to update.
@@ -17,13 +17,13 @@ function Install-DineosAgent {
   $api = $env:DINEOS_API
   $token = $env:DINEOS_TOKEN
   if (-not $web -or -not $api -or -not ($token -like 'dv_*')) {
-    Write-Host 'Copy the full command from DineOS (Settings > Printers) and run it again.' -ForegroundColor Red
+    Write-Host 'Copy the full command from Mezmitra (Settings > Printers) and run it again.' -ForegroundColor Red
     return
   }
   # The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
   foreach ($url in @($web, $api)) {
     if ($url -notmatch '^https://' -and $url -notmatch '^http://(localhost|127\.0\.0\.1)([:/]|$)') {
-      Write-Host "The DineOS address must start with https:// ($url)" -ForegroundColor Red
+      Write-Host "The Mezmitra address must start with https:// ($url)" -ForegroundColor Red
       return
     }
   }
@@ -58,10 +58,12 @@ function Install-DineosAgent {
     }
   }
 
+  # The folder and service names keep the product's earlier name (DineOS), so print computers
+  # that already run the agent upgrade in place instead of getting a second copy.
   $dir = Join-Path $env:ProgramData 'DineOS'
   $task = 'DineOS Print Agent'
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
-  Write-Host "==> Downloading the DineOS print agent to $dir"
+  Write-Host "==> Downloading the Mezmitra print agent to $dir"
   $agent = Join-Path $dir 'dineos-agent.mjs'
   $download = "$agent.new"
   Invoke-WebRequest "$web/agent/dineos-agent.mjs" -OutFile $download -UseBasicParsing
@@ -101,7 +103,7 @@ function Install-DineosAgent {
 
   Remove-Item Env:DINEOS_TOKEN -ErrorAction SilentlyContinue
   Write-Host ''
-  Write-Host 'Done. In DineOS (Settings > Printers) this computer shows as Online within a minute; choose its printers there.' -ForegroundColor Green
+  Write-Host 'Done. In Mezmitra (Settings > Printers) this computer shows as Online within a minute; choose its printers there.' -ForegroundColor Green
   Write-Host "Log: $dir\agent.log"
 }
 

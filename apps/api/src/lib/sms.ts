@@ -1,6 +1,6 @@
 import { AppError } from './errors';
 
-/** Sends a one-time code by SMS. DineOS makes and checks the code; the sender only delivers it. */
+/** Sends a one-time code by SMS. Mezmitra makes and checks the code; the sender only delivers it. */
 export interface OtpSender {
   send(phone: string, code: string): Promise<void>;
 }

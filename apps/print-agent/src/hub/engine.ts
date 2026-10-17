@@ -177,7 +177,7 @@ export class HubEngine {
   /** While the cloud is reachable and nothing is waiting to sync, the cloud is the place to work. */
   assertWritable(): void {
     if (this.online && !this.hasPendingSync()) {
-      throw conflict('cloud_available', 'The internet is back. Switch back to DineOS to carry on.');
+      throw conflict('cloud_available', 'The internet is back. Switch back to Mezmitra to carry on.');
     }
   }
 

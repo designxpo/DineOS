@@ -49,8 +49,10 @@ export default function AdminPage() {
   return (
     <div className="min-h-dvh">
       <header className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
-        <ShieldCheck className="size-6 text-[var(--brand)]" />
-        <h1 className="font-semibold">DineOS admin</h1>
+        <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-8 w-auto" />
+        <h1 className="flex items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-0.5 text-sm font-semibold text-ink-soft">
+          <ShieldCheck className="size-4" /> Admin
+        </h1>
         <Segmented value={tab} onChange={setTab} className="ml-4" options={[{ value: 'tenants', label: 'Restaurants' }, { value: 'leads', label: 'Leads' }, { value: 'support', label: 'Support' }, { value: 'invoices', label: 'Invoices' }, { value: 'plans', label: 'Plans' }, { value: 'usage', label: 'Usage' }]} />
         <Button
           variant="ghost"

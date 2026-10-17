@@ -62,7 +62,7 @@ export function LeakCalculator() {
           </label>
         ))}
       </div>
-      <div className="flex flex-col gap-6 rounded-2xl bg-[#17120e] p-6 text-white">
+      <div className="flex flex-col gap-6 rounded-2xl bg-ink p-6 text-white">
         <div className="space-y-5">
           <p className="text-sm text-white/60">Slipping through every month</p>
           <p className="mt-1 font-display text-5xl font-semibold tracking-tight tabular" aria-live="polite">
@@ -76,10 +76,10 @@ export function LeakCalculator() {
               </li>
             ))}
           </ul>
-          <p className={cn('rounded-xl px-4 py-3 text-sm', times >= 1 ? 'bg-amber-400/15 text-amber-100' : 'bg-white/10 text-white/80')}>
+          <p className={cn('rounded-xl px-4 py-3 text-sm', times >= 1 ? 'bg-accent/15 text-accent' : 'bg-white/10 text-white/80')}>
             {times >= 1
-              ? `That is ${times >= 10 ? Math.round(times) : times.toFixed(1)} times what DineOS Table service costs (₹1,499 a month).`
-              : 'Even small numbers add up: DineOS Table service is ₹1,499 a month.'}
+              ? `That is ${times >= 10 ? Math.round(times) : times.toFixed(1)} times what Mezmitra Table service costs (₹1,499 a month).`
+              : 'Even small numbers add up: Mezmitra Table service is ₹1,499 a month.'}
           </p>
         </div>
         <p className="mt-auto text-xs text-white/50">Your numbers, not ours. Move the sliders to match your restaurant.</p>

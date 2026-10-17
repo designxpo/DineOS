@@ -60,7 +60,7 @@ export function CamerasSettings() {
         <div>
           <h2 className="font-semibold">Camera table vision (optional)</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            A small computer at the outlet watches your existing IP cameras and tells DineOS whether each table is free, taken or left messy. Orders and bills always come first: the camera
+            A small computer at the outlet watches your existing IP cameras and tells Mezmitra whether each table is free, taken or left messy. Orders and bills always come first: the camera
             only fills gaps, such as guests who sat down and nobody has served yet.
           </p>
         </div>

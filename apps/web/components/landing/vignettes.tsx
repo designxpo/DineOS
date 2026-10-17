@@ -114,7 +114,7 @@ export function HelpCase() {
       </div>
       <p className="font-semibold">Bills are not printing at the counter</p>
       <p className="flex items-center gap-2 text-sm text-ink-soft">
-        <LifeBuoy className="size-4 text-ink-faint" /> Asha from DineOS support is handling this · first answer in 4 min
+        <LifeBuoy className="size-4 text-ink-faint" /> Asha from Mezmitra support is handling this · first answer in 4 min
       </p>
       <div className="space-y-2 rounded-xl bg-stone-50 p-3 text-sm">
         <p className="ml-auto w-fit max-w-[85%] rounded-2xl bg-[var(--brand)] px-3 py-2 text-white">The counter printer stopped at 8 pm.</p>

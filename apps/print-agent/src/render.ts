@@ -129,7 +129,7 @@ export function renderBill(doc: BillDoc, width: number, opts: RenderOptions = {}
 
 export function renderTest(doc: TestDoc, width: number): EscPos {
   const p = new EscPos().init().align('center');
-  p.bold(true).line('DineOS printer test').bold(false);
+  p.bold(true).line('Mezmitra printer test').bold(false);
   p.line(doc.outlet_name);
   p.line(`Target: ${doc.target}`);
   p.line(stamp(doc.at));

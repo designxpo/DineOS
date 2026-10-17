@@ -9,7 +9,7 @@ import { cn } from '@/components/ui/cn';
 const PLAN_NAMES: Record<string, string> = { cafe: 'Café', table: 'Table service', group: 'Group' };
 const input = 'h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none';
 
-/** Asks for a demo: who, where, how big, and what hurts most. DineOS calls or WhatsApps back. */
+/** Asks for a demo: who, where, how big, and what hurts most. Mezmitra calls or WhatsApps back. */
 export function DemoForm() {
   const [name, setName] = useState('');
   const [restaurant, setRestaurant] = useState('');

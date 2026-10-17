@@ -326,7 +326,7 @@ export class HubServer {
   const p = new URLSearchParams(location.hash.slice(1));
   history.replaceState(null, '', location.pathname);
   const token = p.get('token');
-  if (!token) return msg('Open this from DineOS on a signed-in device.');
+  if (!token) return msg('Open this from Mezmitra on a signed-in device.');
   const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
   set('dineos.staff.token', token);
   if (p.get('outlet')) set('dineos.staff.outlet', p.get('outlet'));

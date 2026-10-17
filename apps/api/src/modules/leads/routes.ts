@@ -1,4 +1,4 @@
-// Demo requests from the website: a restaurant leaves its details, DineOS follows up. The form is
+// Demo requests from the website: a restaurant leaves its details, Mezmitra follows up. The form is
 // public, so it is rate limited and carries a hidden field that only bots fill.
 
 import type { FastifyPluginAsync } from 'fastify';

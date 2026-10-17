@@ -2,15 +2,16 @@
 
 // A restaurant's own look on a whole page: every brand shade, the heading font, the browser's bar
 // colour, the tab icon and the tab title. Set on the document root so sheets and dialogs (which
-// render outside the page's own tree) carry it too. An empty branding leaves the DineOS look.
+// render outside the page's own tree) carry it too. An empty branding leaves the Mezmitra look.
 
 import { useEffect } from 'react';
 import { brandShades } from '@dineos/shared/branding';
 import type { BrandingDTO } from '@dineos/shared/dto';
 
-const SANS = 'var(--font-inter), var(--font-devanagari), ui-sans-serif, system-ui, sans-serif';
+// Mezmitra's own headings are sans (Manrope); a restaurant can choose classic serif ones.
+const SERIF = 'var(--font-fraunces), Georgia, serif';
 
-/** The CSS variables for a branding: brand shades and the heading font. Empty for the DineOS look. */
+/** The CSS variables for a branding: brand shades and the heading font. Empty for the Mezmitra look. */
 export function brandVars(b: BrandingDTO | null | undefined): Record<string, string> {
   const vars: Record<string, string> = {};
   if (b?.primary_color) {
@@ -18,14 +19,14 @@ export function brandVars(b: BrandingDTO | null | undefined): Record<string, str
     for (const [k, v] of Object.entries(shades)) vars[`--color-brand-${k}`] = v;
     vars['--brand'] = main;
   }
-  if (b?.heading_style === 'sans') vars['--font-display'] = SANS;
+  if (b?.heading_style === 'serif') vars['--font-display'] = SERIF;
   return vars;
 }
 
 /** The same variables as an inline style, for a preview of a look not saved yet. */
 export const brandStyle = (b: BrandingDTO | null | undefined) => brandVars(b) as React.CSSProperties;
 
-/** Applies a restaurant's look to the page while mounted. `name` replaces "DineOS" in the tab title. */
+/** Applies a restaurant's look to the page while mounted. `name` replaces "Mezmitra" in the tab title. */
 export function useBrandTheme(branding: BrandingDTO | null | undefined, name?: string | null): void {
   const color = branding?.primary_color ?? null;
   const heading = branding?.heading_style ?? null;
@@ -51,11 +52,11 @@ export function useBrandTheme(branding: BrandingDTO | null | undefined, name?: s
       document.head.appendChild(icon);
     }
 
-    // Page titles are "Orders · DineOS": the restaurant's name instead.
+    // Page titles are "Orders · Mezmitra": the restaurant's name instead.
     let observer: MutationObserver | null = null;
     if (name) {
       const rename = () => {
-        if (document.title.includes('DineOS')) document.title = document.title.replaceAll('DineOS', name);
+        if (document.title.includes('Mezmitra')) document.title = document.title.replaceAll('Mezmitra', name);
       };
       rename();
       observer = new MutationObserver(rename);

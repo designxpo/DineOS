@@ -208,7 +208,6 @@ async function main() {
     })
     .where('id', '=', outletId)
     .execute();
-  await db.updateTable('tenants').set({ branding: json({ primary_color: '#9A3412' }) }).where('id', '=', t).execute();
 
   // Staff
   const staffIds: Record<string, string> = {};

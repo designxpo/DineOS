@@ -103,7 +103,7 @@ public static class DineosRawPrint {
     if (!OpenPrinter(name, out printer, IntPtr.Zero)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot open printer " + name);
     try {
       DOCINFOW doc = new DOCINFOW();
-      doc.pDocName = "DineOS";
+      doc.pDocName = "Mezmitra";
       doc.pDataType = "RAW";
       if (!StartDocPrinter(printer, 1, doc)) throw new Win32Exception(Marshal.GetLastWin32Error());
       try {

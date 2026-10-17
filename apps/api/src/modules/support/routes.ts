@@ -132,7 +132,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       });
     });
 
-    // ---------------------------------------------------------------- DineOS support
+    // ---------------------------------------------------------------- Mezmitra support
 
     app.get('/admin/support/cases', async (req) => {
       requireAdmin(req);
@@ -163,7 +163,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .set({ assignee_admin_id: auth.adminId, ...(c.status === 'open' ? { status: 'in_progress' } : {}), ...(c.first_response_at ? {} : { first_response_at: new Date() }) })
           .where('id', '=', id)
           .execute();
-        await addMessage(tx, id, 'system', `${admin.name} from DineOS support is handling this.`);
+        await addMessage(tx, id, 'system', `${admin.name} from Mezmitra support is handling this.`);
         await announce(tx, id, { notify: false });
       });
       return { ok: true };

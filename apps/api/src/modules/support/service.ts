@@ -1,4 +1,4 @@
-// Help cases: raised by outlet staff, worked by DineOS support. Every change leaves a message in
+// Help cases: raised by outlet staff, worked by Mezmitra support. Every change leaves a message in
 // the case's thread (from the outlet, support, or the system) and tells the outlet's screens.
 
 import { sql, type Kysely } from 'kysely';

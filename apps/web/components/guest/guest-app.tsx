@@ -68,6 +68,7 @@ function GuestShell({ qr }: { qr: string }) {
           {/* On a cover photo only the logo overlaps it; the name stays on white. */}
           <BrandMark
             branding={ctx?.tenant.branding}
+            name={ctx?.outlet.name ?? null}
             className={cn('rounded-2xl', cover ? '-mt-10 size-16 shadow-[var(--shadow-pop)] ring-4 ring-surface' : 'size-12', ctx?.tenant.branding.logo_url && !cover && 'border border-line')}
           />
           <div className="min-w-0 flex-1">

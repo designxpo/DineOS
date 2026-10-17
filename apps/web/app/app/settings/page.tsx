@@ -336,7 +336,7 @@ function Brand() {
       </Card>
       <Card className="p-5">
         <h2 className="font-semibold">Your data</h2>
-        <p className="mt-1 text-sm text-ink-soft">Download everything DineOS holds for your business as one file. To close your account and delete your data, contact support.</p>
+        <p className="mt-1 text-sm text-ink-soft">Download everything Mezmitra holds for your business as one file. To close your account and delete your data, contact support.</p>
         <Button className="mt-3" variant="outline" onClick={() => void exportData()}>
           <Download className="size-4" /> Export data
         </Button>
@@ -390,7 +390,7 @@ function Audit() {
           <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
             <span className="w-36 text-xs text-ink-faint">{dateTime(a.created_at)}</span>
             <span className="font-medium">{a.action}</span>
-            <span className="text-ink-soft">{a.actor_admin_id ? 'DineOS support' : a.actor_name}</span>
+            <span className="text-ink-soft">{a.actor_admin_id ? 'Mezmitra support' : a.actor_name}</span>
             {a.approved_by_name && <Badge tone="violet">approved by {a.approved_by_name}</Badge>}
             {a.reason && <span className="text-ink-faint">“{a.reason}”</span>}
           </li>

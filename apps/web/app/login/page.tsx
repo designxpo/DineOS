@@ -1,6 +1,5 @@
 'use client';
 
-import { ChefHat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { BrandingDTO, LoginResponseDTO } from '@dineos/shared/dto';
@@ -56,17 +55,15 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
-      <section className="relative hidden overflow-hidden bg-brand-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="flex items-center gap-3">
-          {own?.branding.logo_url ? (
-            <BrandMark branding={own.branding} className="size-14 rounded-2xl" />
-          ) : (
-            <div className="grid size-11 place-items-center rounded-2xl bg-white/10">
-              <ChefHat className="size-6" />
-            </div>
-          )}
-          <span className="font-display text-2xl font-semibold">{own?.name ?? 'DineOS'}</span>
-        </div>
+      <section className="relative hidden overflow-hidden bg-ink p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        {own ? (
+          <div className="flex items-center gap-3">
+            {own.branding.logo_url && <BrandMark branding={own.branding} className="size-14 rounded-2xl" />}
+            <span className="font-display text-2xl font-semibold">{own.name}</span>
+          </div>
+        ) : (
+          <img src="/brand/logo-white.svg" alt="Mezmitra: restaurant operations, together." className="h-24 w-auto self-start" />
+        )}
         {own ? (
           <div className="max-w-md">
             <h1 className="font-display text-4xl leading-tight font-semibold">Welcome to {own.name}.</h1>
@@ -79,16 +76,20 @@ export default function LoginPage() {
           </div>
         )}
         <p className="text-sm text-white/50">{own ? '' : 'Made for Indian restaurants, cafes and hotel dining.'}</p>
-        <div className="pointer-events-none absolute -right-24 -bottom-24 size-96 rounded-full bg-brand-600/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 size-96 rounded-full bg-brand-600/35 blur-3xl" />
       </section>
 
       <section className="flex items-center justify-center p-6">
         <form onSubmit={submit} className="w-full max-w-sm space-y-5">
           <div className="lg:hidden">
-            <div className="mb-6 flex items-center gap-2.5">
-              <BrandMark branding={own?.branding} className={own?.branding.logo_url ? 'size-12 rounded-xl border border-line' : 'size-10 rounded-xl'} />
-              <span className="font-display text-xl font-semibold">{own?.name ?? 'DineOS'}</span>
-            </div>
+            {own ? (
+              <div className="mb-6 flex items-center gap-2.5">
+                <BrandMark branding={own.branding} className={own.branding.logo_url ? 'size-12 rounded-xl border border-line' : 'size-10 rounded-xl'} />
+                <span className="font-display text-xl font-semibold">{own.name}</span>
+              </div>
+            ) : (
+              <img src="/brand/wordmark.svg" alt="Mezmitra" className="mb-6 h-10 w-auto" />
+            )}
           </div>
           <div>
             <h2 className="text-2xl font-semibold text-ink">Sign in</h2>

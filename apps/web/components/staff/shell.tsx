@@ -195,7 +195,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLowStockAlerts(can('inventory.record'));
   useSecurityAlerts(can('staff.manage'));
   useScreenCheckIn();
-  // A paid plan shows the restaurant's own logo and colours instead of the DineOS look.
+  // A paid plan shows the restaurant's own logo and colours instead of the Mezmitra look.
   useBrandTheme(me.tenant.branding, me.tenant.white_label ? me.tenant.name : null);
   const { signOut, dialog: unsyncedDialog } = useSignOut();
 

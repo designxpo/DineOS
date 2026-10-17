@@ -14,7 +14,7 @@ import { cn } from '@/components/ui/cn';
 import { Card, Input, Segmented, Spinner } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 
-const PRESETS = ['#a8441a', '#b91c1c', '#be185d', '#7c3aed', '#1d4ed8', '#0f766e', '#15803d', '#a16207', '#1c1917'];
+const PRESETS = ['#b9381e', '#b91c1c', '#be185d', '#7c3aed', '#1d4ed8', '#0f766e', '#15803d', '#a16207', '#1c1917'];
 
 /**
  * The restaurant's own look: logo, cover photo, colour and heading style, with a preview of the QR
@@ -29,20 +29,20 @@ export function BrandKit() {
   const saved = tenant.data?.branding;
   const [color, setColor] = useState(DEFAULT_BRAND_COLOR);
   const [hexText, setHexText] = useState(DEFAULT_BRAND_COLOR);
-  const [heading, setHeading] = useState<HeadingStyle>('serif');
+  const [heading, setHeading] = useState<HeadingStyle>('sans');
   const [busy, setBusy] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!saved) return;
     setColor(saved.primary_color ?? DEFAULT_BRAND_COLOR);
     setHexText(saved.primary_color ?? DEFAULT_BRAND_COLOR);
-    setHeading(saved.heading_style ?? 'serif');
+    setHeading(saved.heading_style ?? 'sans');
   }, [saved]);
 
   if (!tenant.data || !saved) return <Spinner />;
   const t = tenant.data;
   const draft: BrandingDTO = { ...saved, primary_color: color, heading_style: heading };
-  const changed = color !== (saved.primary_color ?? DEFAULT_BRAND_COLOR) || heading !== (saved.heading_style ?? 'serif');
+  const changed = color !== (saved.primary_color ?? DEFAULT_BRAND_COLOR) || heading !== (saved.heading_style ?? 'sans');
   const { adjusted } = brandShades(color);
   const signInLink = typeof window === 'undefined' ? '' : `${window.location.origin}/login?r=${t.slug}`;
 
@@ -86,7 +86,7 @@ export function BrandKit() {
           </p>
         ) : (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Your plan ({t.plan_name}) shows the DineOS look.{' '}
+            Your plan ({t.plan_name}) shows the Mezmitra look.{' '}
             {t.white_label_plans.length > 0 ? `Your brand goes live on ${t.white_label_plans.join(' or ')}. ` : ''}
             Set it up now and see it in the preview.
           </p>
@@ -161,8 +161,8 @@ export function BrandKit() {
               value={heading}
               onChange={setHeading}
               options={[
-                { value: 'serif', label: 'Classic' },
                 { value: 'sans', label: 'Modern' },
+                { value: 'serif', label: 'Classic' },
               ]}
             />
           </div>
@@ -234,7 +234,7 @@ function Preview({ branding, name }: { branding: BrandingDTO; name: string }) {
         {branding.cover_url ? <img src={branding.cover_url} alt="" className="h-20 w-full object-cover" /> : <div className="h-3" />}
         <div className="px-3 pb-3">
           <div className="flex items-start gap-2">
-            <BrandMark branding={branding} className={cn('rounded-xl', branding.cover_url ? '-mt-6 size-12 ring-4 ring-surface' : 'mt-1 size-10', branding.logo_url && !branding.cover_url && 'border border-line')} />
+            <BrandMark branding={branding} name={name} className={cn('rounded-xl', branding.cover_url ? '-mt-6 size-12 ring-4 ring-surface' : 'mt-1 size-10', branding.logo_url && !branding.cover_url && 'border border-line')} />
             <div className="min-w-0 pt-1.5">
               <p className="truncate font-display text-base leading-tight font-semibold">{name}</p>
               <span className="mt-0.5 inline-block rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand)]">Table 4</span>
