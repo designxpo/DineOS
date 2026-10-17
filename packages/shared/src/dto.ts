@@ -369,8 +369,10 @@ export interface GuestSessionDTO {
    * Set once someone at the table has shared a phone number for loyalty. Only the last digits are
    * shown: guests are anonymous, so a typed number must not reveal whose it is or their balance.
    */
-  customer: { phone_last4: string } | null;
-  loyalty: { enabled: boolean; earn_bp: number };
+  /** Name and points only once the guest proved the number with a code sent by SMS. */
+  customer: { phone_last4: string; verified: false } | { phone_last4: string; verified: true; name: string | null; points: number } | null;
+  /** `otp`: joining loyalty takes a code sent by SMS (MSG91 is set up). */
+  loyalty: { enabled: boolean; earn_bp: number; otp: boolean };
   bill: { total_paise: number; paid_paise: number; status: BillStatus } | null;
 }
 

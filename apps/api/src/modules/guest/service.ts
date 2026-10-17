@@ -88,7 +88,7 @@ function cartDto(sessionId: string, version: number, lines: StoredLine[]): CartD
 export async function readGuestSession(tx: Tx, auth: GuestAuth) {
   const s = await tx.db
     .selectFrom('table_sessions')
-    .select(['id', 'status', 'opened_at', 'bill_requested_at', 'cart', 'cart_version', 'table_id', 'customer_id'])
+    .select(['id', 'status', 'opened_at', 'bill_requested_at', 'cart', 'cart_version', 'table_id', 'customer_id', 'customer_verified_at'])
     .where('id', '=', auth.sessionId)
     .executeTakeFirst();
   if (!s) throw notFound('Table session');
@@ -96,7 +96,7 @@ export async function readGuestSession(tx: Tx, auth: GuestAuth) {
   return s;
 }
 
-export async function guestSessionView(tx: Tx, auth: GuestAuth): Promise<GuestSessionDTO> {
+export async function guestSessionView(tx: Tx, auth: GuestAuth, otpEnabled = false): Promise<GuestSessionDTO> {
   const s = await readGuestSession(tx, auth);
   const context = await guestContext(tx, auth.outletId, s.table_id);
   const orderIds = await tx.db
@@ -118,7 +118,7 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth): Promise<GuestSe
     .where('id', '=', auth.outletId)
     .executeTakeFirstOrThrow();
   const customer = s.customer_id
-    ? await tx.db.selectFrom('customers').select('phone').where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
+    ? await tx.db.selectFrom('customers').select(['phone', 'name', 'points']).where('id', '=', s.customer_id).where('erased_at', 'is', null).executeTakeFirst()
     : undefined;
   const finalised = bills.filter((b) => b.status !== 'draft');
   return {
@@ -133,8 +133,13 @@ export async function guestSessionView(tx: Tx, auth: GuestAuth): Promise<GuestSe
     orders: orders.map(toGuestOrder),
     device_id: auth.deviceId,
     last_seq: outlet.event_seq,
-    customer: customer ? { phone_last4: customer.phone.slice(-4) } : null,
-    loyalty: { enabled: outlet.loyalty_enabled, earn_bp: outlet.loyalty_earn_bp },
+    // A typed number shows only its last four digits; a number proved by SMS shows its name and points.
+    customer: customer
+      ? s.customer_verified_at
+        ? { phone_last4: customer.phone.slice(-4), verified: true, name: customer.name, points: customer.points }
+        : { phone_last4: customer.phone.slice(-4), verified: false }
+      : null,
+    loyalty: { enabled: outlet.loyalty_enabled, earn_bp: outlet.loyalty_earn_bp, otp: otpEnabled },
     bill: finalised.length
       ? {
           total_paise: finalised.reduce((a, b) => a + b.total_paise, 0),
@@ -271,7 +276,7 @@ export async function joinLoyalty(
 ): Promise<{ phone_last4: string }> {
   const s = await readGuestSession(tx, auth);
   const customer = await upsertCustomer(tx, { phone: input.phone, name: input.name, consentSource: 'guest', marketingOptIn: input.marketing_opt_in });
-  await tx.db.updateTable('table_sessions').set({ customer_id: customer.id }).where('id', '=', s.id).execute();
+  await tx.db.updateTable('table_sessions').set({ customer_id: customer.id, customer_verified_at: null }).where('id', '=', s.id).execute();
   await tx.db
     .updateTable('bills')
     .set({ customer_id: customer.id })

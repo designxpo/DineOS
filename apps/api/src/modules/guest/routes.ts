@@ -5,11 +5,12 @@ import { z } from 'zod';
 import type { GuestJoinResponseDTO } from '@dineos/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { requireGuest } from '../../lib/auth';
-import { AppError, conflict, notFound } from '../../lib/errors';
+import { AppError, badRequest, conflict, notFound, tooMany } from '../../lib/errors';
 import { signGuestToken, verifyQrToken, type QrClaims } from '../../lib/tokens';
 import { parse } from '../../lib/validate';
 import { assertOutletReachable } from '../hub/presence';
 import { loadMenu } from '../menu/service';
+import { sendLoyaltyCode, verifyLoyaltyCode } from './otp';
 import { createServiceRequest } from '../tables/floor';
 import { getOrCreateSession } from '../tables/sessions';
 import {
@@ -32,6 +33,11 @@ const cartLine = z.object({
   modifier_ids: z.array(z.uuid()).max(20).default([]),
   note: z.string().max(200).nullable().optional(),
 });
+
+async function assertLoyalty(tx: Tx, outletId: string): Promise<void> {
+  const o = await tx.db.selectFrom('outlets').select('loyalty_enabled').where('id', '=', outletId).executeTakeFirstOrThrow();
+  if (!o.loyalty_enabled) throw conflict('loyalty_disabled', 'This restaurant does not run a loyalty programme');
+}
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
   /** Verifies a printed QR token against the live table (active, current version) and tenant. */
@@ -109,7 +115,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
 
     app.get('/guest/session', async (req) => {
       const auth = requireGuest(req);
-      return ctx.tx(auth.tenantId, (tx) => guestSessionView(tx, auth));
+      return ctx.tx(auth.tenantId, (tx) => guestSessionView(tx, auth, !!ctx.otp));
     });
 
     app.post('/guest/cart/lines', async (req) => {
@@ -155,11 +161,48 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         }),
         req.body,
       );
+      // With codes by SMS set up, a typed number is not enough: the guest proves it first.
+      if (ctx.otp) throw conflict('verify_phone', 'Enter the code we text to your number');
       return ctx.tx(auth.tenantId, async (tx) => {
-        const o = await tx.db.selectFrom('outlets').select('loyalty_enabled').where('id', '=', auth.outletId).executeTakeFirstOrThrow();
-        if (!o.loyalty_enabled) throw conflict('loyalty_disabled', 'This restaurant does not run a loyalty programme');
+        await assertLoyalty(tx, auth.outletId);
         return joinLoyalty(tx, auth, body);
       });
+    });
+
+    /** Texts a six-digit code to the guest's number (MSG91). */
+    app.post('/guest/loyalty/otp', { config: { rateLimit: { max: 6, timeWindow: '10 minutes' } } }, async (req) => {
+      const auth = requireGuest(req);
+      const body = parse(z.object({ phone: z.string().min(10).max(20) }), req.body);
+      const sender = ctx.otp;
+      if (!sender) throw new AppError(404, 'otp_unavailable', 'Codes by SMS are not set up here');
+      return ctx.tx(auth.tenantId, async (tx) => {
+        await assertLoyalty(tx, auth.outletId);
+        return sendLoyaltyCode(tx, auth, ctx.config.TOKEN_SECRET, sender, body.phone);
+      });
+    });
+
+    /** The right code joins the number to this visit and shows the guest their name and points. */
+    app.post('/guest/loyalty/verify', async (req) => {
+      const auth = requireGuest(req);
+      const body = parse(
+        z.object({
+          phone: z.string().min(10).max(20),
+          code: z.string().trim().regex(/^\d{6}$/, 'The code has 6 digits'),
+          name: z.string().trim().max(80).nullable().optional(),
+          marketing_opt_in: z.boolean().optional(),
+          consent: z.literal(true, { error: 'Tick the box to agree to us saving your number' }),
+        }),
+        req.body,
+      );
+      if (!ctx.otp) throw new AppError(404, 'otp_unavailable', 'Codes by SMS are not set up here');
+      const result = await ctx.tx(auth.tenantId, async (tx) => {
+        await assertLoyalty(tx, auth.outletId);
+        return verifyLoyaltyCode(tx, auth, ctx.config.TOKEN_SECRET, body);
+      });
+      if (result.ok) return { phone_last4: result.phone_last4, name: result.name, points: result.points };
+      if (result.reason === 'locked') throw tooMany('Too many wrong codes. Ask for a new one.');
+      if (result.reason === 'expired') throw badRequest('code_expired', 'This code has expired. Ask for a new one.');
+      throw badRequest('wrong_code', `That code is not right. ${result.left} ${result.left === 1 ? 'try' : 'tries'} left.`);
     });
 
     app.post('/guest/call-waiter', async (req) => {

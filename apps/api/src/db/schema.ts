@@ -428,6 +428,20 @@ export interface Orders {
   updated_at: Generated<Timestamp>;
 }
 
+export interface OtpCodes {
+  attempts: Generated<number>;
+  code_hash: string;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  outlet_id: string;
+  phone: string;
+  table_session_id: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  verified_at: Timestamp | null;
+}
+
 export interface OutletEvents {
   channels: string[];
   created_at: Generated<Timestamp>;
@@ -673,6 +687,7 @@ export interface TableSessions {
   closed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   customer_id: string | null;
+  customer_verified_at: Timestamp | null;
   guest_count: number | null;
   id: Generated<string>;
   opened_at: Timestamp | null;
@@ -787,6 +802,7 @@ export interface DB {
   modifiers: Modifiers;
   order_items: OrderItems;
   orders: Orders;
+  otp_codes: OtpCodes;
   outlet_events: OutletEvents;
   outlets: Outlets;
   payments: Payments;

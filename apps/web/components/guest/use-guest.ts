@@ -210,6 +210,18 @@ export function useGuest(qr: string) {
     onError: handleGone,
   });
 
+  // Loyalty with a code by SMS, when the restaurant has it set up (session.loyalty.otp).
+  const sendLoyaltyCode = useMutation({
+    mutationFn: (phone: string) => apiFetch<{ phone_last4: string; expires_in_s: number }>('/guest/loyalty/otp', { method: 'POST', token, body: { phone } }),
+    onError: handleGone,
+  });
+  const verifyLoyaltyCode = useMutation({
+    mutationFn: (body: { phone: string; code: string; name: string | null; marketing_opt_in: boolean }) =>
+      apiFetch<{ phone_last4: string; name: string | null; points: number }>('/guest/loyalty/verify', { method: 'POST', token, body: { ...body, consent: true } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['guest-session'] }),
+    onError: handleGone,
+  });
+
   const startOver = useCallback(async () => {
     writeLocal(tokenKey(qr), null);
     firstLoad.current = true;
@@ -239,6 +251,8 @@ export function useGuest(qr: string) {
     callWaiter,
     requestBill,
     joinLoyalty,
+    sendLoyaltyCode,
+    verifyLoyaltyCode,
     startOver,
   };
 }

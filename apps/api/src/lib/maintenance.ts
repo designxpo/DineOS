@@ -20,6 +20,7 @@ export async function runMaintenance(adminDb: Database): Promise<Record<string, 
     out.idempotency_keys = count(await trx.deleteFrom('idempotency_keys').where('created_at', '<', sql<Date>`now() - interval '2 days'`).executeTakeFirst());
     out.user_sessions = count(await trx.deleteFrom('user_sessions').where('expires_at', '<', sql<Date>`now()`).executeTakeFirst());
     out.admin_sessions = count(await trx.deleteFrom('admin_sessions').where('expires_at', '<', sql<Date>`now()`).executeTakeFirst());
+    out.otp_codes = count(await trx.deleteFrom('otp_codes').where('created_at', '<', sql<Date>`now() - interval '1 day'`).executeTakeFirst());
     out.approval_tokens = count(await trx.deleteFrom('approval_tokens').where('expires_at', '<', sql<Date>`now() - interval '1 day'`).executeTakeFirst());
     out.print_jobs_expired = count(
       await trx

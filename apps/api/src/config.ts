@@ -42,6 +42,9 @@ const schema = z.object({
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   S3_PUBLIC_URL: z.string().optional(),
+  /** MSG91 auth key and DLT OTP template: with both set, loyalty asks guests for a code by SMS. */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
 });
 
 export type Config = z.infer<typeof schema> & { corsOrigins: string[]; storageDir: string };

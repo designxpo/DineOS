@@ -125,7 +125,7 @@ describe('customer book', () => {
     expect((await guest({ method: 'POST', url: '/v1/guest/loyalty', payload: { phone: '9876500030', name: 'Ravi' } })).statusCode).toBe(400);
     expect((await guest({ method: 'POST', url: '/v1/guest/loyalty', payload: { phone: '9876500030', name: 'Ravi', consent: true } })).statusCode).toBe(200);
     const session: GuestSessionDTO = (await guest({ method: 'GET', url: '/v1/guest/session' })).json();
-    expect(session.customer).toEqual({ phone_last4: '0030' });
+    expect(session.customer).toEqual({ phone_last4: '0030', verified: false });
     expect(session.loyalty.enabled).toBe(true);
 
     const order: OrderDTO = (

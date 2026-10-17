@@ -165,7 +165,10 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
   const [name, setName] = useState('');
   const [consent, setConsent] = useState(false);
   const [offers, setOffers] = useState(false);
+  const [code, setCode] = useState('');
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const member = g.session?.customer;
+  const otp = g.session?.loyalty.otp ?? false;
   const pct = ((g.session?.loyalty.earn_bp ?? 0) / 100).toString();
   const restaurant = g.context?.outlet.name ?? '';
 
@@ -174,9 +177,41 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
       <section className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
         <Gift className="mt-0.5 size-5 shrink-0 text-emerald-700" />
         <div>
-          <p className="font-medium text-ink">{t('guest.loyalty_member', { last4: member.phone_last4 })}</p>
+          <p className="font-medium text-ink">
+            {member.verified
+              ? member.name
+                ? t('guest.loyalty_verified', { name: member.name, points: member.points })
+                : t('guest.loyalty_verified_no_name', { points: member.points })
+              : t('guest.loyalty_member', { last4: member.phone_last4 })}
+          </p>
           <p className="mt-0.5 text-sm text-ink-soft">{t('guest.loyalty_member_hint')}</p>
         </div>
+      </section>
+    );
+  }
+
+  const fail = (err: unknown) => toast(errorMessage(err), 'error');
+  const sendCode = () => g.sendLoyaltyCode.mutate(phone, { onSuccess: (r) => setSentTo(r.phone_last4), onError: fail });
+
+  if (otp && sentTo) {
+    return (
+      <section className="rounded-2xl border border-line bg-surface p-4">
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            g.verifyLoyaltyCode.mutate({ phone, code, name: name.trim() || null, marketing_opt_in: offers }, { onError: fail });
+          }}
+        >
+          <p className="text-sm text-ink-soft">{t('guest.loyalty_code_sent', { last4: sentTo })}</p>
+          <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder={t('guest.loyalty_code')} aria-label={t('guest.loyalty_code')} />
+          <Button type="submit" block disabled={code.length !== 6} loading={g.verifyLoyaltyCode.isPending}>
+            {t('guest.loyalty_verify')}
+          </Button>
+          <button type="button" className="w-full cursor-pointer text-center text-sm font-medium text-[var(--brand)]" onClick={sendCode} disabled={g.sendLoyaltyCode.isPending}>
+            {t('guest.loyalty_resend')}
+          </button>
+        </form>
       </section>
     );
   }
@@ -195,7 +230,8 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
           className="mt-4 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            g.joinLoyalty.mutate({ phone, name: name.trim() || null, marketing_opt_in: offers }, { onError: (err) => toast(errorMessage(err), 'error') });
+            if (otp) sendCode();
+            else g.joinLoyalty.mutate({ phone, name: name.trim() || null, marketing_opt_in: offers }, { onError: fail });
           }}
         >
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder={t('guest.loyalty_phone')} aria-label={t('guest.loyalty_phone')} />
@@ -208,8 +244,8 @@ function LoyaltyCard({ g }: { g: GuestApi }) {
             <input type="checkbox" checked={offers} onChange={(e) => setOffers(e.target.checked)} className="size-4 shrink-0 accent-[var(--brand)]" />
             {t('guest.loyalty_offers')}
           </label>
-          <Button type="submit" block disabled={!consent || phone.replace(/\D/g, '').length < 10} loading={g.joinLoyalty.isPending}>
-            {t('guest.loyalty_join')}
+          <Button type="submit" block disabled={!consent || phone.replace(/\D/g, '').length < 10} loading={g.joinLoyalty.isPending || g.sendLoyaltyCode.isPending}>
+            {otp ? t('guest.loyalty_send_code') : t('guest.loyalty_join')}
           </Button>
         </form>
       )}
