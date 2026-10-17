@@ -51,7 +51,9 @@ return ctx.tx(auth.tenantId, async (tx) => {
 
 - Table session: `pending` (guests have a shared cart, the table still shows vacant), then `open` (first order or a waiter seats them), then `closed` (bill fully paid, or released). Closing kills the guests' tokens and cart.
 - Order: `placed → accepted → preparing → ready → served → billed`, plus `rejected` (from placed, reason required) and `cancelled` (manager approval after acceptance). Items move independently on the KDS, and the order follows its least-advanced item.
-- Guest orders wait in the inbox unless the outlet auto-accepts. The first order from each new phone is flagged, and can still require approval with auto-accept on. Staff orders go straight to the kitchen.
+- Guest orders wait in the inbox unless the outlet auto-accepts (on by default for new outlets). The first guest order of a visit is flagged and, with `approve_flagged_orders`, waits for staff; once an order in the visit is accepted, or a waiter seated it, other phones there go straight through. A phone that ordered in an earlier, closed visit at the same table within 12 hours (`returning_device`) always waits. Staff orders go straight to the kitchen.
+- Guest order limits: 3 a minute per phone; per visit, 8 in ten minutes or two per guest for bigger parties (guest count, or the seats of every table pointing at the visit).
+- Delivery orders (`type = 'delivery'`) carry a `channel` (zomato, swiggy, own) and the platform's `channel_ref`. They have no table session and are billed by order.
 - Accepting an order creates one kitchen ticket (KOT) per station and, if a print agent is registered, a print job.
 - Table state (vacant, occupied, ordered, served, bill requested, needs cleaning) is derived from session, orders and bill requests (`deriveTableState` in shared) and stored with a history in `table_state_events`. Camera readings are logged there with `source = 'camera'` and feed the same function (see Camera table vision).
 - Accepted orders use stock: `syncStock` consumes each accepted item's recipe once and gives it back if the item is cancelled later (`order_items.stock_applied` makes it idempotent). It runs after every order change and after hub sync.
@@ -65,6 +67,13 @@ return ctx.tx(auth.tenantId, async (tx) => {
 - Payments go through `PaymentAdapter`. It is manual: staff confirm cash, a UPI credit to the outlet's own VPA, or a card slip. A gateway can implement the interface later. Until then, owners check UPI against the bank statement (UPI check).
 - Loyalty: a customer on a draft bill can redeem points (capped at what is left after discounts); points leave the balance at finalisation, come back on void, and are earned when the bill is fully paid. Every change is in `loyalty_ledger`.
 - Bills printed by the outlet hub carry `invoice_series = 'hub'` and their own gap-free numbers per financial year.
+- Zomato and Swiggy orders: the bill gets `tax_by_operator = true` at creation; its lines are computed at 0% and it has no service charge, because the platform pays the GST (s. 9(5)). Only a `platform` payment settles it, and only such bills take one. GST reports keep these bills out of the rate, HSN and B2B tables and list them under `operator_supplies`.
+- Walkout watch: the floor list carries `last_served_at` (served, not yet billed) and `unpaid_bill_since` (finalised, unpaid); `paymentAlert` in shared decides when a table is flagged. Day end lists `unbilled_orders`.
+
+## Alerts and messages
+
+- Phone alerts: `registerPushAlerts` subscribes to the event bus. `pushFor` maps a committed event to an alert and the permission needed to receive it (guest `order.placed` → `order.accept`; `waiter.called`, `bill.requested` → `service_request.handle`), and it goes to `push_subscriptions` at that outlet whose user holds the permission there. A 404 or 410 from the push service deletes the device.
+- Loyalty codes: `otp_codes` holds an HMAC of each code (keyed with `TOKEN_SECRET`), its expiry and attempts. A wrong guess is returned, not thrown, so the attempt count commits. `table_sessions.customer_verified_at` marks a visit whose number was proved; only then does the guest session include the name and points.
 
 ## Offline behaviour
 

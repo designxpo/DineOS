@@ -48,15 +48,20 @@ Migration 0013 removes every privilege Supabase gives its Data API roles (`anon`
    | `S3_REGION` | The Supabase project's region, e.g. `ap-southeast-2` |
    | `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | The bucket and key from step 3 |
    | `S3_PUBLIC_URL` | `https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>` |
+   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Optional, for phone alerts: generate with `npx web-push generate-vapid-keys`. Changing them makes every device turn alerts on again |
+   | `VAPID_SUBJECT` | `https://<your-domain>` or `mailto:` an address push services can reach |
+   | `MSG91_AUTH_KEY`, `MSG91_OTP_TEMPLATE_ID` | Optional, for loyalty codes by SMS (see below) |
 
    Leave `NEXT_PUBLIC_API_URL` unset: the web app then calls the API on its own domain (the production domain, or a preview's own address). Scope the database variables to Production unless previews should share live data.
 5. Keep `regions` in `vercel.json` next to the database (`syd1` for a Sydney project, `bom1` for Mumbai): every request makes several queries.
-6. Run migrations from your machine as before (`DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate`); deployments never change the schema.
+6. Run migrations from your machine as before (`DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate`); deployments never change the schema. **Migrate before you push code that needs a new column**: a deploy that writes to a column the database lacks fails on every such request.
 
 How the API behaves on Vercel:
 
 - **Live updates** use Vercel's WebSocket support (beta). A connection closes when the function reaches its time limit (5 minutes on Hobby, up to 800 seconds on Pro); screens reconnect and fetch what they missed, so nothing is lost.
 - **Housekeeping** runs at most hourly from normal traffic, plus a daily cron at about 3 am IST (Hobby allows one run a day; on Pro you can change the schedule in `vercel.json` to `0 * * * *`).
+- **Rate limits** (sign-in, PIN, guest joins, orders) are counted in Redis when `REDIS_URL` is set, so they hold across API copies. Without Redis each copy counts on its own; if Redis is unreachable, requests go through.
+- **Phone alerts** are sent after the response; `waitUntil` keeps the function alive until they finish.
 - **Request bodies** are capped at 4.5 MB. Menu photos are resized in the browser; the hub sends offline changes in batches of about 3 MB; bank statements over about 3 MB need splitting.
 - Vercel's Hobby plan is for non-commercial use. Move to Pro before charging restaurants.
 
@@ -163,3 +168,22 @@ It creates a throwaway restaurant, joins 300 guests across 60 tables, connects 1
 - Rate limits: 600 requests per minute per token or IP, guest joins 120 per minute per IP, logins 10 per minute, guest orders limited per phone and per table.
 - Support access to a restaurant is time-limited (1 hour), needs a written reason, and appears in that restaurant's audit log.
 - Run `npm audit --omit=dev` before each release; CI runs lint, types, migrations, all tests and Docker builds on every push.
+
+## Loyalty codes by SMS (MSG91)
+
+With `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` set, a guest joining loyalty from the table gets a six-digit code by SMS and sees their name and points once it is right. DineOS makes and checks the codes (hashed, ten minutes, five tries); MSG91 only delivers them.
+
+1. Create an MSG91 account and complete its KYC.
+2. TRAI requires DLT registration: register your business as a principal entity, a sender ID (header), and an OTP content template such as `{#var#} is your DineOS code. It expires in 10 minutes.` (MSG91's help pages walk through the operator portals).
+3. In MSG91, create an OTP template linked to that DLT template, with `##OTP##` where the code goes, and note its template ID. If you restrict the auth key to IP addresses, allow Vercel's (or turn the restriction off).
+4. Set `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` in Vercel and redeploy. Test with your own number first.
+
+Limits: three codes per number in fifteen minutes and a hundred per outlet an hour, so a script cannot run up the SMS bill.
+
+## Phone alerts (Web Push)
+
+With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) DineOS must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them. Signing out turns the device's alerts off.
+
+## Delivery orders
+
+Enter Zomato and Swiggy orders at the POS (type **Delivery**) with the platform's order number; they go to the kitchen like any order. Set each platform's commission under **Settings → Billing**. Because the platform pays the GST on these orders (CGST Act s. 9(5)), their bills carry no tax, print a note saying so, and are closed with **Mark paid on the app**; the GST report lists them apart from your taxable sales. Confirm the treatment, and how to report it in GSTR-1, with your accountant. Own-rider deliveries are billed with GST like takeaway. The outlet hub does not take new delivery orders or bill platform orders while offline.

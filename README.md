@@ -71,7 +71,7 @@ The acceptance criteria in spec §14 are automated:
 
 | Feature | What it does | Tests |
 | --- | --- | --- |
-| Customer book and loyalty | Customers saved only with recorded consent; points earned on paid bills, spent at finalisation, returned on void; guests can join from the table (they see only the last four digits of the number); erasure and export | `customers.test.ts` |
+| Customer book and loyalty | Customers saved only with recorded consent; points earned on paid bills, spent at finalisation, returned on void; guests can join from the table, proving the number with a code by SMS when MSG91 is set up (otherwise they see only its last four digits); erasure and export | `customers.test.ts`, `otp.test.ts` |
 | Reservations and waitlist | Bookings with clash checks and free-table suggestions, seating that opens the table, no-shows after a grace period; walk-in waitlist; next booking shown on the floor map | `reservations.test.ts` |
 | Inventory and recipes | Ingredients, recipes for dishes and add-ons, purchases at a moving-average cost, wastage, counts; accepted orders use stock, cancelled ones give it back; low-stock alerts, optional automatic sold-out, food-cost report | `inventory.test.ts` |
 | Richer reports | Comparison with the previous period, sales by category, weekday-by-hour heatmap, team, discounts by reason, table turns and dwell, customers, pilot health (QR share, rejections, time to accept) | `reports.test.ts` |
@@ -87,11 +87,25 @@ An edge worker turns camera frames into a table state (vacant, occupied, needs c
 
 ### Phase 4, without a gateway: UPI check
 
-Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from any major Indian bank) and see the UPI payments the bank never received, UPI money with no bill, and other money in. Matching is by UTR, then by amount and date. Tests: `reconciliation.test.ts` and the statement parser tests. A payment gateway still needs your decision on one external dependency; the `PaymentAdapter` seam is ready for it.
+Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from any major Indian bank) and see the UPI payments the bank never received, UPI money with no bill, and other money in. Matching is by UTR, then by amount and date. The dashboard reminds owners of the past week's UPI payments not yet checked against a statement and lists any the bank never received. Tests: `reconciliation.test.ts` and the statement parser tests. A payment gateway still needs your decision on one external dependency; the `PaymentAdapter` seam is ready for it.
+
+### Since the pilot review: safety, money and less manual work
+
+| Feature | What it does | Tests |
+| --- | --- | --- |
+| Guests who left | A phone that ordered in an earlier, paid visit at a table (within 12 hours) always waits for staff, whatever the auto-accept settings, and the inbox says so. Reopening the menu after the visit ended asks before starting a new one | `orders-core.test.ts` |
+| One check per table | Auto-accept is on for new outlets. The first QR order at a table is checked once; after staff accept an order there, or a waiter seats it, the other phones go straight to the kitchen | `orders-core.test.ts` |
+| Big parties | A visit may send 8 orders in ten minutes, or two per guest for bigger parties (guest count, or the seats of joined tables) | `guest.test.ts` |
+| Walkout watch | The floor map flags a table served 30+ minutes ago with no bill, or with a bill asked for or printed 20+ minutes ago and unpaid. Day end lists every order that never reached a bill, and whether its table was cleared | `billing.test.ts`, `table-state.test.ts` |
+| Delivery orders | Zomato, Swiggy or own riders, entered at the POS with the platform's order number. Zomato and Swiggy pay the GST on their orders (CGST Act s. 9(5)), so those bills carry none, say so on the invoice, are settled by a "platform" payment and are listed apart in the GST report. Reports → Delivery shows commission and the payout to expect | `delivery.test.ts`, `render.test.ts` |
+| Phone alerts | Web Push to staff who turn it on: new orders to accept, waiter calls, bill requests, at their outlet only | `push.test.ts` |
+| Limits across servers | With Redis set, sign-in, PIN and order limits are counted in Redis, so they hold when Vercel runs several API copies; if Redis is down, requests still go through | `rate-limit.test.ts` |
 
 ## Decisions that differ from the spec
 
-- **No Web Push.** PWA push goes through Google, Apple or Mozilla servers, which would break the no-third-party rule. Staff get in-app sound and alerts while the portal is open.
+- **Web Push, by your decision.** Phone alerts go through the browser makers' push services (Google, Apple, Mozilla), an exception to the no-third-party rule. Nothing but the alert text leaves DineOS, and they are off until VAPID keys are set.
+- **SMS codes through MSG91, by your decision.** DineOS makes and checks the codes; MSG91 only delivers them. Without its keys, loyalty works as before.
+- **Delivery apps entered by hand for now.** Zomato and Swiggy only open their order APIs to approved partners; delivery orders are typed in at the POS until an aggregator (such as UrbanPiper) is connected.
 - **Service charge** is off by default and staff can remove it from any bill, because Indian consumer guidelines bar charging it automatically.
 - **GST rate** is set per dish with an outlet default; the seed uses 5%. For a hotel restaurant the right rate can depend on room tariffs, so confirm with your accountant before the pilot.
 - **No BullMQ.** Live events and print jobs live in Postgres (a transactional outbox with a per-outlet sequence), so nothing is lost if a process dies; Redis is only used to fan sockets out across API servers.
@@ -99,7 +113,7 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 - **Charge to room without a hotel-system link.** Room charges are a payment method; the front desk posts them to folios by hand from Reports → Room charges (or its CSV) and marks them posted. A direct StayOS integration is deferred.
 - **Every foreign key between tenant tables also matches `tenant_id`.** Postgres checks foreign keys without row-level security, so this stops one tenant's rows from pointing at another's.
 - **Offline bills use their own invoice series** (`PREFIXH/2627/00001`), so the hub never needs the cloud's counter; GST reports list both series.
-- **Guests joining loyalty see only the last four digits** of the number they typed, and never anyone's name or balance: there is no OTP without an SMS provider.
+- **Guests joining loyalty without a code see only the last four digits** of the number they typed, never a name or balance; with SMS codes on, a proved number shows its name and points.
 
 Phases 2 to 4 decisions are recorded in [docs/specs/2026-10-15-phase2-4-decisions.md](docs/specs/2026-10-15-phase2-4-decisions.md).
 
