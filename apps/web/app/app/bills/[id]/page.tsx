@@ -10,7 +10,7 @@ import { rupeesToPaise } from '@dineos/shared/money';
 import type { BillDTO, BillLineDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
 import type { PaymentMethod } from '@dineos/shared/enums';
 import { errorMessage, onHub } from '@/lib/api';
-import { formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
+import { dateTime, formatPaise, formatRate, rupeesInput, time } from '@/lib/format';
 import { send } from '@/lib/outbox';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -100,7 +100,7 @@ export default function BillPage() {
           </h1>
           <p className="text-sm text-ink-faint">{bill.invoice_no ? (
               <>
-                {bill.invoice_no} · <span className="whitespace-nowrap">{bill.invoice_date}</span>
+                {bill.invoice_no} · <span className="whitespace-nowrap">{dateTime(bill.finalised_at ?? bill.created_at)}</span>
               </>
             ) : (
               t('bill.draft_note')

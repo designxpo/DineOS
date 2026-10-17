@@ -191,7 +191,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:px-6">
+        <header className="chrome sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:px-6">
           <IconButton label="Open menu" className="lg:hidden" onClick={() => setOpen(true)}>
             <MenuIcon className="size-5" />
           </IconButton>
@@ -246,7 +246,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 px-4 pt-6 pb-4 lg:px-8">
       <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
+        <h1 className="font-display text-2xl leading-tight font-semibold tracking-tight text-ink">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-ink-faint">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import type { TableDTO } from '@dineos/shared/dto';
 import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
 import { paymentAlert } from '@dineos/shared/table-state';
-import { ago, formatPaise, minutesSince, time } from '@/lib/format';
+import { ago, duration, formatPaise, minutesSince, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { cn } from '@/components/ui/cn';
@@ -89,7 +89,7 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
     <button
       onClick={onOpen}
       className={cn(
-        'relative flex min-h-32 cursor-pointer flex-col rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)]',
+        'relative flex min-h-32 cursor-pointer flex-col rounded-2xl border-2 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)] active:translate-y-0 active:scale-[0.98] active:duration-75',
         style.tile,
         (calling || money || (waiting !== null && waiting >= 3)) && 'animate-pulse-ring',
       )}
@@ -130,8 +130,8 @@ function TableTile({ table, onOpen }: { table: TableDTO; onOpen: () => void }) {
           </p>
         )}
         {table.assigned_waiter_name && <p className="truncate">{table.assigned_waiter_name}</p>}
-        {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { n: Math.max(1, waiting) })}</p>}
-        {money && <p className="mt-1 font-semibold text-rose-700">{t(money.kind === 'not_billed' ? 'floor.not_billed' : 'floor.not_paid', { n: money.minutes })}</p>}
+        {waiting !== null && <p className="mt-1 font-semibold text-amber-800">{t('floor.waiting', { time: duration(Math.max(1, waiting)) })}</p>}
+        {money && <p className="mt-1 font-semibold text-rose-700">{t(money.kind === 'not_billed' ? 'floor.not_billed' : 'floor.not_paid', { time: duration(money.minutes) })}</p>}
         {table.next_reservation && table.session?.status !== 'open' && (
           <div className="mt-1 text-sky-800">
             <p className="flex items-center gap-1 font-medium">

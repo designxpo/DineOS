@@ -80,11 +80,12 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       return ctx.tx(auth.tenantId, (tx) => dayEnd(tx, r));
     });
 
-    app.get('/reports/delivery', async (req) => {
+    app.get('/reports/delivery', async (req, reply) => {
       const auth = requireStaff(req);
-      const { r } = await range(req, auth.tenantId);
+      const { r, format } = await range(req, auth.tenantId);
       assertCan(auth, r.outletId, 'report.view');
-      return ctx.tx(auth.tenantId, (tx) => deliveryReport(tx, r));
+      const data = await ctx.tx(auth.tenantId, (tx) => deliveryReport(tx, r));
+      return format === 'csv' ? sendCsv(reply, `delivery-${r.from}-${r.to}`, data.channels) : data;
     });
 
     app.get('/reports/insights', async (req) => {

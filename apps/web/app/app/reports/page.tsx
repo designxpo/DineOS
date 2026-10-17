@@ -76,7 +76,7 @@ export default function ReportsPage() {
         subtitle={range.from === range.to ? range.from : `${range.from} to ${range.to}`}
         actions={
           <>
-            {tab === 'insights' || tab === 'vision' || tab === 'delivery' ? null : tab !== 'day-end' ? (
+            {tab === 'insights' || tab === 'vision' ? null : tab !== 'day-end' ? (
               <Button variant="outline" onClick={() => void csv()}>
                 <Download className="size-4" /> CSV
               </Button>

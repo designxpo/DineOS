@@ -35,10 +35,18 @@ export default function InboxPage() {
 
   useEffect(() => setSound(soundReady()), []);
 
-  const since = new Date(Date.now() - 4 * 3600_000).toISOString();
+  // Orders someone still has to act on show however old they are (one placed before midnight, or
+  // forgotten); served ones drop off after a few hours.
   const { data: orders, isLoading, stale } = usePersistedQuery(
     ['orders', outletId, 'inbox'],
-    () => api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=placed,accepted,preparing,ready,served&since=${encodeURIComponent(since)}&limit=300`),
+    async () => {
+      const since = new Date(Date.now() - 4 * 3600_000).toISOString();
+      const [open, served] = await Promise.all([
+        api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=placed,accepted,preparing,ready&limit=300`),
+        api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=served&since=${encodeURIComponent(since)}&limit=200`),
+      ]);
+      return [...open, ...served];
+    },
     { refetchInterval: 60_000 },
   );
 
@@ -99,7 +107,7 @@ export default function InboxPage() {
                   <div className="space-y-3">
                     {list.length === 0 ? (
                       <div className="rounded-[var(--radius-card)] border border-dashed border-line">
-                        <EmptyState icon={<ClipboardList className="size-5" />} title={c.key === 'new' ? t('inbox.empty_new') : t('inbox.empty')} />
+                        <EmptyState icon={<ClipboardList className="size-5" />} title={t(`inbox.empty_${c.key}` as I18nKey)} />
                       </div>
                     ) : (
                       list.map((o) => <OrderCard key={o.id} order={o} highlight={fresh.has(o.id)} compact={c.key === 'served'} />)

@@ -18,12 +18,17 @@ export function minutesSince(iso: string, now = Date.now()): number {
   return Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
 }
 
-export function ago(iso: string, now = Date.now()): string {
-  const m = minutesSince(iso, now);
-  if (m < 1) return 'just now';
+/** A span of minutes as people say it: "45 min", "2 h 5 min", and whole hours past ten. */
+export function duration(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
-  return `${h} h ${m % 60} min`;
+  return h >= 10 || m % 60 === 0 ? `${h} h` : `${h} h ${m % 60} min`;
+}
+
+export function ago(iso: string, now = Date.now()): string {
+  const m = minutesSince(iso, now);
+  return m < 1 ? 'just now' : duration(m);
 }
 
 /** Today's date in India as YYYY-MM-DD. */

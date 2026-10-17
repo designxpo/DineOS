@@ -39,7 +39,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        'inline-flex cursor-pointer select-none items-center justify-center font-medium whitespace-nowrap transition duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+        // The press shows on touch-down, before the click lands.
+        'inline-flex cursor-pointer select-none items-center justify-center font-medium whitespace-nowrap transition duration-150 enabled:active:scale-[0.97] enabled:active:duration-75 disabled:cursor-not-allowed disabled:opacity-50',
         VARIANTS[variant],
         SIZES[size],
         block && 'w-full',
@@ -65,7 +66,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       className={cn(
-        'inline-grid size-11 cursor-pointer place-items-center rounded-xl text-ink-soft transition hover:bg-stone-100 hover:text-ink disabled:opacity-40',
+        'inline-grid size-11 cursor-pointer place-items-center rounded-xl text-ink-soft transition hover:bg-stone-100 hover:text-ink enabled:active:scale-90 enabled:active:bg-stone-200 disabled:opacity-40',
         className,
       )}
       {...rest}

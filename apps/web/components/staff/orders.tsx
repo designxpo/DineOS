@@ -170,9 +170,10 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
       {order.cancelled_reason && <p className="mx-4 mb-3 text-xs text-rose-700">Cancelled: {order.cancelled_reason}</p>}
 
       {!compact && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status) && (
-        <footer className="flex items-center gap-2 border-t border-line p-3">
+        // Narrow columns wrap the less-used actions onto their own row instead of pushing them out.
+        <footer className="flex flex-wrap items-center gap-2 border-t border-line p-3">
           {primary && (
-            <Button className="flex-1" variant={primary.variant ?? 'primary'} loading={isBusy(primary.status)} onClick={() => void setStatus(order, primary.status)}>
+            <Button className="min-w-32 flex-1" variant={primary.variant ?? 'primary'} loading={isBusy(primary.status)} onClick={() => void setStatus(order, primary.status)}>
               {primary.label}
             </Button>
           )}
@@ -182,12 +183,12 @@ export function OrderCard({ order, highlight, compact }: { order: OrderDTO; high
             </Button>
           )}
           {order.status === 'placed' && can('order.edit_items') && (
-            <IconButton label={t('act.edit')} onClick={() => setEditing(true)}>
+            <IconButton label={t('act.edit')} onClick={() => setEditing(true)} className="ml-auto">
               <Pencil className="size-[18px]" />
             </IconButton>
           )}
           {order.status !== 'placed' && (
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex shrink-0 items-center">
               {can('order.edit_items') && (
                 <IconButton label={t('act.edit')} onClick={() => setEditing(true)}>
                   <Pencil className="size-[18px]" />

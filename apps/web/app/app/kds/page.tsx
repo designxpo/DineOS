@@ -150,7 +150,7 @@ export default function KdsPage() {
                     <p className="text-xl font-bold">{order.table_label ?? orderTitle(order, t)}</p>
                     <p className="text-sm font-medium opacity-90">#{order.order_no}</p>
                   </div>
-                  <p className="text-3xl font-bold tabular">{mins}′</p>
+                  <p className="text-3xl font-bold tabular">{mins < 60 ? `${mins}′` : `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}′`}</p>
                 </header>
                 <ul className="flex-1 divide-y divide-stone-700">
                   {order.items.map((item) => {

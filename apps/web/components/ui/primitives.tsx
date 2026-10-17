@@ -1,4 +1,6 @@
-import { forwardRef, useId } from 'react';
+'use client';
+
+import { forwardRef, useId, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from './cn';
 
 export function Card({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
@@ -105,6 +107,11 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
 }
 
 /** Segmented control: a small set of mutually exclusive views. */
+/**
+ * A row of choices with one highlight that slides to the picked option, so the eye follows the
+ * change instead of seeing it jump. The highlight is measured from the picked button and follows
+ * resizes (labels, language, window).
+ */
 export function Segmented<T extends string>({
   value,
   onChange,
@@ -118,8 +125,36 @@ export function Segmented<T extends string>({
   className?: string;
   size?: 'sm' | 'md';
 }) {
+  const box = useRef<HTMLDivElement>(null);
+  const placed = useRef(false);
+  const [thumb, setThumb] = useState<{ x: number; w: number; animate: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const picked = box.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!picked) {
+      setThumb(null);
+      return;
+    }
+    const place = (animate: boolean) => setThumb({ x: picked.offsetLeft, w: picked.offsetWidth, animate });
+    place(placed.current);
+    placed.current = true;
+    const watch = new ResizeObserver(() => place(false));
+    watch.observe(picked);
+    return () => watch.disconnect();
+  }, [value, options.length]);
+
   return (
-    <div role="tablist" className={cn('inline-flex rounded-xl bg-stone-100 p-1', className)}>
+    <div ref={box} role="tablist" className={cn('relative inline-flex rounded-xl bg-stone-100 p-1', className)}>
+      {thumb && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-1 bottom-1 left-0 rounded-lg bg-surface shadow-sm"
+          style={{
+            width: thumb.w,
+            transform: `translateX(${thumb.x}px)`,
+            transition: thumb.animate ? 'transform 260ms cubic-bezier(0.32, 0.72, 0, 1), width 260ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+          }}
+        />
+      )}
       {options.map((o) => (
         <button
           key={o.value}
@@ -128,9 +163,9 @@ export function Segmented<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 font-medium whitespace-nowrap transition',
+            'relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 font-medium whitespace-nowrap transition active:scale-[0.97]',
             size === 'sm' ? 'h-8 text-xs' : 'h-9 text-sm',
-            value === o.value ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink',
+            value === o.value ? cn('text-ink', !thumb && 'bg-surface shadow-sm') : 'text-ink-soft hover:text-ink',
           )}
         >
           {o.label}

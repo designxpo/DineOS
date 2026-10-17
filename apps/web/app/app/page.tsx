@@ -74,15 +74,19 @@ export default function DashboardPage() {
               {d.bills} bills · average {formatPaise(d.average_bill_paise)}
             </p>
           </div>
-          <ColumnChart
-            title="Sales by hour"
-            data={hours.map((h) => {
-              const v = d.hourly.find((x) => x.hour === h)?.net_paise ?? 0;
-              const label = h === 12 ? '12p' : h > 12 ? `${h - 12}p` : h === 24 ? '12a' : `${h}a`;
-              return { key: String(h), label, value: v / 100, display: formatPaise(v) };
-            })}
-            tickFormat={(v) => `₹${new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v)}`}
-          />
+          {d.hourly.some((x) => x.net_paise > 0) ? (
+            <ColumnChart
+              title="Sales by hour"
+              data={hours.map((h) => {
+                const v = d.hourly.find((x) => x.hour === h)?.net_paise ?? 0;
+                const label = h === 12 ? '12p' : h > 12 ? `${h - 12}p` : h === 24 ? '12a' : `${h}a`;
+                return { key: String(h), label, value: v / 100, display: formatPaise(v) };
+              })}
+              tickFormat={(v) => `₹${new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v)}`}
+            />
+          ) : (
+            <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-line text-sm text-ink-faint">Sales by hour appear after the first bill is paid.</div>
+          )}
         </Card>
 
         {can('payment.reconcile') && <UpiCheckCard />}
@@ -91,7 +95,7 @@ export default function DashboardPage() {
           <Stat label="Orders" value={d.orders} sub={`${Math.round(d.qr_order_share * 100)}% from guest phones (goal 60%)`} />
           <Stat label="In progress" value={active} sub={`${d.active_orders.placed ?? 0} waiting for approval`} />
           <Stat label="Tables in use" value={`${occupied}/${totalTables}`} sub={`${d.tables.needs_cleaning ?? 0} need cleaning`} />
-          <Stat label="Avg time to serve" value={d.timing.avg_serve_minutes != null ? `${d.timing.avg_serve_minutes} min` : '—'} sub={`${d.open_bills} bills open`} />
+          <Stat label="Avg time to serve" value={d.timing.avg_serve_minutes != null ? `${d.timing.avg_serve_minutes} min` : '—'} sub={`${d.open_bills} ${d.open_bills === 1 ? 'bill' : 'bills'} open`} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -166,13 +170,18 @@ function UpiCheckCard() {
   });
   if (!c || (c.not_received.count === 0 && c.unchecked.count === 0)) return null;
   return (
-    <Card className="space-y-3 p-5">
+    <div className="space-y-3">
       {c.not_received.count > 0 && (
-        <div className="rounded-xl bg-rose-50 p-4 text-rose-900">
-          <p className="flex items-center gap-2 font-semibold">
-            <ShieldAlert className="size-4" /> {c.not_received.count} UPI {c.not_received.count === 1 ? 'payment' : 'payments'} ({formatPaise(c.not_received.amount_paise)}) never reached your bank
-          </p>
-          <ul className="mt-2 space-y-1 text-sm">
+        <Card className="border-rose-200 bg-rose-50 p-5 text-rose-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 font-semibold">
+              <ShieldAlert className="size-4" /> {c.not_received.count} UPI {c.not_received.count === 1 ? 'payment' : 'payments'} ({formatPaise(c.not_received.amount_paise)}) never reached your bank
+            </p>
+            <Link href="/app/reconcile" className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2">
+              <Landmark className="size-4" /> Open the UPI check
+            </Link>
+          </div>
+          <ul className="mt-3 space-y-1 text-sm">
             {c.not_received.payments.slice(0, 5).map((p) => (
               <li key={p.id} className="flex flex-wrap justify-between gap-x-3">
                 <span>
@@ -184,26 +193,21 @@ function UpiCheckCard() {
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
       {c.unchecked.count > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4 text-amber-900">
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50 p-5 text-amber-900">
           <p className="text-sm">
             <span className="font-semibold">
               {c.unchecked.count} UPI {c.unchecked.count === 1 ? 'payment' : 'payments'} ({formatPaise(c.unchecked.amount_paise)})
             </span>{' '}
             since {date(c.unchecked.oldest_day!)} {c.unchecked.count === 1 ? 'is' : 'are'} not checked against the bank yet.
           </p>
-          <Link href="/app/reconcile" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-900 px-3 text-sm font-medium text-white">
+          <Link href="/app/reconcile" className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-amber-900 px-3.5 text-sm font-medium text-white transition active:scale-[0.97]">
             <Landmark className="size-4" /> Import bank statement
           </Link>
-        </div>
+        </Card>
       )}
-      {c.not_received.count > 0 && c.unchecked.count === 0 && (
-        <Link href="/app/reconcile" className="inline-flex items-center gap-1.5 text-sm font-medium text-rose-800 underline">
-          <Landmark className="size-4" /> Open the UPI check
-        </Link>
-      )}
-    </Card>
+    </div>
   );
 }

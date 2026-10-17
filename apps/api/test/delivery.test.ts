@@ -94,6 +94,12 @@ describe('delivery orders', () => {
     });
     expect(r.channels.find((c: { channel: string }) => c.channel === 'zomato')).toMatchObject({ orders: 2, commission_bp: 2500 });
     expect(r.channels.find((c: { channel: string }) => c.channel === 'own')).toMatchObject({ orders: 1, commission_bp: 0, commission_paise: 0 });
+
+    const csv = await owner({ method: 'GET', url: `/v1/reports/delivery?outlet_id=${tenant.outletId}&from=${today}&to=${today}&format=csv` });
+    expect(csv.headers['content-type']).toContain('text/csv');
+    // Money in rupees, as in the other report exports.
+    expect(csv.body.split('\n')[0]).toBe('channel,orders,sales_inr,commission_bp,commission_inr,payout_inr');
+    expect(csv.body).toContain(`swiggy,1,${(bill.total_paise / 100).toFixed(2)},2200`);
   });
 
   it('keeps platform-taxed sales out of the GST rate tables and lists them apart', async () => {

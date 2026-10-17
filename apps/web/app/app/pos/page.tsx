@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, ShoppingCart, StickyNote, Trash2, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Fragment, Suspense, useEffect, useMemo, useState } from 'react';
 import type { BillDTO, MenuItemDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import type { DeliveryChannel, OrderType } from '@dineos/shared/enums';
 import { isScheduleOpen } from '@dineos/shared/menu';
@@ -77,8 +77,12 @@ function Pos() {
     if (!m) return [];
     const q = query.trim().toLowerCase();
     const active = new Set(categories.map((c) => c.id));
-    return m.items.filter((i) => active.has(i.category_id) && (category === 'all' || i.category_id === category) && (!q || i.name.toLowerCase().includes(q)));
+    const rank = new Map(categories.map((c, i) => [c.id, i]));
+    return m.items
+      .filter((i) => active.has(i.category_id) && (category === 'all' || i.category_id === category) && (!q || i.name.toLowerCase().includes(q)))
+      .sort((a, b) => (rank.get(a.category_id) ?? 0) - (rank.get(b.category_id) ?? 0));
   }, [m, categories, category, query]);
+  const grouped = category === 'all' && !query.trim();
 
   const unit = (l: Line) => l.item.price_paise + l.modifierIds.reduce((a, id) => a + (allMods.find((x) => x.id === id)?.price_delta_paise ?? 0), 0);
   const subtotal = lines.reduce((a, l) => a + unit(l) * l.qty, 0);
@@ -298,14 +302,18 @@ function Pos() {
             </div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-24 lg:pb-4">
-              {items.map((item) => {
+              {items.map((item, i) => {
                 const cat = categories.find((c) => c.id === item.category_id);
-                const off = !item.in_stock || (cat && !isScheduleOpen(cat.available_schedule, new Date()));
+                const closed = !!cat && !isScheduleOpen(cat.available_schedule, new Date());
+                const off = !item.in_stock || closed;
                 const inTicket = lines.filter((l) => l.item.id === item.id).reduce((a, l) => a + l.qty, 0);
+                // "All" with no search reads as the menu does: a heading where each category starts.
+                const heading = grouped && cat && items[i - 1]?.category_id !== item.category_id;
                 return (
+                  <Fragment key={item.id}>
+                  {heading && <h3 className="col-span-full pt-2 text-xs font-semibold tracking-wide text-ink-faint uppercase first:pt-0">{cat.name}</h3>}
                   <button
-                    key={item.id}
-                    disabled={!!off}
+                    disabled={off}
                     onClick={() => tap(item)}
                     className={cn(
                       'relative flex min-h-24 cursor-pointer flex-col rounded-2xl border bg-surface p-3 text-left shadow-[var(--shadow-card)] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45',
@@ -318,10 +326,17 @@ function Pos() {
                     </span>
                     <span className="mt-auto flex items-center justify-between pt-2 text-sm">
                       <span className="font-semibold tabular">{formatPrice(item.price_paise)}</span>
-                      {!item.in_stock ? <span className="text-xs text-rose-700">{t('pos.sold_out')}</span> : item.modifier_group_ids.length > 0 && <span className="text-xs text-ink-faint">{t('pos.options')}</span>}
+                      {!item.in_stock ? (
+                        <span className="text-xs text-rose-700">{t('pos.sold_out')}</span>
+                      ) : closed ? (
+                        <span className="text-xs text-ink-soft">{t('pos.not_now')}</span>
+                      ) : (
+                        item.modifier_group_ids.length > 0 && <span className="text-xs text-ink-faint">{t('pos.options')}</span>
+                      )}
                     </span>
                     {inTicket > 0 && <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-[var(--brand)] text-xs font-bold text-white">{inTicket}</span>}
                   </button>
+                  </Fragment>
                 );
               })}
             </div>
