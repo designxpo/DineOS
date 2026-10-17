@@ -7,9 +7,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { io as ioClient } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { businessDate, financialYear } from '@dineos/shared/dates';
-import type { BillDTO, ItemsReadyDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
-import { formatHubInvoiceNo, type HubSyncPayload } from '@dineos/shared/hub';
+import { businessDate, financialYear } from '@mezmitra/shared/dates';
+import type { BillDTO, ItemsReadyDTO, OrderDTO, TableDTO } from '@mezmitra/shared/dto';
+import { formatHubInvoiceNo, type HubSyncPayload } from '@mezmitra/shared/hub';
 import { OutletHub } from '../../print-agent/src/hub/hub';
 import { addStaff, api, connectSocket, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
@@ -29,7 +29,7 @@ const printed: string[] = [];
 const tables: Record<string, string> = {};
 let cloudOrder: OrderDTO;
 let takeawayBill: BillDTO;
-const dataFile = join(mkdtempSync(join(tmpdir(), 'dineos-hub-')), 'hub.json');
+const dataFile = join(mkdtempSync(join(tmpdir(), 'mezmitra-hub-')), 'hub.json');
 const fy = financialYear(businessDate(new Date())).code;
 
 /** fetch that fails like a dead line while `cut` is on. */

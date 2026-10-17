@@ -1,5 +1,5 @@
 import { sql } from 'kysely';
-import type { IngredientDTO, IngredientUnit, ModifierSnapshot, StockMovementType } from '@dineos/shared/dto';
+import type { IngredientDTO, IngredientUnit, ModifierSnapshot, StockMovementType } from '@mezmitra/shared/dto';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { notFound } from '../../lib/errors';

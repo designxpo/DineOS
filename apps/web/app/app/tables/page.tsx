@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, ExternalLink, Pencil, Plus, QrCode, RefreshCw, Rows3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { TableDTO } from '@dineos/shared/dto';
+import type { TableDTO } from '@mezmitra/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';

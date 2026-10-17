@@ -2,8 +2,8 @@
 
 import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { MenuDTO, MenuItemDTO, ModifierGroupDTO } from '@dineos/shared/dto';
-import { checkModifierSelection } from '@dineos/shared/menu';
+import type { MenuDTO, MenuItemDTO, ModifierGroupDTO } from '@mezmitra/shared/dto';
+import { checkModifierSelection } from '@mezmitra/shared/menu';
 import { formatPrice } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';

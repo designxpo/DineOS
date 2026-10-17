@@ -12,14 +12,14 @@ export default defineConfig([
     target: 'node22',
     platform: 'node',
     clean: true,
-    noExternal: ['@dineos/shared'],
+    noExternal: ['@mezmitra/shared'],
     define,
     banner: { js: '#!/usr/bin/env node' },
   },
   // The download the installers fetch: one file with everything in it, run with plain Node 20+.
   // `npm run build:download` copies it to the web app (apps/web/public/agent).
   {
-    entry: { 'dineos-agent': 'src/main.ts' },
+    entry: { 'mezmitra-agent': 'src/main.ts' },
     outDir: 'dist/download',
     outExtension: () => ({ js: '.mjs' }),
     format: ['esm'],
@@ -31,6 +31,6 @@ export default defineConfig([
     minify: true,
     define,
     // Bundled CommonJS dependencies call require().
-    banner: { js: "#!/usr/bin/env node\nimport { createRequire as __dineosRequire } from 'node:module';\nconst require = __dineosRequire(import.meta.url);" },
+    banner: { js: "#!/usr/bin/env node\nimport { createRequire as __mezmitraRequire } from 'node:module';\nconst require = __mezmitraRequire(import.meta.url);" },
   },
 ]);

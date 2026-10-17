@@ -1,7 +1,7 @@
 // Reports (spec §7 dashboards, §8 day-end). Sales and GST follow invoice dates of finalised bills;
 // payments follow the outlet-local date they were taken; item sales follow the order's business date.
 
-import { DELIVERY_CHANNELS, type DeliveryChannel } from '@dineos/shared/enums';
+import { DELIVERY_CHANNELS, type DeliveryChannel } from '@mezmitra/shared/enums';
 import { sql } from 'kysely';
 import type { Tx } from '../../context';
 

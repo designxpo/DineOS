@@ -1,5 +1,5 @@
 // Creates (or resets the password of) a platform admin.
-//   npm run admin:create -w @dineos/api -- --email ops@dineos.in --name "Ops" --password '...'
+//   npm run admin:create -w @mezmitra/api -- --email ops@example.com --name "Ops" --password '...'
 import { parseArgs } from 'node:util';
 import { loadConfig } from '../config';
 import { createDb } from '../db';

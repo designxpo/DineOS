@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import type { OutletDTO } from '@dineos/shared/dto';
+import type { OutletDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { useStaff } from '@/lib/staff';
 import { useToast } from '@/components/ui/toast';

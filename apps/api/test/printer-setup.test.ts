@@ -3,7 +3,7 @@
 // tickets that did not print.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FoundPrinter, PrintStatusDTO } from '@dineos/shared/print';
+import type { FoundPrinter, PrintStatusDTO } from '@mezmitra/shared/print';
 import { PrintAgent, type Transport } from '../../print-agent/src/agent';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

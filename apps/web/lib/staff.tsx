@@ -3,15 +3,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { LoginResponseDTO, MeDTO, OutletDTO } from '@dineos/shared/dto';
-import type { Role } from '@dineos/shared/enums';
-import { rolesCan, type Action } from '@dineos/shared/permissions';
+import type { LoginResponseDTO, MeDTO, OutletDTO } from '@mezmitra/shared/dto';
+import type { Role } from '@mezmitra/shared/enums';
+import { rolesCan, type Action } from '@mezmitra/shared/permissions';
 import { turnOffPush } from '@/lib/push-alerts';
 import { ApiError, apiFetch, type RequestOptions } from './api';
 import { readLocal, writeLocal } from './storage';
 
-const TOKEN_KEY = 'dineos.staff.token';
-const OUTLET_KEY = 'dineos.staff.outlet';
+const TOKEN_KEY = 'mezmitra.staff.token';
+const OUTLET_KEY = 'mezmitra.staff.outlet';
 
 export function saveStaffLogin(res: LoginResponseDTO): void {
   writeLocal(TOKEN_KEY, res.token);

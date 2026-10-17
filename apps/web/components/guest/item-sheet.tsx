@@ -2,8 +2,8 @@
 
 import { Check, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { MenuItemDTO, ModifierGroupDTO } from '@dineos/shared/dto';
-import { checkModifierSelection } from '@dineos/shared/menu';
+import type { MenuItemDTO, ModifierGroupDTO } from '@mezmitra/shared/dto';
+import { checkModifierSelection } from '@mezmitra/shared/menu';
 import { errorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';

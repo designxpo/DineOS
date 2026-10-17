@@ -11,7 +11,7 @@ import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { FoundPrinter } from '@dineos/shared/print';
+import type { FoundPrinter } from '@mezmitra/shared/print';
 
 export type Transport = (address: string, bytes: Buffer) => Promise<void>;
 
@@ -65,7 +65,7 @@ const psQuote = (s: string) => `'${s.replace(/'/g, "''")}'`;
 const powershell = (script: string) => run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script]);
 
 /** Folder for print files and the Windows helper; the installer sets it to the agent's folder. */
-const workDir = () => process.env.DINEOS_HOME ?? join(tmpdir(), 'dineos-agent');
+const workDir = () => process.env.MEZMITRA_HOME ?? process.env.DINEOS_HOME ?? join(tmpdir(), 'mezmitra-agent');
 
 // Windows has no command that sends raw bytes to a printer, so a small helper calls the spooler
 // with data type RAW (Microsoft KB 322091). It is compiled once and reused.
@@ -75,7 +75,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 
-public static class DineosRawPrint {
+public static class MezmitraRawPrint {
   [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
   public class DOCINFOW {
     [MarshalAs(UnmanagedType.LPWStr)] public string pDocName;
@@ -126,10 +126,10 @@ let windowsHelper: Promise<string> | null = null;
 function rawPrintHelper(): Promise<string> {
   windowsHelper ??= (async () => {
     const dir = workDir();
-    const dll = join(dir, 'DineosRawPrint.dll');
+    const dll = join(dir, 'MezmitraRawPrint.dll');
     if (existsSync(dll)) return dll;
     await mkdir(dir, { recursive: true });
-    const source = join(dir, 'DineosRawPrint.cs');
+    const source = join(dir, 'MezmitraRawPrint.cs');
     await writeFile(source, RAW_PRINT_CS);
     await powershell(`Add-Type -TypeDefinition (Get-Content -Raw ${psQuote(source)}) -OutputAssembly ${psQuote(dll)}`);
     return dll;
@@ -149,7 +149,7 @@ export async function sendToInstalledPrinter(name: string, bytes: Buffer): Promi
   try {
     if (process.platform === 'win32') {
       const dll = await rawPrintHelper();
-      await powershell(`Add-Type -Path ${psQuote(dll)}; [DineosRawPrint]::Send(${psQuote(name)}, ${psQuote(file)})`);
+      await powershell(`Add-Type -Path ${psQuote(dll)}; [MezmitraRawPrint]::Send(${psQuote(name)}, ${psQuote(file)})`);
     } else {
       await run('lp', ['-d', name, '-o', 'raw', file]);
     }

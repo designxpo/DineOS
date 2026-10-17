@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { businessDate } from '@dineos/shared/dates';
+import { businessDate } from '@mezmitra/shared/dates';
 import type { AppContext } from '../../context';
 import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest } from '../../lib/errors';

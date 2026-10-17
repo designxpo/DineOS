@@ -1,4 +1,4 @@
-import type { OutletEvent } from '@dineos/shared/events';
+import type { OutletEvent } from '@mezmitra/shared/events';
 
 export type BusListener = (tenantId: string, events: readonly OutletEvent[]) => void;
 

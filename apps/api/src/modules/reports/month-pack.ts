@@ -4,7 +4,7 @@
 
 import ExcelJS from 'exceljs';
 import { sql } from 'kysely';
-import { REPORT_DATE_RULES, REPORT_TERMS } from '@dineos/shared/report-terms';
+import { REPORT_DATE_RULES, REPORT_TERMS } from '@mezmitra/shared/report-terms';
 import type { Tx } from '../../context';
 import { compReport } from '../comps/service';
 import { dayEnd, gstReport, salesSummary, type Range } from './service';

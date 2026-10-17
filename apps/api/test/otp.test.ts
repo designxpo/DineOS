@@ -2,7 +2,7 @@
 // name and points on it. Without MSG91 keys the typed-number flow stays (last four digits only).
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { GuestSessionDTO } from '@dineos/shared/dto';
+import type { GuestSessionDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createTable, createTenant, setOutlet, startApp, type TestApp, type TestTenant } from './helpers';
 
 let t: TestApp;

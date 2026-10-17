@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, LifeBuoy } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import type { SupportCaseDTO } from '@dineos/shared/dto';
+import type { SupportCaseDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago, dateTime } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';

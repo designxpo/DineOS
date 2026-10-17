@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { TOPUP_METHODS } from '@dineos/shared/enums';
+import { TOPUP_METHODS } from '@mezmitra/shared/enums';
 import type { AppContext, Tx } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
 import { assertCan, requireStaff } from '../../lib/auth';

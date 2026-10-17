@@ -5,7 +5,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { sql, type Transaction } from 'kysely';
 import { z } from 'zod';
-import { financialYear } from '@dineos/shared/dates';
+import { financialYear } from '@mezmitra/shared/dates';
 import type { AppContext } from '../../context';
 import { json, type DB } from '../../db';
 import { clearAuthCache, requireAdmin } from '../../lib/auth';

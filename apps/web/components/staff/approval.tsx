@@ -2,7 +2,7 @@
 
 import { ShieldCheck } from 'lucide-react';
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
-import type { ApprovalAction } from '@dineos/shared/permissions';
+import type { ApprovalAction } from '@mezmitra/shared/permissions';
 import { ApiError, errorMessage } from '@/lib/api';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';

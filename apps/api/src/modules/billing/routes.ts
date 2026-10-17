@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { BILL_STATUSES, PAYMENT_METHODS } from '@dineos/shared/enums';
+import { BILL_STATUSES, PAYMENT_METHODS } from '@mezmitra/shared/enums';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
 import { audit } from '../../lib/audit';

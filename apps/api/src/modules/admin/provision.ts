@@ -1,5 +1,5 @@
 import { sql } from 'kysely';
-import { normalizePhone } from '@dineos/shared/phone';
+import { normalizePhone } from '@mezmitra/shared/phone';
 import type { Database } from '../../db';
 import { hashSecret } from '../../lib/crypto';
 

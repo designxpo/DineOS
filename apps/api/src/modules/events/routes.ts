@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { Channel, EventType, OutletEvent } from '@dineos/shared/events';
+import type { Channel, EventType, OutletEvent } from '@mezmitra/shared/events';
 import type { AppContext, Tx } from '../../context';
 import { accessibleOutletIds, requireGuest, requireStaff } from '../../lib/auth';
 import { forbidden } from '../../lib/errors';

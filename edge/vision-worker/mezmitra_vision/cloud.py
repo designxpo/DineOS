@@ -1,4 +1,4 @@
-"""Talks to DineOS with the device token. Standard library only."""
+"""Talks to Mezmitra with the device token. Standard library only."""
 
 from __future__ import annotations
 

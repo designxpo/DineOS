@@ -6,8 +6,8 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { connect, type Socket as NetSocket } from 'node:net';
 import { Server as IoServer } from 'socket.io';
 import { z, ZodError } from 'zod';
-import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES } from '@dineos/shared/enums';
-import type { OutletEvent } from '@dineos/shared/events';
+import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES } from '@mezmitra/shared/enums';
+import type { OutletEvent } from '@mezmitra/shared/events';
 import { HubError, offlineUnsupported, type HubEngine, type HubUser } from './engine';
 
 type Handler = (c: { user: HubUser; params: Record<string, string>; query: URLSearchParams; body: unknown }) => unknown;
@@ -328,9 +328,9 @@ export class HubServer {
   const token = p.get('token');
   if (!token) return msg('Open this from Mezmitra on a signed-in device.');
   const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-  set('dineos.staff.token', token);
-  if (p.get('outlet')) set('dineos.staff.outlet', p.get('outlet'));
-  set('dineos.api_base', location.origin);
+  set('mezmitra.staff.token', token);
+  if (p.get('outlet')) set('mezmitra.staff.outlet', p.get('outlet'));
+  set('mezmitra.api_base', location.origin);
   for (const it of JSON.parse(p.get('outbox') || '[]')) {
     try {
       await fetch('/v1' + it.path, { method: it.method, headers: { authorization: 'Bearer ' + (it.token || token), 'idempotency-key': it.key, 'content-type': 'application/json' }, body: it.body === undefined ? undefined : JSON.stringify(it.body) });

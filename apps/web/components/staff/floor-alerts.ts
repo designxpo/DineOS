@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import type { TableDTO } from '@dineos/shared/dto';
-import { GUESTS_WAITING_ALERT_MINUTES } from '@dineos/shared/table-state';
+import type { TableDTO } from '@mezmitra/shared/dto';
+import { GUESTS_WAITING_ALERT_MINUTES } from '@mezmitra/shared/table-state';
 import { duration, minutesSince } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import { chime } from '@/lib/sound';

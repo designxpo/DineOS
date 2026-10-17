@@ -1,4 +1,4 @@
-import type { ApprovalAction } from '@dineos/shared/permissions';
+import type { ApprovalAction } from '@mezmitra/shared/permissions';
 import type { Tx } from '../context';
 import { can, type StaffAuth } from './auth';
 import { sha256 } from './crypto';

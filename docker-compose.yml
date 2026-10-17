@@ -1,4 +1,4 @@
-# DineOS on one server (rented, India region). Scale `api` horizontally once there are several
+# Mezmitra on one server (rented, India region). Scale `api` horizontally once there are several
 # hundred outlets; Redis carries live events between API instances.
 #
 #   cp .env.production.example .env.production   # fill in secrets and domains
@@ -22,14 +22,15 @@ services:
     environment:
       POSTGRES_USER: dineos_owner
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
-      POSTGRES_DB: dineos
-      DINEOS_APP_PASSWORD: ${DINEOS_APP_PASSWORD:?}
-      DINEOS_ADMIN_PASSWORD: ${DINEOS_ADMIN_PASSWORD:?}
+      # A server set up before the rename keeps its database: set POSTGRES_DB=dineos there.
+      POSTGRES_DB: ${POSTGRES_DB:-mezmitra}
+      MEZMITRA_APP_PASSWORD: ${MEZMITRA_APP_PASSWORD:-${DINEOS_APP_PASSWORD:-}}
+      MEZMITRA_ADMIN_PASSWORD: ${MEZMITRA_ADMIN_PASSWORD:-${DINEOS_ADMIN_PASSWORD:-}}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U dineos_owner -d dineos']
+      test: ['CMD-SHELL', 'pg_isready -U dineos_owner -d $${POSTGRES_DB:-mezmitra}']
       interval: 5s
       retries: 20
 
@@ -52,7 +53,7 @@ services:
     <<: *hardened
     command: ['node', 'apps/api/dist/migrate.js']
     environment:
-      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
+      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mezmitra}
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -66,8 +67,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgres://dineos_app:${DINEOS_APP_PASSWORD}@postgres:5432/dineos
-      DATABASE_ADMIN_URL: postgres://dineos_admin:${DINEOS_ADMIN_PASSWORD}@postgres:5432/dineos
+      DATABASE_URL: postgres://dineos_app:${MEZMITRA_APP_PASSWORD:-${DINEOS_APP_PASSWORD:-}}@postgres:5432/${POSTGRES_DB:-mezmitra}
+      DATABASE_ADMIN_URL: postgres://dineos_admin:${MEZMITRA_ADMIN_PASSWORD:-${DINEOS_ADMIN_PASSWORD:-}}@postgres:5432/${POSTGRES_DB:-mezmitra}
       TOKEN_SECRET: ${TOKEN_SECRET:?}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       CORS_ORIGINS: https://${APP_DOMAIN}
@@ -119,13 +120,13 @@ services:
     depends_on: [web, api]
 
   # One-shot: run nightly from the host's cron, e.g.
-  #   30 2 * * * cd /opt/dineos && docker compose --env-file .env.production run --rm backup
+  #   30 2 * * * cd /opt/mezmitra && docker compose --env-file .env.production run --rm backup
   backup:
     build: { context: ., dockerfile: infra/docker/backup.Dockerfile }
     profiles: ['ops']
     <<: *hardened
     environment:
-      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/dineos
+      DATABASE_OWNER_URL: postgres://dineos_owner:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mezmitra}
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?}
       BACKUP_RSYNC_TARGET: ${BACKUP_RSYNC_TARGET:-}
       BACKUP_S3_URI: ${BACKUP_S3_URI:-}

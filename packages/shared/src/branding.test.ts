@@ -18,7 +18,7 @@ describe('brand shades', () => {
     expect(contrast(shades['700'], shades['50'])).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('falls back to the DineOS colour for anything that is not a colour', () => {
+  it('falls back to the Mezmitra colour for anything that is not a colour', () => {
     expect(brandShades('red').main).toBe(DEFAULT_BRAND_COLOR);
   });
 });

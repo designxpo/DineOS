@@ -1,7 +1,7 @@
-# DineOS Security & Cloud Security Audit Report
+# Mezmitra Security & Cloud Security Audit Report
 **Audit Date**: October 2026  
 **Auditors**: Senior Security Engineer & Cloud Security Architect (`/senior-security` & `/cloud-security`)  
-**Scope**: DineOS Monorepo (`apps/api`, `apps/web`, `apps/print-agent`, `edge/vision-worker`, `packages/shared`, `infra/`, `docker-compose.yml`, `.github/workflows/ci.yml`)
+**Scope**: Mezmitra Monorepo (`apps/api`, `apps/web`, `apps/print-agent`, `edge/vision-worker`, `packages/shared`, `infra/`, `docker-compose.yml`, `.github/workflows/ci.yml`)
 
 ---
 
@@ -9,7 +9,7 @@
 
 A comprehensive security assessment was conducted across application code, multi-tenant isolation mechanisms, cryptographic implementations, edge computing interfaces, and cloud infrastructure configurations.
 
-DineOS displays **advanced architectural security maturity** in several foundational areas:
+Mezmitra displays **advanced architectural security maturity** in several foundational areas:
 - **Tenancy Isolation**: Enforced at the database engine level via PostgreSQL Row-Level Security (RLS) with composite `(id, tenant_id)` foreign keys that neutralize native PostgreSQL cross-tenant relational bypasses.
 - **Cryptographic Practices**: Scrypt with per-user salt and timing-safe comparisons for credentials; HMAC-SHA256 purpose-separated tokens for guest sessions, table QR codes, and counters.
 - **Privacy by Design**: Edge vision processing runs strictly on premise; video streams never leave the restaurant; camera reference stills are blurred and purged after 24 hours. Customer data management adheres to the Indian Digital Personal Data Protection (DPDP) Act 2023 with mandatory consent recording and right-to-erasure workflows.
@@ -37,7 +37,7 @@ The system was decomposed into trust boundaries:
 
 ### STRIDE Assessment Matrix
 
-| Element | Threat Category | Threat Description | DineOS Defense Status | Residual Risk |
+| Element | Threat Category | Threat Description | Mezmitra Defense Status | Residual Risk |
 | :--- | :--- | :--- | :--- | :--- |
 | **Guest QR & Token** | **Spoofing** | Adversary attempts to forge guest tokens to view or mutate table orders. | HMAC-SHA256 signed with secret key; table QR versioning allows instantaneous invalidation. | **Low** |
 | **Staff & Admin Sessions** | **Spoofing** | Session token theft or brute-forcing. | Cryptographically random 256-bit bearer tokens (`st_...`, `ad_...`), stored as SHA-256 hashes in DB. | **Low** |
@@ -197,12 +197,12 @@ The system was decomposed into trust boundaries:
 - **Location**: [`apps/web/public/agent/install.sh:L66`](file:///Users/scaletrix/Library/CloudStorage/GoogleDrive-priyesh@scaletrix.ai/My%20Drive/restaurant%20Saas/apps/web/public/agent/install.sh#L66)
 - **Vulnerability**:
   ```bash
-  curl -fsSL "$WEB/agent/dineos-agent.mjs" -o "$DIR/dineos-agent.mjs.new"
+  curl -fsSL "$WEB/agent/mezmitra-agent.mjs" -o "$DIR/mezmitra-agent.mjs.new"
   ```
 - **Analysis**:
-  The installer downloads and executes `dineos-agent.mjs` directly on the local machine with systemd/LaunchAgent privileges without verifying a cryptographic hash or digital signature against a known manifest.
+  The installer downloads and executes `mezmitra-agent.mjs` directly on the local machine with systemd/LaunchAgent privileges without verifying a cryptographic hash or digital signature against a known manifest.
 - **Remediation**:
-  Publish a `dineos-agent.mjs.sha256` checksum file on the web server; download both in `install.sh` and verify integrity via `sha256sum --check` before launching the agent service.
+  Publish a `mezmitra-agent.mjs.sha256` checksum file on the web server; download both in `install.sh` and verify integrity via `sha256sum --check` before launching the agent service.
 
 ---
 
@@ -264,7 +264,7 @@ The system was decomposed into trust boundaries:
 
 ```mermaid
 gantt
-    title DineOS Security Remediation Roadmap
+    title Mezmitra Security Remediation Roadmap
     dateFormat  YYYY-MM-DD
     section Critical & High
     SEC-01: Set Redis Password Authentication    :crit, p0, 2026-10-18, 1d
@@ -288,7 +288,7 @@ gantt
 - [x] **[P1] SEC-05**: Replace substring-based path traversal check in `storage.ts` with `resolve()` boundary containment.
 - [x] **[P1] SEC-06**: Install `@fastify/helmet` in `apps/api` and register with default strict security headers.
 - [x] **[P2] SEC-07**: Add `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`, and CPU/Memory limits to `docker-compose.yml`.
-- [x] **[P2] SEC-08**: Update `install.sh` to fetch and verify SHA-256 checksum of `dineos-agent.mjs`.
+- [x] **[P2] SEC-08**: Update `install.sh` to fetch and verify SHA-256 checksum of `mezmitra-agent.mjs`.
 
 ### Remediation status (October 2026)
 
@@ -303,7 +303,7 @@ Every finding was checked against the code before fixing; all were confirmed exc
 | SEC-05 Path containment | Keys must match a strict shape and the resolved path must sit inside the storage folder. `/files/*` serves only image types, with `nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`. | `apps/api/src/lib/storage.ts` |
 | SEC-06 Security headers | Set on every response (including errors): `nosniff`, `X-Frame-Options: DENY`, a no-script CSP with `frame-ancestors 'none'`, `Referrer-Policy: no-referrer`, COOP, CORP `same-site` (`cross-origin` for images), Permissions-Policy, and HSTS in production. Written as a hook rather than `@fastify/helmet`, whose default `Cross-Origin-Resource-Policy: same-origin` would block menu photos when the web app is on another subdomain. Caddy now also sends HSTS for the web domain. | `apps/api/src/lib/security-headers.ts`, `infra/caddy/Caddyfile` |
 | SEC-07 Container hardening | `no-new-privileges` everywhere; `cap_drop: [ALL]` for api, web, migrate, backup, redis and caddy (which keeps only `NET_BIND_SERVICE`); CPU and memory limits. Postgres keeps its entrypoint's capabilities (it drops to the postgres user itself). | `docker-compose.yml` |
-| SEC-08 Installer integrity | The build publishes `dineos-agent.mjs.sha256`. Both installers verify the download before replacing the running agent, and accept only HTTPS addresses. The checksum catches damaged or wrong downloads; authenticity rests on the site's HTTPS. | `apps/print-agent/scripts/publish-download.mjs`, `apps/web/public/agent/install.*` |
+| SEC-08 Installer integrity | The build publishes `mezmitra-agent.mjs.sha256`. Both installers verify the download before replacing the running agent, and accept only HTTPS addresses. The checksum catches damaged or wrong downloads; authenticity rests on the site's HTTPS. | `apps/print-agent/scripts/publish-download.mjs`, `apps/web/public/agent/install.*` |
 | 3.2 Bucket exposure | Documented: object policies for the photo folders only, no anonymous listing, Block Public ACLs on, and never `mc anonymous set download` on the whole bucket. | `docs/operations.md`, Object storage |
 | 3.3 Backup integrity | Backups are signed with HMAC-SHA256 under a key derived from `BACKUP_PASSPHRASE`, so a swapped file with a fresh checksum is caught. `restore.sh` refuses anything it cannot verify; older checksum-only backups need `ALLOW_UNSIGNED_BACKUP=yes`. | `infra/backup/backup-mac.sh`, `backup.sh`, `restore.sh` |
 
@@ -313,4 +313,4 @@ Tests: `apps/api/test/security.test.ts` (PIN lockout, upload content checks, sto
 
 ## 5. Conclusion
 
-DineOS possesses a **solid, well-architected security core**—especially regarding multi-tenant RLS isolation, domain-separated cryptographic tokens, and on-premise camera privacy protection. Implementing the remediations above—primarily securing the internal Redis instance, bounding memory caches, and locking down PIN attempts—will elevate the platform to institutional enterprise standards.
+Mezmitra possesses a **solid, well-architected security core**—especially regarding multi-tenant RLS isolation, domain-separated cryptographic tokens, and on-premise camera privacy protection. Implementing the remediations above—primarily securing the internal Redis instance, bounding memory caches, and locking down PIN attempts—will elevate the platform to institutional enterprise standards.

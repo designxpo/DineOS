@@ -4,8 +4,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, InjectOptions } from 'fastify';
 import { io as ioClient, type Socket } from 'socket.io-client';
-import type { OutletEvent } from '@dineos/shared/events';
-import type { Role } from '@dineos/shared/enums';
+import type { OutletEvent } from '@mezmitra/shared/events';
+import type { Role } from '@mezmitra/shared/enums';
 import { buildApp } from '../src/app';
 import type { AppContext } from '../src/context';
 import { hashSecret } from '../src/lib/crypto';

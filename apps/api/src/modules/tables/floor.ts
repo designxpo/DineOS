@@ -1,8 +1,8 @@
 // Live floor map data and floor operations: seat, transfer, merge, release, clean (spec §7, §8).
 
-import type { ServiceRequestDTO, TableDTO } from '@dineos/shared/dto';
-import { ACTIVE_ORDER_STATUSES, type ServiceRequestKind, type SessionStatus, type TableState } from '@dineos/shared/enums';
-import { CAMERA_FRESH_MS, cleaningLapsed, deriveTableState, guestsPresent, type CameraState } from '@dineos/shared/table-state';
+import type { ServiceRequestDTO, TableDTO } from '@mezmitra/shared/dto';
+import { ACTIVE_ORDER_STATUSES, type ServiceRequestKind, type SessionStatus, type TableState } from '@mezmitra/shared/enums';
+import { CAMERA_FRESH_MS, cleaningLapsed, deriveTableState, guestsPresent, type CameraState } from '@mezmitra/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest, conflict, notFound } from '../../lib/errors';

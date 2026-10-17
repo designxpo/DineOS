@@ -1,7 +1,7 @@
 import { sql } from 'kysely';
-import type { MeDTO, ModifierSnapshot } from '@dineos/shared/dto';
-import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@dineos/shared/enums';
-import type { HubBill, HubOrder, HubSession, HubSnapshot, HubStaff, HubTable } from '@dineos/shared/hub';
+import type { MeDTO, ModifierSnapshot } from '@mezmitra/shared/dto';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType, PaymentMethod, Role } from '@mezmitra/shared/enums';
+import type { HubBill, HubOrder, HubSession, HubSnapshot, HubStaff, HubTable } from '@mezmitra/shared/hub';
 import type { Tx } from '../../context';
 import { shownBrand } from '../../lib/branding';
 import { compQtyByItem } from '../billing/service';

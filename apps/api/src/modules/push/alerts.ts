@@ -1,5 +1,5 @@
 import { waitUntil } from '@vercel/functions';
-import type { Role } from '@dineos/shared/enums';
+import type { Role } from '@mezmitra/shared/enums';
 import type { AppContext } from '../../context';
 import { pushFor, wantsAlert, type PushAlert, type PushDevice, type PushSender } from '../../lib/push';
 

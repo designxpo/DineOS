@@ -1,5 +1,5 @@
-import type { GuestOrderDTO, ModifierSnapshot, OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
-import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
+import type { GuestOrderDTO, ModifierSnapshot, OrderDTO, OrderItemDTO } from '@mezmitra/shared/dto';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@mezmitra/shared/enums';
 import type { Tx } from '../../context';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);

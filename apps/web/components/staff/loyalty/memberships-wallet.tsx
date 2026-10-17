@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Crown, PencilLine, PiggyBank, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { MembershipPlanDTO, WalletPackDTO } from '@dineos/shared/dto';
+import type { MembershipPlanDTO, WalletPackDTO } from '@mezmitra/shared/dto';
 import {
   checkMembership,
   checkPack,
@@ -15,7 +15,7 @@ import {
   type MembershipPlanInput,
   type MembershipTemplateKey,
   type WalletPackInput,
-} from '@dineos/shared/loyalty';
+} from '@mezmitra/shared/loyalty';
 import { errorMessage } from '@/lib/api';
 import { formatPaise } from '@/lib/format';
 import { useStaff } from '@/lib/staff';

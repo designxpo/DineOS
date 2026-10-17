@@ -1,7 +1,8 @@
 /* global self, caches, fetch, URL */
 // Mezmitra service worker: caches the app shell and static assets so staff screens open during a
 // short internet drop. API calls are never cached here; the app keeps its own offline queue.
-const CACHE = 'dineos-shell-v2';
+// A new name: the activate step below removes caches under any other name, the old ones included.
+const CACHE = 'mezmitra-shell-v1';
 const SHELL = ['/app', '/app/inbox', '/app/kds', '/app/pos', '/app/floor', '/login', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

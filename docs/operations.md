@@ -5,7 +5,7 @@
 A rented VM in an India region with 4 vCPU and 8 GB RAM is plenty for the first hundreds of outlets.
 
 ```bash
-git clone <repo> /opt/dineos && cd /opt/dineos
+git clone <repo> /opt/mezmitra && cd /opt/mezmitra
 cp .env.production.example .env.production   # fill every secret: openssl rand -hex 32
 docker compose --env-file .env.production up -d --build
 docker compose --env-file .env.production run --rm api \
@@ -20,21 +20,21 @@ docker compose --env-file .env.production run --rm api \
 
 ### Database on Supabase (optional)
 
-The database can be a Supabase project's Postgres; DineOS uses it as plain PostgreSQL (its own roles, migrations and API; not the Supabase Data API, Auth or client libraries).
+The database can be a Supabase project's Postgres; Mezmitra uses it as plain PostgreSQL (its own roles, migrations and API; not the Supabase Data API, Auth or client libraries).
 
-1. Put the connection details in a gitignored file such as `.env.supabase.local` (see the one in the repo root of the setup machine): `DATABASE_OWNER_URL` is Supabase's `postgres` user through the **session** pooler (port 5432); `DATABASE_URL` and `DATABASE_ADMIN_URL` are `dineos_app.<project-ref>` and `dineos_admin.<project-ref>` through the **transaction** pooler (port 6543), with passwords you choose in `DINEOS_APP_PASSWORD` / `DINEOS_ADMIN_PASSWORD`.
-2. `DINEOS_ENV_FILE=.env.supabase.local npm run db:setup` creates the two roles; `DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate` applies every migration.
-3. Run the API with the same `DINEOS_ENV_FILE`. Tests keep using the local database.
+1. Put the connection details in a gitignored file such as `.env.supabase.local` (see the one in the repo root of the setup machine): `DATABASE_OWNER_URL` is Supabase's `postgres` user through the **session** pooler (port 5432); `DATABASE_URL` and `DATABASE_ADMIN_URL` are `dineos_app.<project-ref>` and `dineos_admin.<project-ref>` through the **transaction** pooler (port 6543), with passwords you choose in `MEZMITRA_APP_PASSWORD` / `MEZMITRA_ADMIN_PASSWORD`.
+2. `MEZMITRA_ENV_FILE=.env.supabase.local npm run db:setup` creates the two roles; `MEZMITRA_ENV_FILE=.env.supabase.local npm run db:migrate` applies every migration.
+3. Run the API with the same `MEZMITRA_ENV_FILE`. Tests keep using the local database.
 
 Migration 0013 removes every privilege Supabase gives its Data API roles (`anon`, `authenticated`) in schema public, so the publishable key cannot read or call anything; 0014 matches Supabase's automatic RLS on platform tables. In the Supabase dashboard you can also turn the Data API off entirely. Pick the **Mumbai (ap-south-1)** region for real customer data: the spec asks for India-region hosting.
 
 ### Vercel (web and API as one project)
 
-`vercel.json` deploys two services on one domain: `web` (Next.js) serves every page, and `api` (Fastify) receives `/v1/*`, `/socket.io/*` and `/healthz`. The database stays on Supabase. The print agent, outlet hub and camera box still run inside the restaurant; point their `DINEOS_API_URL` at the site's address.
+`vercel.json` deploys two services on one domain: `web` (Next.js) serves every page, and `api` (Fastify) receives `/v1/*`, `/socket.io/*` and `/healthz`. The database stays on Supabase. The print agent, outlet hub and camera box still run inside the restaurant; point their `MEZMITRA_API_URL` at the site's address.
 
 1. Import the GitHub repository in Vercel. Keep the project's Root Directory empty: `vercel.json` sits at the repo root.
 2. Add Redis from the Vercel Marketplace (Upstash). Live updates reach screens connected to other instances through it; the API reads `REDIS_URL` (or `KV_URL`).
-3. In Supabase, create a **public** Storage bucket (e.g. `dineos`) for menu photos and logos, and an S3 access key (Storage → S3 Connection).
+3. In Supabase, create a **public** Storage bucket (e.g. `mezmitra`) for menu photos and logos, and an S3 access key (Storage → S3 Connection).
 4. Set these environment variables in the Vercel project:
 
    | Variable | Value |
@@ -55,7 +55,7 @@ Migration 0013 removes every privilege Supabase gives its Data API roles (`anon`
 
    Leave `NEXT_PUBLIC_API_URL` unset: the web app then calls the API on its own domain (the production domain, or a preview's own address). Scope the database variables to Production unless previews should share live data.
 5. Keep `regions` in `vercel.json` next to the database (`syd1` for a Sydney project, `bom1` for Mumbai): every request makes several queries.
-6. Run migrations from your machine as before (`DINEOS_ENV_FILE=.env.supabase.local npm run db:migrate`); deployments never change the schema. **Migrate before you push code that needs a new column**: a deploy that writes to a column the database lacks fails on every such request.
+6. Run migrations from your machine as before (`MEZMITRA_ENV_FILE=.env.supabase.local npm run db:migrate`); deployments never change the schema. **Migrate before you push code that needs a new column**: a deploy that writes to a column the database lacks fails on every such request.
 
 How the API behaves on Vercel:
 
@@ -108,7 +108,7 @@ Menu photos and logos must be readable by guest phones; nothing else in the buck
 
 ## Printers: kitchen tickets (KOT), bills and the cash drawer
 
-One always-on computer at the outlet runs the DineOS print agent, usually the billing PC (Windows), or a Mac, a Linux PC or a Raspberry Pi. Thermal printers connect to it in any of these ways:
+One always-on computer at the outlet runs the Mezmitra print agent, usually the billing PC (Windows), or a Mac, a Linux PC or a Raspberry Pi. Thermal printers connect to it in any of these ways:
 
 | Printer | How it connects | Address the agent uses |
 | --- | --- | --- |
@@ -118,7 +118,7 @@ One always-on computer at the outlet runs the DineOS print agent, usually the bi
 
 Any ESC/POS (Epson-compatible) 58 or 80 mm printer works: Epson TM-T82/T88, TVS RP3160, Rugtek, Posiflex, Everycom and most others sold in India. A cash drawer plugs into the bill printer's RJ11 "DK" port.
 
-1. **Settings → Printers → Add print computer**. Pick Windows, Mac or Linux, copy the line, and run it on that computer (Windows: PowerShell **as administrator**; Linux: it uses `sudo`). It installs Node.js if needed, downloads the agent from your DineOS site (`/agent/dineos-agent.mjs`), and starts it with the computer: a scheduled task on Windows (`C:\ProgramData\DineOS`, runs as SYSTEM), a systemd service on Linux (`/opt/dineos`), a launch agent on a Mac. Run the line again to update the agent. The log is `agent.log` in that folder.
+1. **Settings → Printers → Add print computer**. Pick Windows, Mac or Linux, copy the line, and run it on that computer (Windows: PowerShell **as administrator**; Linux: it uses `sudo`). It installs Node.js if needed, downloads the agent from your Mezmitra site (`/agent/mezmitra-agent.mjs`), and starts it with the computer: a scheduled task on Windows (`C:\ProgramData\Mezmitra`, runs as SYSTEM), a systemd service on Linux (`/opt/mezmitra`), a launch agent on a Mac. Run the line again to update the agent. The log is `agent.log` in that folder.
 2. Within a minute the computer shows as **Online**, with the printers it found: printers installed on it, Linux USB devices, and network printers answering on port 9100 on its local network. **Search for printers** looks again after plugging one in.
 3. **Choose printers**: one printer per job (bills and each kitchen station), or the same printer for several. Set 80 or 58 mm paper, and switch on **Open the cash drawer on cash payments** for the bill printer if a drawer is attached. Changes reach the computer within seconds; no restart. **Test** prints a test page.
 
@@ -126,30 +126,30 @@ How it behaves:
 - Accepted orders print one KOT per station on that station's printer; a station with no printer shows only on the kitchen screen. Finalising a bill prints it at the billing desk; a cash payment opens the drawer.
 - Jobs are acknowledged once printed and retried up to five times. Jobs queued while the computer was off print when it comes back. On hosts where the agent cannot keep its live connection (some serverless hosts), it checks for jobs every 5 seconds instead.
 - If a ticket or bill has not printed after 90 seconds, or failed, every staff screen (including the kitchen screen) shows a red **Printer problem** bar naming it, with **Print here** (browser printing on that device), **Try again** and **Done**.
-- To remove the agent: Windows `Unregister-ScheduledTask -TaskName 'DineOS Print Agent' -Confirm:$false`; Linux `sudo systemctl disable --now dineos-print-agent`; Mac `launchctl unload ~/Library/LaunchAgents/in.dineos.print-agent.plist`. **Remove** on its card stops it printing at once.
-- Developers: after changing `apps/print-agent`, run `npm run build:download -w @dineos/print-agent` and commit `apps/web/public/agent/dineos-agent.mjs` with its `.sha256`; installers download the file and refuse it if the checksum does not match. `DINEOS_DRY_RUN=1` prints tickets as text, `DINEOS_SCAN=0` skips the printer search, `DINEOS_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
+- To remove the agent: Windows `Unregister-ScheduledTask -TaskName 'Mezmitra Print Agent' -Confirm:$false`; Linux `sudo systemctl disable --now mezmitra-print-agent`; Mac `launchctl unload ~/Library/LaunchAgents/app.mezmitra.print-agent.plist`. **Remove** on its card stops it printing at once.
+- Developers: after changing `apps/print-agent`, run `npm run build:download -w @mezmitra/print-agent` and commit `apps/web/public/agent/mezmitra-agent.mjs` with its `.sha256`; installers download the file and refuse it if the checksum does not match. `MEZMITRA_DRY_RUN=1` prints tickets as text, `MEZMITRA_SCAN=0` skips the printer search, `MEZMITRA_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
 
 ## Outlet hub (offline mode)
 
-The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `DINEOS_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to DineOS when the line returns.
+The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `MEZMITRA_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to Mezmitra when the line returns.
 
 1. Pick an always-on PC on the outlet's network (the print-agent PC is fine) and give it a fixed IP in the router.
 2. **Settings → Printers → Offline mode**: choose that device and enter its address, e.g. `http://192.168.1.20:4100`.
 3. On the PC run the hub and, beside it, the staff web app (the same `web` image as the cloud), so the app is served on the LAN:
 
 ```bash
-docker run -d --restart=always --name dineos-web -p 127.0.0.1:3000:3000 \
-  -e NEXT_PUBLIC_API_URL=https://API_DOMAIN dineos-web:<version>
-DINEOS_HUB=1 DINEOS_HUB_PORT=4100 DINEOS_HUB_DATA=/var/lib/dineos/hub.json \
-DINEOS_HUB_WEB=http://127.0.0.1:3000 DINEOS_API_URL=https://API_DOMAIN \
-DINEOS_DEVICE_TOKEN=dv_... node main.js
+docker run -d --restart=always --name mezmitra-web -p 127.0.0.1:3000:3000 \
+  -e NEXT_PUBLIC_API_URL=https://API_DOMAIN mezmitra-web:<version>
+MEZMITRA_HUB=1 MEZMITRA_HUB_PORT=4100 MEZMITRA_HUB_DATA=/var/lib/mezmitra/hub.json \
+MEZMITRA_HUB_WEB=http://127.0.0.1:3000 MEZMITRA_API_URL=https://API_DOMAIN \
+MEZMITRA_DEVICE_TOKEN=dv_... node main.js
 ```
 
 4. Staff must have signed in on each device while online; the hub recognises their sessions by hash.
 5. Rehearse: unplug the router, switch a tablet to the hub, take an order and a payment, plug back in, and check the bill under **Bills** and in the GST report (series `PREFIXH`).
 
 - `GET http://<hub>:4100/hub/status` shows whether the cloud is reachable, whether changes are waiting, and anything the cloud refused (also logged, and shown in the hub's banner).
-- Back up `hub.json` with the PC. If the PC dies while offline, bills made on it reach DineOS only from that file.
+- Back up `hub.json` with the PC. If the PC dies while offline, bills made on it reach Mezmitra only from that file.
 - While the hub and every staff screen are cut off, the cloud pauses QR ordering for that outlet so guests are told to order with a waiter.
 
 ## Camera box (optional)
@@ -171,7 +171,7 @@ Runs hourly on one API server (advisory lock) and can be run by hand with `node 
 ## Backups
 
 - Nightly encrypted dump with a second copy elsewhere (spec §12):
-  `30 2 * * * cd /opt/dineos && docker compose --env-file .env.production --profile ops run --rm backup`
+  `30 2 * * * cd /opt/mezmitra && docker compose --env-file .env.production --profile ops run --rm backup`
 - Set `BACKUP_RSYNC_TARGET` (ssh) or `BACKUP_S3_URI` (bucket you own). A backup only on the same server does not count.
 - Keep `BACKUP_PASSPHRASE` in a password manager, not only on the server. Without it the backups cannot be read.
 - Monthly restore drill (also before any risky migration):
@@ -203,15 +203,15 @@ It creates a throwaway restaurant, joins 300 guests across 60 tables, connects 1
 - Support access to a restaurant is time-limited (1 hour), needs a written reason, and appears in that restaurant's audit log.
 - Manager PINs: five wrong PINs in a row lock that manager's PIN for 15 minutes, whichever screen or network they came from. The owner gets a phone alert, the attempt is in the audit log, and setting a new PIN (My account) lifts the lock.
 - Every API response carries security headers (no sniffing, no framing, a no-script content policy, no referrer, HSTS in production), so they hold on Vercel where there is no proxy in front.
-- The print agent installers check the download against the checksum published with the site (`/agent/dineos-agent.mjs.sha256`) and accept only HTTPS addresses. The checksum catches a damaged or wrong download; the site's HTTPS certificate is what vouches for the source.
+- The print agent installers check the download against the checksum published with the site (`/agent/mezmitra-agent.mjs.sha256`) and accept only HTTPS addresses. The checksum catches a damaged or wrong download; the site's HTTPS certificate is what vouches for the source.
 - Run `npm audit --omit=dev` before each release; CI runs lint, types, migrations, all tests and Docker builds on every push.
 
 ## Loyalty codes by SMS (MSG91)
 
-With `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` set, a guest joining loyalty from the table gets a six-digit code by SMS and sees their name and points once it is right. DineOS makes and checks the codes (hashed, ten minutes, five tries); MSG91 only delivers them.
+With `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` set, a guest joining loyalty from the table gets a six-digit code by SMS and sees their name and points once it is right. Mezmitra makes and checks the codes (hashed, ten minutes, five tries); MSG91 only delivers them.
 
 1. Create an MSG91 account and complete its KYC.
-2. TRAI requires DLT registration: register your business as a principal entity, a sender ID (header), and an OTP content template such as `{#var#} is your DineOS code. It expires in 10 minutes.` (MSG91's help pages walk through the operator portals).
+2. TRAI requires DLT registration: register your business as a principal entity, a sender ID (header), and an OTP content template such as `{#var#} is your Mezmitra code. It expires in 10 minutes.` (MSG91's help pages walk through the operator portals).
 3. In MSG91, create an OTP template linked to that DLT template, with `##OTP##` where the code goes, and note its template ID. If you restrict the auth key to IP addresses, allow Vercel's (or turn the restriction off).
 4. Set `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` in Vercel and redeploy. Test with your own number first.
 
@@ -219,7 +219,7 @@ Limits: three codes per number in fifteen minutes and a hundred per outlet an ho
 
 ## Phone alerts (Web Push)
 
-With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) DineOS must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them, and food or drinks ready to serve to waiters (and counter staff, for takeaway and delivery). A table with an assigned waiter alerts that waiter, not the others. Signing out turns the device's alerts off.
+With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) Mezmitra must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them, and food or drinks ready to serve to waiters (and counter staff, for takeaway and delivery). A table with an assigned waiter alerts that waiter, not the others. Signing out turns the device's alerts off.
 
 ## Bar and kitchen
 
@@ -255,3 +255,41 @@ When a dish has to be made right, or a special guest, the owner's guest, a birth
 - Every free item is kept with its menu value, its ingredient cost (from the recipe), why, for whom, who gave it, who approved it, the table or order and the invoice. **Reports → Free items** shows the totals, by reason, by staff (flagging anyone giving far more than the others), by approver and by guest, with a CSV.
 - **Settings → Billing → Free food and drinks alert**: the owner's phone hears about anything given free worth this much or more (₹1,000 by default; empty for none).
 - A free hotel *room night* belongs in the hotel's own system; food and drinks for hotel guests, including bills charged to a room, are covered here.
+
+## The rename from DineOS
+
+The product was called DineOS. The code, settings and files now use Mezmitra, and everything set up
+before the rename keeps working:
+
+- **Settings:** `MEZMITRA_*` settings (for example `MEZMITRA_ENV_FILE`, `MEZMITRA_DEVICE_TOKEN`) are
+  read first; the earlier `DINEOS_*` names are still read everywhere (API, scripts, print agent,
+  camera box, Docker files).
+- **Staff browsers:** settings saved as `dineos.*` move to `mezmitra.*` the first time a screen
+  opens, so nobody is signed out. Offline orders and bills queued in the `dineos-outbox` store are
+  moved to `mezmitra-outbox` before anything is sent. Menu and screen caches move the same way.
+- **Print computers:** running the installer again moves an older installation: it stops and
+  removes the `DineOS Print Agent` task (Windows) or the `dineos-print-agent` service (Linux,
+  `in.dineos.print-agent` on a Mac), copies the outlet hub's offline records (`dineos-hub.json`),
+  installs under the Mezmitra names and deletes the old folder. Until then the old agent keeps
+  printing, and the new agent also reads `dineos-agent.json` and `dineos-hub.json` if it finds
+  them. `/agent/dineos-agent.mjs` still serves the current agent.
+- **Camera boxes:** a box whose service runs `python -m dineos_vision` keeps working; see the
+  camera worker's README to move it to the new names.
+- **Database:** the helper functions are `mezmitra_*` (migration 0032). `dineos_track_order`
+  stays as a stand-in for one release and can then be dropped.
+- **Backups:** new backups are named `mezmitra-*`; `dineos-*` backups are still found by the restore
+  drill and age out as before. The signing salt keeps its old text so older backups still verify.
+
+Not renamed yet: the database login roles `dineos_app`, `dineos_admin` and `dineos_owner`. They
+appear in every connection string and every migration, so they change in one planned step:
+
+1. Prepare a release where `db:setup`, new migrations, the CI database and the restore scripts use
+   `mezmitra_app` and `mezmitra_admin`.
+2. At a quiet hour, in the Supabase SQL editor: `alter role dineos_app rename to mezmitra_app;` and
+   `alter role dineos_admin rename to mezmitra_admin;`, then set each role's password again.
+3. Straight away, change the user in `DATABASE_URL` and `DATABASE_ADMIN_URL` on Vercel (with the
+   Supabase pooler the user is `mezmitra_app.<project-ref>`), deploy that release, and check
+   `/healthz` and a sign-in.
+
+Also unchanged, by design: the Vercel project name (it sets the `*.vercel.app` address) and the
+storage bucket (stored photo and logo links contain its name).

@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { LoyaltyEntryDTO } from '@dineos/shared/dto';
+import type { LoyaltyEntryDTO } from '@mezmitra/shared/dto';
 import type { AppContext } from '../../context';
 import { audit } from '../../lib/audit';
 import { assertCan, requireStaff } from '../../lib/auth';

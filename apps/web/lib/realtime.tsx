@@ -3,7 +3,7 @@
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { EventType, OutletEvent } from '@dineos/shared/events';
+import type { EventType, OutletEvent } from '@mezmitra/shared/events';
 import { apiBase, apiFetch } from './api';
 import { flush } from './outbox';
 

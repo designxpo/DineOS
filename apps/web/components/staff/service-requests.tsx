@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellRing, Check, ReceiptIndianRupee } from 'lucide-react';
-import type { ServiceRequestDTO } from '@dineos/shared/dto';
+import type { ServiceRequestDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago } from '@/lib/format';
 import { useOutletEvents } from '@/lib/realtime';

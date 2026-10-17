@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { defineConfig } from 'tsup';
 
-// One bundle per entry point; @dineos/shared is inlined, npm dependencies stay external.
+// One bundle per entry point; @mezmitra/shared is inlined, npm dependencies stay external.
 export default defineConfig({
   entry: {
     server: 'src/server.ts',
@@ -18,7 +18,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   splitting: true,
-  noExternal: ['@dineos/shared'],
+  noExternal: ['@mezmitra/shared'],
   // Vercel deploys dist/ as the function's root, away from apps/api/package.json, and would
   // otherwise load server.js as CommonJS.
   onSuccess: () => writeFile('dist/package.json', '{ "type": "module" }\n'),

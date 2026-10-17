@@ -1,4 +1,4 @@
-export { formatPaise, formatPrice, formatRate } from '@dineos/shared/money';
+export { formatPaise, formatPrice, formatRate } from '@mezmitra/shared/money';
 
 const timeFmt = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 const dateFmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });

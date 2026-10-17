@@ -5,8 +5,8 @@
 import { sql } from 'kysely';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { OrderStatus, OrderType } from '@dineos/shared/enums';
-import type { PickupBoardDTO, TrackedOrderDTO } from '@dineos/shared/dto';
+import type { OrderStatus, OrderType } from '@mezmitra/shared/enums';
+import type { PickupBoardDTO, TrackedOrderDTO } from '@mezmitra/shared/dto';
 import type { AppContext } from '../../context';
 import { assertCan, requireStaff } from '../../lib/auth';
 import { shownBrand } from '../../lib/branding';
@@ -69,7 +69,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     /** One order, followed by the guest from the link on their receipt. */
     app.get('/public/track/:code', { config: publicLimit }, async (req, reply): Promise<TrackedOrderDTO> => {
       const { code } = parse(z.object({ code: z.string().min(16).max(40).regex(/^[\w-]+$/) }), req.params);
-      const { rows } = await sql<{ tenant_id: string; order_id: string }>`select * from dineos_track_order(${code})`.execute(ctx.db);
+      const { rows } = await sql<{ tenant_id: string; order_id: string }>`select * from mezmitra_track_order(${code})`.execute(ctx.db);
       const found = rows[0];
       if (!found || !(await tenantActive(found.tenant_id))) throw notFound('Order');
       reply.header('cache-control', 'no-store');

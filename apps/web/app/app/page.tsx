@@ -12,8 +12,8 @@ import { Card, Spinner, Stat } from '@/components/ui/primitives';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { homeFor, PageHeader } from '@/components/staff/shell';
 import { TABLE_STATE } from '@/components/staff/table-state';
-import type { UpiCheckDTO } from '@dineos/shared/dto';
-import type { TableState } from '@dineos/shared/enums';
+import type { UpiCheckDTO } from '@mezmitra/shared/dto';
+import type { TableState } from '@mezmitra/shared/enums';
 
 interface Dashboard {
   date: string;

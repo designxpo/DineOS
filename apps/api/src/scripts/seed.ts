@@ -18,7 +18,7 @@ import { attachDemoPhotos } from './demo-photos';
 
 const SLUG = 'aurum-courtyard';
 const PASSWORD = 'demo1234';
-const ADMIN_EMAIL = 'admin@dineos.local';
+const ADMIN_EMAIL = 'admin@mezmitra.local';
 const ADMIN_PASSWORD = 'admin-demo-1234';
 
 type Mod = [name: string, delta: number, hi?: string];

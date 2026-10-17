@@ -1,5 +1,5 @@
 # TLS certificates are issued and renewed automatically.
-# For tenant subdomains ({slug}.dineos.in) add a wildcard site with a DNS-challenge provider; the
+# For tenant subdomains ({slug}.your-domain) add a wildcard site with a DNS-challenge provider; the
 # guest QR token already identifies the restaurant, so subdomains are optional branding.
 
 {$APP_DOMAIN} {

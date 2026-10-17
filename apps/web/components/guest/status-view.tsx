@@ -3,8 +3,8 @@
 import { BellRing, Check, ChefHat, CircleX, Clock, Gift, HandPlatter, Plus, ReceiptIndianRupee } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import type { GuestOrderDTO } from '@dineos/shared/dto';
-import type { OrderStatus } from '@dineos/shared/enums';
+import type { GuestOrderDTO } from '@mezmitra/shared/dto';
+import type { OrderStatus } from '@mezmitra/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, InvoiceDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
+import type { BillDTO, InvoiceDTO, OrderDTO, TableDTO } from '@mezmitra/shared/dto';
 import { nextCounter } from '../src/lib/counters';
 import { closeSession } from '../src/modules/tables/sessions';
 import {

@@ -1,6 +1,6 @@
-import { splitEvenly } from '@dineos/shared/billing';
-import type { BillDTO, BillLineDTO, InvoiceDTO, PaymentDTO } from '@dineos/shared/dto';
-import type { BillStatus, CompReason, PaymentMethod } from '@dineos/shared/enums';
+import { splitEvenly } from '@mezmitra/shared/billing';
+import type { BillDTO, BillLineDTO, InvoiceDTO, PaymentDTO } from '@mezmitra/shared/dto';
+import type { BillStatus, CompReason, PaymentMethod } from '@mezmitra/shared/enums';
 import type { Tx } from '../../context';
 
 export type AmountSplit = { count: number } | { amounts: number[] };

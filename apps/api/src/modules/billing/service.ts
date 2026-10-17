@@ -1,13 +1,13 @@
 // Bills, splits, GST invoices and payments (spec §8). Drafts are recomputed from orders on every
 // read and change; finalising freezes the lines and takes the next gap-free invoice number.
 
-import { computeBill, type BillDiscount } from '@dineos/shared/billing';
-import { describeDuration } from '@dineos/shared/loyalty';
-import { businessDate, financialYear, formatInvoiceNo } from '@dineos/shared/dates';
-import type { BillDTO } from '@dineos/shared/dto';
-import { OPERATOR_CHANNELS, type DeliveryChannel, type PaymentMethod } from '@dineos/shared/enums';
-import { CASHIER_DISCOUNT_LIMIT_BP } from '@dineos/shared/permissions';
-import type { BillDoc } from '@dineos/shared/print';
+import { computeBill, type BillDiscount } from '@mezmitra/shared/billing';
+import { describeDuration } from '@mezmitra/shared/loyalty';
+import { businessDate, financialYear, formatInvoiceNo } from '@mezmitra/shared/dates';
+import type { BillDTO } from '@mezmitra/shared/dto';
+import { OPERATOR_CHANNELS, type DeliveryChannel, type PaymentMethod } from '@mezmitra/shared/enums';
+import { CASHIER_DISCOUNT_LIMIT_BP } from '@mezmitra/shared/permissions';
+import type { BillDoc } from '@mezmitra/shared/print';
 import { sql } from 'kysely';
 import type { Tx } from '../../context';
 import { json } from '../../db';

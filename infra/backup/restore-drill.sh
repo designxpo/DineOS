@@ -11,11 +11,11 @@ BACKUP_DIR="${BACKUP_DIR:-./backups}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-$HERE/../../apps/api/migrations}"
 
-LATEST="$(ls -1t "$BACKUP_DIR"/dineos-*.dump.enc 2>/dev/null | head -1 || true)"
+LATEST="$(ls -1t "$BACKUP_DIR"/mezmitra-*.dump.enc "$BACKUP_DIR"/dineos-*.dump.enc 2>/dev/null | head -1 || true)"
 [[ -n "$LATEST" ]] || { echo "FAIL: no backups in $BACKUP_DIR"; exit 1; }
 MANIFEST="${LATEST%.dump.enc}.manifest.json"
 
-DRILL_DB="dineos_restore_drill_$(date +%s)"
+DRILL_DB="mezmitra_restore_drill_$(date +%s)"
 ADMIN_URL="$(echo "$DATABASE_OWNER_URL" | sed -E 's#/[^/?]+(\?|$)#/postgres\1#')"
 DRILL_URL="$(echo "$DATABASE_OWNER_URL" | sed -E "s#/[^/?]+(\\?|\$)#/${DRILL_DB}\\1#")"
 

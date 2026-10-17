@@ -3,7 +3,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ScreensDTO } from '@dineos/shared/dto';
+import type { ScreensDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;

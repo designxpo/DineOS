@@ -3,8 +3,8 @@
 // their phone or a screen by the counter.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, OrderDTO, PickupBoardDTO, TableDTO, TrackedOrderDTO } from '@dineos/shared/dto';
-import type { BillDoc } from '@dineos/shared/print';
+import type { BillDTO, OrderDTO, PickupBoardDTO, TableDTO, TrackedOrderDTO } from '@mezmitra/shared/dto';
+import type { BillDoc } from '@mezmitra/shared/print';
 import { runMaintenance } from '../src/lib/maintenance';
 import { api, createMenu, createTable, createTenant, setOutlet, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

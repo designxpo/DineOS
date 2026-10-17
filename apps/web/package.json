@@ -1,5 +1,5 @@
 {
-  "name": "@dineos/web",
+  "name": "@mezmitra/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@dineos/shared": "*",
+    "@mezmitra/shared": "*",
     "@tanstack/react-query": "^5.104.3",
     "clsx": "^2.1.1",
     "idb-keyval": "^6.3.0",

@@ -3,8 +3,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, ImagePlus, LayoutGrid, ShoppingBag, Trash2, UtensilsCrossed } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { brandShades, DEFAULT_BRAND_COLOR, HEX_COLOR, type HeadingStyle } from '@dineos/shared/branding';
-import type { BrandingDTO, TenantBrandDTO } from '@dineos/shared/dto';
+import { brandShades, DEFAULT_BRAND_COLOR, HEX_COLOR, type HeadingStyle } from '@mezmitra/shared/branding';
+import type { BrandingDTO, TenantBrandDTO } from '@mezmitra/shared/dto';
 import { API_URL, errorMessage } from '@/lib/api';
 import { brandStyle } from '@/lib/brand-theme';
 import { useStaff } from '@/lib/staff';

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, OrderDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
+import type { BillDTO, OrderDTO, StatementDetailDTO, UpiCheckDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;

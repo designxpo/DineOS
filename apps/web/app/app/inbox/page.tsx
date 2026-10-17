@@ -3,8 +3,8 @@
 import { usePersistedQuery } from '@/lib/persisted-query';
 import { Bell, BellOff, ClipboardList } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { OrderDTO } from '@dineos/shared/dto';
-import type { OrderStatus } from '@dineos/shared/enums';
+import type { OrderDTO } from '@mezmitra/shared/dto';
+import type { OrderStatus } from '@mezmitra/shared/enums';
 import { useOutletEvents } from '@/lib/realtime';
 import { chime, soundReady, unlockSound } from '@/lib/sound';
 import { useI18n, type I18nKey } from '@/lib/i18n';

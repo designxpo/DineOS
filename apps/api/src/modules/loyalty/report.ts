@@ -2,8 +2,8 @@
 // against other guests, points earned and owed, and what rewards cost.
 
 import { sql } from 'kysely';
-import type { LoyaltyReportDTO } from '@dineos/shared/dto';
-import { REWARD_SOURCES, type RewardSource } from '@dineos/shared/enums';
+import type { LoyaltyReportDTO } from '@mezmitra/shared/dto';
+import { REWARD_SOURCES, type RewardSource } from '@mezmitra/shared/enums';
 import type { Tx } from '../../context';
 import type { Range } from '../reports/service';
 import { currentProgram } from './program';

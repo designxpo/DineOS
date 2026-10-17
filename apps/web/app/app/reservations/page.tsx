@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Armchair, CalendarClock, ChevronLeft, ChevronRight, Hourglass, Pencil, PhoneCall, Plus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { ReservationDTO, TableDTO, WaitlistEntryDTO } from '@dineos/shared/dto';
+import type { ReservationDTO, TableDTO, WaitlistEntryDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { useI18n, type I18nKey, type Lang } from '@/lib/i18n';
 import { minutesSince, time, todayIst } from '@/lib/format';

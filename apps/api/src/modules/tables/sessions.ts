@@ -2,8 +2,8 @@
 // and floor operations. Every function runs inside the caller's tenant transaction.
 
 import { sql } from 'kysely';
-import type { OrderStatus, SessionStatus, TableState, TableStateSource } from '@dineos/shared/enums';
-import { deriveTableState, GUESTS_PRESENT_MINUTES, type CameraState } from '@dineos/shared/table-state';
+import type { OrderStatus, SessionStatus, TableState, TableStateSource } from '@mezmitra/shared/enums';
+import { deriveTableState, GUESTS_PRESENT_MINUTES, type CameraState } from '@mezmitra/shared/table-state';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { gone, notFound } from '../../lib/errors';

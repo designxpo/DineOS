@@ -4,9 +4,9 @@
 // found when the guest is next attached to a bill or signs in at a table.
 
 import { sql } from 'kysely';
-import type { CustomerLoyaltyDTO, RewardDTO } from '@dineos/shared/dto';
-import type { RewardSource } from '@dineos/shared/enums';
-import { describeProgram, describeReward, inHappyHours, levelIndex, type CategoryNames, type LoyaltyConfig, type Reward } from '@dineos/shared/loyalty';
+import type { CustomerLoyaltyDTO, RewardDTO } from '@mezmitra/shared/dto';
+import type { RewardSource } from '@mezmitra/shared/enums';
+import { describeProgram, describeReward, inHappyHours, levelIndex, type CategoryNames, type LoyaltyConfig, type Reward } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest } from '../../lib/errors';

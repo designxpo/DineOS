@@ -1,8 +1,8 @@
-import type { ApiErrorBody } from '@dineos/shared/dto';
+import type { ApiErrorBody } from '@mezmitra/shared/dto';
 
 /** The cloud API. Guest pages and uploads always use it. */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-const BASE_KEY = 'dineos.api_base';
+const BASE_KEY = 'mezmitra.api_base';
 
 /**
  * Where staff requests go: the cloud, or the outlet hub while the internet is down. The hub

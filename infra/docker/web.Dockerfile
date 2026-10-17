@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# DineOS web (guest PWA, staff portal, admin). Build from the repo root:
-#   docker build -f infra/docker/web.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.dineos.in -t dineos-web .
+# Mezmitra web (guest PWA, staff portal, admin). Build from the repo root:
+#   docker build -f infra/docker/web.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t mezmitra-web .
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -18,7 +18,7 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 # Fonts are downloaded here (build time) and served from our own origin at runtime.
-RUN npm run build -w @dineos/web
+RUN npm run build -w @mezmitra/web
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0

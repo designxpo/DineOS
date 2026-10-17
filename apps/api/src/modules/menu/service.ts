@@ -5,8 +5,8 @@ import type {
   MenuItemDTO,
   ModifierGroupDTO,
   Translations,
-} from '@dineos/shared/dto';
-import { isScheduleOpen } from '@dineos/shared/menu';
+} from '@mezmitra/shared/dto';
+import { isScheduleOpen } from '@mezmitra/shared/menu';
 import type { Tx } from '../../context';
 import { notFound } from '../../lib/errors';
 import { bumpConfig } from '../../lib/config-version';

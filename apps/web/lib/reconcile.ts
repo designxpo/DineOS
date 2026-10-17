@@ -1,4 +1,4 @@
-import type { MissingHints } from '@dineos/shared/dto';
+import type { MissingHints } from '@mezmitra/shared/dto';
 import { formatPaise } from './format';
 
 /** Why a UPI payment may be missing from the bank, in a sentence; null when nothing more is known. */

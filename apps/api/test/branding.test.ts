@@ -1,10 +1,10 @@
 // A restaurant's own look (white label for its staff and guests): logo, cover photo, colour and
 // heading style on the portal, the QR menu, order tracking and the pickup screen. Paid plans show
-// it, the trial shows the DineOS look, and DineOS can set it per restaurant.
+// it, the trial shows the Mezmitra look, and Mezmitra can set it per restaurant.
 
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { MeDTO, OrderDTO, TenantBrandDTO } from '@dineos/shared/dto';
+import type { MeDTO, OrderDTO, TenantBrandDTO } from '@mezmitra/shared/dto';
 import { hashSecret } from '../src/lib/crypto';
 import { api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 import { multipart } from './multipart';
@@ -21,7 +21,7 @@ beforeAll(async () => {
   tenant = await createTenant(t, { plan: 'trial' });
   menu = await createMenu(t, tenant);
   owner = api(t, tenant.ownerToken);
-  const email = `brand-${randomUUID().slice(0, 6)}@dineos.test`;
+  const email = `brand-${randomUUID().slice(0, 6)}@mezmitra.test`;
   await t.ctx.adminDb.insertInto('platform_admins').values({ name: 'Ops', email, password_hash: await hashSecret('admin-password-1') }).execute();
   admin = api(t, (await t.app.inject({ method: 'POST', url: '/v1/admin/auth/login', payload: { email, password: 'admin-password-1' } })).json().token);
 });
@@ -36,7 +36,7 @@ async function guestBrand() {
 }
 
 describe('restaurant brand', () => {
-  it('lets the owner set it up on the trial, but shows the DineOS look until the plan includes it', async () => {
+  it('lets the owner set it up on the trial, but shows the Mezmitra look until the plan includes it', async () => {
     expect((await owner({ method: 'POST', url: '/v1/tenant/logo', ...multipart('logo.png', 'image/png', png) })).statusCode).toBe(200);
     expect((await owner({ method: 'POST', url: '/v1/tenant/cover', ...multipart('cover.png', 'image/png', png) })).statusCode).toBe(200);
     const saved = await owner({ method: 'PATCH', url: '/v1/tenant', payload: { branding: { primary_color: '#1D4ED8', heading_style: 'sans' } } });
@@ -68,7 +68,7 @@ describe('restaurant brand', () => {
     expect((await t.app.inject({ method: 'GET', url: '/v1/public/brand/no-such-restaurant' })).statusCode).toBe(404);
   });
 
-  it('lets DineOS switch it off or on for one restaurant, whatever its plan', async () => {
+  it('lets Mezmitra switch it off or on for one restaurant, whatever its plan', async () => {
     const set = (white_label: boolean | null) => admin({ method: 'PATCH', url: `/v1/admin/tenants/${tenant.tenantId}`, payload: { white_label } });
     expect((await set(false)).statusCode).toBe(200);
     expect((await me()).tenant).toMatchObject({ white_label: false, branding: {} });

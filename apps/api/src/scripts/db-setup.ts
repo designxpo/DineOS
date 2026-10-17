@@ -1,16 +1,18 @@
 // Creates the database roles and the dev/test databases. Idempotent; safe to re-run.
-//   npm run db:setup              -> dineos_dev
-//   npm run db:setup -- --test    -> dineos_test (dropped and recreated)
+//   npm run db:setup              -> mezmitra_dev (or the database in DATABASE_OWNER_URL)
+//   npm run db:setup -- --test    -> mezmitra_test (dropped and recreated)
+// The login roles keep their names (dineos_app, dineos_admin): every migration and connection
+// string names them, and renaming them is a separate, coordinated step.
 import pg from 'pg';
 import { loadEnvFile } from '../config';
 
 loadEnvFile();
 
-const ownerUrl = new URL(process.env.DATABASE_OWNER_URL ?? 'postgres://localhost:5432/dineos_dev');
+const ownerUrl = new URL(process.env.DATABASE_OWNER_URL ?? 'postgres://localhost:5432/mezmitra_dev');
 const isTest = process.argv.includes('--test');
-const dbName = isTest ? 'dineos_test' : ownerUrl.pathname.slice(1) || 'dineos_dev';
-const appPassword = process.env.DINEOS_APP_PASSWORD ?? 'dineos_app_dev';
-const adminPassword = process.env.DINEOS_ADMIN_PASSWORD ?? 'dineos_admin_dev';
+const dbName = isTest ? 'mezmitra_test' : ownerUrl.pathname.slice(1) || 'mezmitra_dev';
+const appPassword = process.env.MEZMITRA_APP_PASSWORD ?? process.env.DINEOS_APP_PASSWORD ?? 'dineos_app_dev';
+const adminPassword = process.env.MEZMITRA_ADMIN_PASSWORD ?? process.env.DINEOS_ADMIN_PASSWORD ?? 'dineos_admin_dev';
 
 function ident(s: string): string {
   return `"${s.replace(/"/g, '""')}"`;

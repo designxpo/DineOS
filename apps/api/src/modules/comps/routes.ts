@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { MANUAL_COMP_REASONS } from '@dineos/shared/enums';
+import { MANUAL_COMP_REASONS } from '@mezmitra/shared/enums';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
 import { requireStaff } from '../../lib/auth';

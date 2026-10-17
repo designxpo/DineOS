@@ -4,7 +4,7 @@
 // owner and admin screens are English for now.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Translations } from '@dineos/shared/dto';
+import type { Translations } from '@mezmitra/shared/dto';
 import { readLocal, writeLocal } from './storage';
 
 export type Lang = 'en' | 'hi';
@@ -1348,7 +1348,7 @@ export interface I18n {
 
 const Ctx = createContext<I18n | null>(null);
 
-export function I18nProvider({ children, storageKey = 'dineos.lang' }: { children: React.ReactNode; storageKey?: string }) {
+export function I18nProvider({ children, storageKey = 'mezmitra.lang' }: { children: React.ReactNode; storageKey?: string }) {
   const [lang, setLangState] = useState<Lang>('en');
   useEffect(() => {
     const saved = readLocal<Lang | null>(storageKey, null);

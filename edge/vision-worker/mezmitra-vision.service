@@ -1,15 +1,15 @@
 # systemd unit for the camera box. Copy to /etc/systemd/system/, then:
-#   sudo systemctl daemon-reload && sudo systemctl enable --now dineos-vision
+#   sudo systemctl daemon-reload && sudo systemctl enable --now mezmitra-vision
 [Unit]
-Description=DineOS table vision worker
+Description=Mezmitra table vision worker
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=dineos
-WorkingDirectory=/opt/dineos-vision
-EnvironmentFile=/etc/dineos-vision.env
-ExecStart=/opt/dineos-vision/venv/bin/python -m dineos_vision
+User=mezmitra
+WorkingDirectory=/opt/mezmitra-vision
+EnvironmentFile=/etc/mezmitra-vision.env
+ExecStart=/opt/mezmitra-vision/venv/bin/python -m mezmitra_vision
 Restart=always
 RestartSec=5
 # The worker needs the network and its model; nothing else.

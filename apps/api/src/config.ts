@@ -8,11 +8,15 @@ export const API_ROOT = resolve(here, '..');
 export const REPO_ROOT = resolve(API_ROOT, '../..');
 
 /** Loads the repo-root .env once. Real environment variables win over the file. */
-/** Reads the repo's .env, or another file named by DINEOS_ENV_FILE (e.g. .env.supabase.local). */
+/**
+ * Reads the repo's .env, or another file named by MEZMITRA_ENV_FILE (e.g. .env.supabase.local).
+ * DINEOS_ENV_FILE, the product's earlier name for it, still works.
+ */
 export function loadEnvFile(): void {
-  const file = resolve(REPO_ROOT, process.env.DINEOS_ENV_FILE ?? '.env');
+  const named = process.env.MEZMITRA_ENV_FILE ?? process.env.DINEOS_ENV_FILE;
+  const file = resolve(REPO_ROOT, named ?? '.env');
   if (existsSync(file)) process.loadEnvFile(file);
-  else if (process.env.DINEOS_ENV_FILE) throw new Error(`DINEOS_ENV_FILE ${file} not found`);
+  else if (named) throw new Error(`MEZMITRA_ENV_FILE ${file} not found`);
 }
 
 const schema = z.object({
@@ -49,7 +53,8 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   /** Contact the push services can reach about abuse, e.g. mailto:ops@yourcompany.in. */
-  VAPID_SUBJECT: z.string().default('mailto:ops@dineos.app'),
+  // Set VAPID_SUBJECT to your support address: push services contact it about problems.
+  VAPID_SUBJECT: z.string().default('mailto:ops@example.com'),
 });
 
 export type Config = z.infer<typeof schema> & { corsOrigins: string[]; storageDir: string };

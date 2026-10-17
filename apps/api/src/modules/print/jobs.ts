@@ -1,4 +1,4 @@
-import type { PrintDoc, PrinterConfig, PrintJobDTO } from '@dineos/shared/print';
+import type { PrintDoc, PrinterConfig, PrintJobDTO } from '@mezmitra/shared/print';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 

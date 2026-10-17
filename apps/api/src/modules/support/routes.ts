@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { SUPPORT_SEVERITIES, type SupportSeverity, type SupportStatus } from '@dineos/shared/support';
+import { SUPPORT_SEVERITIES, type SupportSeverity, type SupportStatus } from '@mezmitra/shared/support';
 import type { AppContext } from '../../context';
 import { json } from '../../db';
 import { assertOutletAccess, requireAdmin, requireStaff } from '../../lib/auth';

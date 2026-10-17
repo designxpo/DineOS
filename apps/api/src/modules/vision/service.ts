@@ -1,5 +1,5 @@
-import type { CameraDTO, VisionConfigDTO } from '@dineos/shared/dto';
-import type { CameraState } from '@dineos/shared/table-state';
+import type { CameraDTO, VisionConfigDTO } from '@mezmitra/shared/dto';
+import type { CameraState } from '@mezmitra/shared/table-state';
 import type { Tx } from '../../context';
 import { refreshTableStates } from '../tables/sessions';
 

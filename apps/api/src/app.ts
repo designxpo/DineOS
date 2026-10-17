@@ -70,7 +70,7 @@ export async function buildApp(
     max: opts.rateLimitMax ?? config.RATE_LIMIT_MAX,
     timeWindow: '1 minute',
     keyGenerator: (req) => bearerToken(req) ?? req.ip,
-    ...(limitRedis ? { redis: limitRedis, nameSpace: 'dineos-rate-', skipOnError: true } : {}),
+    ...(limitRedis ? { redis: limitRedis, nameSpace: 'mezmitra-rate-', skipOnError: true } : {}),
   });
 
   registerAuth(app, ctx);

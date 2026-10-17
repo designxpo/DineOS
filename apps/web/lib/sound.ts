@@ -16,7 +16,7 @@ export interface SoundSettings {
   off: ChimeKind[];
 }
 
-const KEY = 'dineos.sound';
+const KEY = 'mezmitra.sound';
 const DEFAULTS: SoundSettings = { volume: 0.8, off: [] };
 
 export function soundSettings(): SoundSettings {

@@ -7,10 +7,10 @@
 # Optional:
 #   BACKUP_DIR             default ./backups
 #   BACKUP_KEEP_DAYS       default 14 (local copies)
-#   BACKUP_RSYNC_TARGET    e.g. backup@vault.example.in:/srv/dineos   (copied with rsync over ssh)
-#   BACKUP_S3_URI          e.g. s3://dineos-backups/prod                (aws cli; set AWS_ENDPOINT_URL for MinIO)
+#   BACKUP_RSYNC_TARGET    e.g. backup@vault.example.in:/srv/mezmitra  (copied with rsync over ssh)
+#   BACKUP_S3_URI          e.g. s3://mezmitra-backups/prod              (aws cli; set AWS_ENDPOINT_URL for MinIO)
 #
-# Cron (02:30 IST):  30 2 * * *  /opt/dineos/infra/backup/backup.sh >> /var/log/dineos-backup.log 2>&1
+# Cron (02:30 IST):  30 2 * * *  /opt/mezmitra/infra/backup/backup.sh >> /var/log/mezmitra-backup.log 2>&1
 set -euo pipefail
 
 : "${DATABASE_OWNER_URL:?set DATABASE_OWNER_URL}"
@@ -18,7 +18,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 KEEP_DAYS="${BACKUP_KEEP_DAYS:-14}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-NAME="dineos-${STAMP}"
+NAME="mezmitra-${STAMP}"
 mkdir -p "$BACKUP_DIR"
 umask 077
 
@@ -57,5 +57,6 @@ if [[ -z "${BACKUP_RSYNC_TARGET:-}${BACKUP_S3_URI:-}" ]]; then
   echo "WARNING: no second location configured (BACKUP_RSYNC_TARGET or BACKUP_S3_URI). A backup on the same server is not a backup."
 fi
 
-find "$BACKUP_DIR" -name 'dineos-*' -type f -mtime "+${KEEP_DAYS}" -delete
+# Backups from before the rename are named dineos-*; they age out the same way.
+find "$BACKUP_DIR" \( -name 'mezmitra-*' -o -name 'dineos-*' \) -type f -mtime "+${KEEP_DAYS}" -delete
 echo "[$(date -u +%FT%TZ)] backup ${NAME} done"

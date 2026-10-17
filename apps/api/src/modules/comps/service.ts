@@ -4,8 +4,8 @@
 // with why, for whom, who gave and approved it, its menu value and its ingredient cost.
 
 import { sql } from 'kysely';
-import type { CompDTO, CompReportDTO } from '@dineos/shared/dto';
-import type { CompReason } from '@dineos/shared/enums';
+import type { CompDTO, CompReportDTO } from '@mezmitra/shared/dto';
+import type { CompReason } from '@mezmitra/shared/enums';
 import type { Tx } from '../../context';
 import { requireApproval } from '../../lib/approvals';
 import { audit } from '../../lib/audit';

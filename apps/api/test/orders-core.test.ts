@@ -3,7 +3,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { OrderDTO } from '@dineos/shared/dto';
+import type { OrderDTO } from '@mezmitra/shared/dto';
 import { authenticate, type StaffAuth } from '../src/lib/auth';
 import { createOrder, setItemStatus, transitionOrder } from '../src/modules/orders/service';
 import { seatTable } from '../src/modules/tables/floor';

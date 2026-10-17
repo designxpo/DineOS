@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { MANAGER_APPROVAL_ACTIONS, PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, rolesCan } from '@dineos/shared/permissions';
-import type { Role } from '@dineos/shared/enums';
+import { MANAGER_APPROVAL_ACTIONS, PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, rolesCan } from '@mezmitra/shared/permissions';
+import type { Role } from '@mezmitra/shared/enums';
 import type { AppContext } from '../../context';
 import { audit } from '../../lib/audit';
 import { requireStaff } from '../../lib/auth';
@@ -46,7 +46,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const outcome = await ctx.tx(auth.tenantId, async (tx): Promise<Outcome> => {
         const approver = await findUserByLogin(tx, input.login);
         if (!approver?.pin_hash) {
-          await verifySecret(input.pin, await (dummyHash ??= hashSecret('dineos-no-pin')));
+          await verifySecret(input.pin, await (dummyHash ??= hashSecret('mezmitra-no-pin')));
           return { error: denied() };
         }
         const state = await tx.db

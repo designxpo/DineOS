@@ -1,5 +1,5 @@
 {
-  "name": "@dineos/api",
+  "name": "@mezmitra/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
-    "@dineos/shared": "*",
+    "@mezmitra/shared": "*",
     "@fastify/cors": "^11.3.1",
     "@fastify/multipart": "^10.1.4",
     "@fastify/rate-limit": "^11.2.1",

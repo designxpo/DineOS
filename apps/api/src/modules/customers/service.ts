@@ -1,5 +1,5 @@
-import type { CustomerDTO } from '@dineos/shared/dto';
-import { normalizePhone } from '@dineos/shared/phone';
+import type { CustomerDTO } from '@mezmitra/shared/dto';
+import { normalizePhone } from '@mezmitra/shared/phone';
 import type { Tx } from '../../context';
 import { badRequest } from '../../lib/errors';
 

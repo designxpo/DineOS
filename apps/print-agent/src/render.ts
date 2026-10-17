@@ -1,4 +1,4 @@
-import type { BillDoc, KotDoc, PrintDoc, TestDoc } from '@dineos/shared/print';
+import type { BillDoc, KotDoc, PrintDoc, TestDoc } from '@mezmitra/shared/print';
 import { columns, EscPos, wrap } from './escpos';
 
 const money = (paise: number) => (paise / 100).toFixed(2);

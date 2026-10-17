@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { MenuDTO } from '@dineos/shared/dto';
+import type { MenuDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestTenant } from './helpers';
 import { multipart } from './multipart';
 

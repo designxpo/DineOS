@@ -4,10 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, LogOut, Plus, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
-import type { AdminSupportCaseDTO } from '@dineos/shared/dto';
-import { rupeesToPaise } from '@dineos/shared/money';
-import { DEMO_PAIN_LABELS, type DemoPain } from '@dineos/shared/leads';
-import { SUPPORT_HOURS, SUPPORT_TARGET_MINUTES, type SupportSeverity, type SupportStatus } from '@dineos/shared/support';
+import type { AdminSupportCaseDTO } from '@mezmitra/shared/dto';
+import { rupeesToPaise } from '@mezmitra/shared/money';
+import { DEMO_PAIN_LABELS, type DemoPain } from '@mezmitra/shared/leads';
+import { SUPPORT_HOURS, SUPPORT_TARGET_MINUTES, type SupportSeverity, type SupportStatus } from '@mezmitra/shared/support';
 import { ApiError, apiFetch, errorMessage, type RequestOptions } from '@/lib/api';
 import { ago, date, dateTime, formatPaise, rupeesInput } from '@/lib/format';
 import { readLocal, writeLocal } from '@/lib/storage';
@@ -23,7 +23,7 @@ function useAdminApi() {
   const router = useRouter();
   const [token, setToken] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    const t = readLocal<string | null>('dineos.admin.token', null);
+    const t = readLocal<string | null>('mezmitra.admin.token', null);
     if (!t) router.replace('/admin/login');
     setToken(t);
   }, [router]);
@@ -32,7 +32,7 @@ function useAdminApi() {
       return await apiFetch<T>(path, { ...opts, token });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        writeLocal('dineos.admin.token', null);
+        writeLocal('mezmitra.admin.token', null);
         router.replace('/admin/login');
       }
       throw err;
@@ -59,7 +59,7 @@ export default function AdminPage() {
           className="ml-auto"
           onClick={() =>
             void api('/admin/auth/logout', { method: 'POST' }).finally(() => {
-              writeLocal('dineos.admin.token', null);
+              writeLocal('mezmitra.admin.token', null);
               router.replace('/admin/login');
             })
           }
@@ -207,7 +207,7 @@ function TenantDetail({ api, id, onClose }: { api: Api; id: string; onClose: () 
     if (reason.trim().length < 5) return toast('Write why you need access (it is shown in their audit log)', 'error');
     try {
       const res = await api<{ token: string }>(`/admin/tenants/${id}/impersonate`, { method: 'POST', body: { reason } });
-      writeLocal('dineos.staff.token', res.token);
+      writeLocal('mezmitra.staff.token', res.token);
       window.open('/app', '_blank');
     } catch (err) {
       toast(errorMessage(err), 'error');

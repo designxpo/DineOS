@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
 
-// Monorepo root: standalone output must include the hoisted node_modules and @dineos/shared.
+// Monorepo root: standalone output must include the hoisted node_modules and @mezmitra/shared.
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 // On Vercel the API shares the site's domain (vercel.json routes /v1 and /socket.io to it), so the
@@ -11,7 +11,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || (vercelHost ? `https://${verce
 
 const config: NextConfig = {
   env: { NEXT_PUBLIC_API_URL: apiUrl },
-  transpilePackages: ['@dineos/shared'],
+  transpilePackages: ['@mezmitra/shared'],
   output: 'standalone',
   outputFileTracingRoot: repoRoot,
   turbopack: { root: repoRoot },
@@ -49,6 +49,13 @@ const config: NextConfig = {
           { key: 'Cache-Control', value: 'no-cache' },
         ],
       },
+    ];
+  },
+  async rewrites() {
+    // The agent's download had the product's earlier name; anything still asking for it gets the current one.
+    return [
+      { source: '/agent/dineos-agent.mjs', destination: '/agent/mezmitra-agent.mjs' },
+      { source: '/agent/dineos-agent.mjs.sha256', destination: '/agent/mezmitra-agent.mjs.sha256' },
     ];
   },
 };

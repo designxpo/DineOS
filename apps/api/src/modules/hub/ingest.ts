@@ -2,10 +2,10 @@
 // the hub can resend after a timeout without duplicating anything. Each table visit (session with
 // its orders and bills) is its own transaction: one bad visit is reported, the rest still land.
 
-import { computeBill } from '@dineos/shared/billing';
-import type { ItemStatus, OrderStatus } from '@dineos/shared/enums';
-import { groupSyncPayload, type HubBill, type HubOrder, type HubSession, type HubSyncGroup, type HubSyncPayload, type HubSyncResult } from '@dineos/shared/hub';
-import { canItemTransition, canTransition, itemWasMade } from '@dineos/shared/order-state';
+import { computeBill } from '@mezmitra/shared/billing';
+import type { ItemStatus, OrderStatus } from '@mezmitra/shared/enums';
+import { groupSyncPayload, type HubBill, type HubOrder, type HubSession, type HubSyncGroup, type HubSyncPayload, type HubSyncResult } from '@mezmitra/shared/hub';
+import { canItemTransition, canTransition, itemWasMade } from '@mezmitra/shared/order-state';
 import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { audit } from '../../lib/audit';

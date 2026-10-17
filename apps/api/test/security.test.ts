@@ -5,7 +5,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PIN_MAX_ATTEMPTS } from '@dineos/shared/permissions';
+import { PIN_MAX_ATTEMPTS } from '@mezmitra/shared/permissions';
 import { detectImage } from '../src/lib/images';
 import { containedPath } from '../src/lib/storage';
 import { TtlCache } from '../src/lib/ttl-cache';

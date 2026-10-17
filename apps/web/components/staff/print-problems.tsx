@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, PrinterIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { PrintProblemDTO, PrintStatusDTO } from '@dineos/shared/print';
+import type { PrintProblemDTO, PrintStatusDTO } from '@mezmitra/shared/print';
 import { errorMessage, onHub } from '@/lib/api';
 import { ago, time } from '@/lib/format';
 import { chime } from '@/lib/sound';

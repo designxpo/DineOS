@@ -1,6 +1,6 @@
 // Permanently deletes every row a tenant owns (spec §12 data rights: delete on request).
 // Deliberately CLI-only and slow to type:
-//   npm run tenant:purge -w @dineos/api -- --slug the-courtyard --confirm the-courtyard
+//   npm run tenant:purge -w @mezmitra/api -- --slug the-courtyard --confirm the-courtyard
 // Export first (GET /v1/tenant/export) if the restaurant wants a copy. Backups age out on their own schedule.
 import { parseArgs } from 'node:util';
 import { loadConfig } from '../config';

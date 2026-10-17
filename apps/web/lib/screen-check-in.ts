@@ -3,12 +3,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import type { ScreenKind } from '@dineos/shared/dto';
+import type { ScreenKind } from '@mezmitra/shared/dto';
 import { onHub } from './api';
 import { useOutletEvents } from './realtime';
 import { useStaff } from './staff';
 
-const KEY = 'dineos.screen.id';
+const KEY = 'mezmitra.screen.id';
 const EVERY_MS = 30_000;
 
 /** This browser's screen id, kept so it stays the same screen (and name) across reloads. */

@@ -2,7 +2,7 @@
 // spend a guest's wallet at the counter. Shared limits, so neither can run up the SMS bill.
 
 import { createHmac } from 'node:crypto';
-import { normalizePhone } from '@dineos/shared/phone';
+import { normalizePhone } from '@mezmitra/shared/phone';
 import type { Tx } from '../context';
 import { badRequest, tooMany } from './errors';
 

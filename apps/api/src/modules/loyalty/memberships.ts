@@ -3,8 +3,8 @@
 
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { BillDTO, MembershipPlanDTO } from '@dineos/shared/dto';
-import { checkMembership, MEMBERSHIP_TEMPLATE_KEYS, type MembershipBenefits, type MembershipPlanInput, type MembershipTemplateKey } from '@dineos/shared/loyalty';
+import type { BillDTO, MembershipPlanDTO } from '@mezmitra/shared/dto';
+import { checkMembership, MEMBERSHIP_TEMPLATE_KEYS, type MembershipBenefits, type MembershipPlanInput, type MembershipTemplateKey } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { audit } from '../../lib/audit';

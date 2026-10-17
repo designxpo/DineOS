@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { TableDTO } from '@dineos/shared/dto';
+import type { TableDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;

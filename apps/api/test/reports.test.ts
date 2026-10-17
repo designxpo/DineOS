@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO } from '@dineos/shared/dto';
+import type { BillDTO } from '@mezmitra/shared/dto';
 import { previousRange } from '../src/modules/reports/insights';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

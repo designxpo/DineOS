@@ -1,11 +1,11 @@
 {
-  "name": "@dineos/print-agent",
+  "name": "@mezmitra/print-agent",
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "On-site agent: receives kitchen tickets and bills from DineOS and prints them on ESC/POS network printers",
+  "description": "On-site agent: receives kitchen tickets and bills from Mezmitra and prints them on ESC/POS network printers",
   "bin": {
-    "dineos-print-agent": "dist/main.js"
+    "mezmitra-print-agent": "dist/main.js"
   },
   "scripts": {
     "start": "tsx src/main.ts",
@@ -15,7 +15,7 @@
     "build:download": "tsup && node scripts/publish-download.mjs"
   },
   "dependencies": {
-    "@dineos/shared": "*",
+    "@mezmitra/shared": "*",
     "socket.io": "^4.8.4",
     "socket.io-client": "^4.8.4",
     "zod": "^4.6.7"

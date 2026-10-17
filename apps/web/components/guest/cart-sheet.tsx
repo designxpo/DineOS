@@ -2,7 +2,7 @@
 
 import { Minus, Plus, ShoppingBag, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { computeBill } from '@dineos/shared/billing';
+import { computeBill } from '@mezmitra/shared/billing';
 import { ApiError, errorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';

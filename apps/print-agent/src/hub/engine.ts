@@ -4,17 +4,17 @@
 // difference. Everything it changes is marked for sync and sent to the cloud when it is back.
 
 import { createHash, randomUUID } from 'node:crypto';
-import { computeBill } from '@dineos/shared/billing';
-import { businessDate, financialYear } from '@dineos/shared/dates';
-import type { BillDTO, InvoiceDTO, ItemsReadyDTO, MeDTO, MenuDTO, ModifierSnapshot, OrderDTO, OutletDTO, PaymentDTO, TableDTO } from '@dineos/shared/dto';
-import { ACTIVE_ORDER_STATUSES, type ItemStatus, type OrderSource, type OrderStatus, type OrderType, type PaymentMethod, type Role } from '@dineos/shared/enums';
-import type { EventType, OutletEvent } from '@dineos/shared/events';
-import { formatHubInvoiceNo, type HubBill, type HubOrder, type HubOrderItem, type HubSession, type HubSnapshot, type HubSyncPayload, type HubSyncResult } from '@dineos/shared/hub';
-import { checkModifierSelection, isScheduleOpen } from '@dineos/shared/menu';
-import { canItemTransition, cancelNeedsManager, canTransition, deriveOrderStatus, itemStatusForOrder, readyNews } from '@dineos/shared/order-state';
-import { rolesCan, type Action } from '@dineos/shared/permissions';
-import type { BillDoc, KotDoc, PrintDoc, PrinterConfig } from '@dineos/shared/print';
-import { deriveTableState } from '@dineos/shared/table-state';
+import { computeBill } from '@mezmitra/shared/billing';
+import { businessDate, financialYear } from '@mezmitra/shared/dates';
+import type { BillDTO, InvoiceDTO, ItemsReadyDTO, MeDTO, MenuDTO, ModifierSnapshot, OrderDTO, OutletDTO, PaymentDTO, TableDTO } from '@mezmitra/shared/dto';
+import { ACTIVE_ORDER_STATUSES, type ItemStatus, type OrderSource, type OrderStatus, type OrderType, type PaymentMethod, type Role } from '@mezmitra/shared/enums';
+import type { EventType, OutletEvent } from '@mezmitra/shared/events';
+import { formatHubInvoiceNo, type HubBill, type HubOrder, type HubOrderItem, type HubSession, type HubSnapshot, type HubSyncPayload, type HubSyncResult } from '@mezmitra/shared/hub';
+import { checkModifierSelection, isScheduleOpen } from '@mezmitra/shared/menu';
+import { canItemTransition, cancelNeedsManager, canTransition, deriveOrderStatus, itemStatusForOrder, readyNews } from '@mezmitra/shared/order-state';
+import { rolesCan, type Action } from '@mezmitra/shared/permissions';
+import type { BillDoc, KotDoc, PrintDoc, PrinterConfig } from '@mezmitra/shared/print';
+import { deriveTableState } from '@mezmitra/shared/table-state';
 
 export class HubError extends Error {
   constructor(

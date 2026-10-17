@@ -3,23 +3,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import type { CartDTO, GuestContextDTO, GuestJoinResponseDTO, GuestOrderDTO, GuestSessionDTO, MenuDTO, ServiceRequestDTO } from '@dineos/shared/dto';
-import type { OutletEvent } from '@dineos/shared/events';
+import type { CartDTO, GuestContextDTO, GuestJoinResponseDTO, GuestOrderDTO, GuestSessionDTO, MenuDTO, ServiceRequestDTO } from '@mezmitra/shared/dto';
+import type { OutletEvent } from '@mezmitra/shared/events';
 import { API_URL, ApiError, apiFetch, newKey } from '@/lib/api';
 import { readLocal, writeLocal } from '@/lib/storage';
 
 export type GuestPhase = 'loading' | 'invalid' | 'unavailable' | 'ready' | 'ended';
 
 function deviceId(): string {
-  let id = readLocal<string | null>('dineos.device', null);
+  let id = readLocal<string | null>('mezmitra.device', null);
   if (!id) {
     id = newKey();
-    writeLocal('dineos.device', id);
+    writeLocal('mezmitra.device', id);
   }
   return id;
 }
 
-const tokenKey = (qr: string) => `dineos.guest.${qr.slice(-24)}`;
+const tokenKey = (qr: string) => `mezmitra.guest.${qr.slice(-24)}`;
 
 export function useGuest(qr: string) {
   const qc = useQueryClient();

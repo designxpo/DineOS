@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { HEADING_STYLES, whiteLabelOn } from '@dineos/shared/branding';
-import type { OutletDTO, TenantBrandDTO } from '@dineos/shared/dto';
+import { HEADING_STYLES, whiteLabelOn } from '@mezmitra/shared/branding';
+import type { OutletDTO, TenantBrandDTO } from '@mezmitra/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { accessibleOutletIds, assertCan, assertOutletAccess, isTenantWide, requireStaff, type StaffAuth } from '../../lib/auth';
@@ -336,7 +336,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         await audit(tx, auth, { action: 'tenant.export', entity: 'tenant', entityId: tx.tenantId });
         return out;
       });
-      reply.header('content-disposition', `attachment; filename="dineos-export-${new Date().toISOString().slice(0, 10)}.json"`);
+      reply.header('content-disposition', `attachment; filename="mezmitra-export-${new Date().toISOString().slice(0, 10)}.json"`);
       return { exported_at: new Date().toISOString(), format_version: 1, data };
     });
   };

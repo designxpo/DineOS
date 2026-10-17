@@ -4,7 +4,7 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { PrintComputerStateDTO, ScreenDTO, ScreenKind, ScreensDTO } from '@dineos/shared/dto';
+import type { PrintComputerStateDTO, ScreenDTO, ScreenKind, ScreensDTO } from '@mezmitra/shared/dto';
 import type { AppContext } from '../../context';
 import { assertCan, assertOutletAccess, requireStaff } from '../../lib/auth';
 import { notFound } from '../../lib/errors';

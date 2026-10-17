@@ -1,6 +1,6 @@
-import type { OrderDTO } from '@dineos/shared/dto';
-import type { ItemStatus, OrderStatus } from '@dineos/shared/enums';
-import { deriveOrderStatus, itemWasMade } from '@dineos/shared/order-state';
+import type { OrderDTO } from '@mezmitra/shared/dto';
+import type { ItemStatus, OrderStatus } from '@mezmitra/shared/enums';
+import { deriveOrderStatus, itemWasMade } from '@mezmitra/shared/order-state';
 import type { Tx } from '../../context';
 import { requireApproval } from '../../lib/approvals';
 import { audit } from '../../lib/audit';

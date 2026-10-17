@@ -8,18 +8,19 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import setting
 from .tracking import PERSON, Detection
 
 
 def stream_url(ref: str, config_file: str | None = None) -> str | None:
     """
     The RTSP address (with its password) lives only on this box: an environment variable
-    DINEOS_RTSP_<REF>, or a JSON file {"<ref>": "rtsp://..."}. The cloud only knows the ref.
+    MEZMITRA_RTSP_<REF> (or DINEOS_RTSP_<REF>), or a JSON file {"<ref>": "rtsp://..."}. The cloud only knows the ref.
     """
-    env = os.environ.get(f"DINEOS_RTSP_{ref.upper()}")
+    env = setting(f"RTSP_{ref.upper()}")
     if env:
         return env
-    path = Path(config_file or os.environ.get("DINEOS_CAMERAS_FILE", "cameras.json"))
+    path = Path(config_file or setting("CAMERAS_FILE", "cameras.json"))
     if path.exists():
         return json.loads(path.read_text()).get(ref)
     return None

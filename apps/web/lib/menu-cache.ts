@@ -3,10 +3,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { createStore, get, set } from 'idb-keyval';
 import { useEffect, useState } from 'react';
-import type { MenuDTO } from '@dineos/shared/dto';
+import type { MenuDTO } from '@mezmitra/shared/dto';
+import { moveLegacyStore } from './legacy-names';
 import { useStaff } from './staff';
 
-const store = typeof indexedDB !== 'undefined' ? createStore('dineos-cache', 'menus') : null;
+const store = typeof indexedDB !== 'undefined' ? createStore('mezmitra-cache', 'menus') : null;
+// Menus cached under the product's earlier name come along before the cache is used.
+const moved = moveLegacyStore('dineos-cache', 'menus', store);
 
 /**
  * The outlet menu for staff screens, also kept in IndexedDB so the POS still opens and takes
@@ -16,13 +19,13 @@ export function useStaffMenu() {
   const { api, outletId } = useStaff();
   const [cached, setCached] = useState<MenuDTO | undefined>(undefined);
   useEffect(() => {
-    if (store) void get<MenuDTO>(outletId, store).then((m) => m && setCached(m));
+    if (store) void moved.then(() => get<MenuDTO>(outletId, store)).then((m) => m && setCached(m));
   }, [outletId]);
   const query = useQuery({
     queryKey: ['menu', outletId],
     queryFn: async () => {
       const menu = await api<MenuDTO>(`/menu?outlet_id=${outletId}`);
-      if (store) void set(outletId, menu, store);
+      if (store) void moved.then(() => set(outletId, menu, store));
       return menu;
     },
     placeholderData: cached,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import type { KotDoc } from '@dineos/shared/print';
+import type { KotDoc } from '@mezmitra/shared/print';
 import { time } from '@/lib/format';
 import { Line, Receipt, Rule, usePrintData } from '@/components/print/receipt';
 

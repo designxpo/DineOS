@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, Pencil, Plus, UserRound } from 'lucide-react';
 import { useState } from 'react';
-import { ROLES, type Role } from '@dineos/shared/enums';
+import { ROLES, type Role } from '@mezmitra/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';

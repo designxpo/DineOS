@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cable, Check, Copy, Monitor, Network, Plus, Printer, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { DeviceInfo, FoundPrinter, PrinterConfig } from '@dineos/shared/print';
+import type { DeviceInfo, FoundPrinter, PrinterConfig } from '@mezmitra/shared/print';
 import { API_URL, errorMessage } from '@/lib/api';
 import { ago, dateTime, time } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -43,7 +43,7 @@ function installCommand(os: Os, token: string, hub: boolean): string {
   const web = window.location.origin;
   const api = new URL(API_URL, web).origin;
   if (os === 'windows') {
-    return `$env:DINEOS_WEB='${web}'; $env:DINEOS_API='${api}'; $env:DINEOS_TOKEN='${token}';${hub ? " $env:DINEOS_HUB='1';" : ''} irm ${web}/agent/install.ps1 | iex`;
+    return `$env:MEZMITRA_WEB='${web}'; $env:MEZMITRA_API='${api}'; $env:MEZMITRA_TOKEN='${token}';${hub ? " $env:MEZMITRA_HUB='1';" : ''} irm ${web}/agent/install.ps1 | iex`;
   }
   return `curl -fsSL ${web}/agent/install.sh | ${os === 'linux' ? 'sudo ' : ''}sh -s -- --web ${web} --api ${api} --token ${token}${hub ? ' --hub' : ''}`;
 }

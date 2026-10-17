@@ -18,7 +18,7 @@ function Realtime({ children }: { children: React.ReactNode }) {
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
     <StaffProvider>
-      <I18nProvider storageKey="dineos.staff.lang">
+      <I18nProvider storageKey="mezmitra.staff.lang">
         <Realtime>
           <ApprovalProvider>
             <AppShell>{children}</AppShell>

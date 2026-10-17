@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { CartDTO, CartLineDTO, GuestContextDTO, GuestSessionDTO } from '@dineos/shared/dto';
-import type { BillStatus, SessionStatus } from '@dineos/shared/enums';
+import type { CartDTO, CartLineDTO, GuestContextDTO, GuestSessionDTO } from '@mezmitra/shared/dto';
+import type { BillStatus, SessionStatus } from '@mezmitra/shared/enums';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { shownBrand } from '../../lib/branding';

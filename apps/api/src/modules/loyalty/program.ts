@@ -3,8 +3,8 @@
 
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { LoyaltyProgramDTO, ProgramStatus } from '@dineos/shared/dto';
-import { checkProgram, EMPTY_PROGRAM, PROGRAM_TEMPLATE_KEYS, type CategoryNames, type EarnRule, type LoyaltyConfig, type ProgramTemplateKey } from '@dineos/shared/loyalty';
+import type { LoyaltyProgramDTO, ProgramStatus } from '@mezmitra/shared/dto';
+import { checkProgram, EMPTY_PROGRAM, PROGRAM_TEMPLATE_KEYS, type CategoryNames, type EarnRule, type LoyaltyConfig, type ProgramTemplateKey } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { audit } from '../../lib/audit';

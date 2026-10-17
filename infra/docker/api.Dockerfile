@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# DineOS API. Build from the repo root:  docker build -f infra/docker/api.Dockerfile -t dineos-api .
+# Mezmitra API. Build from the repo root:  docker build -f infra/docker/api.Dockerfile -t mezmitra-api .
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -14,7 +14,7 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api apps/api
-RUN npm run build -w @dineos/api
+RUN npm run build -w @mezmitra/api
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
@@ -24,7 +24,7 @@ COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/print-agent/package.json apps/print-agent/
-RUN npm ci --omit=dev --ignore-scripts -w @dineos/api && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts -w @mezmitra/api && npm cache clean --force
 COPY packages/shared packages/shared
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY apps/api/migrations apps/api/migrations

@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, Landmark, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, StatementDetailDTO } from '@dineos/shared/dto';
+import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, StatementDetailDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { date, dateTime, formatPaise } from '@/lib/format';
 import { missingNote } from '@/lib/reconcile';

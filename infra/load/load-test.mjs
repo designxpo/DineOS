@@ -2,7 +2,7 @@
 // 10 staff devices. Measures what matters: time from a guest tapping "Order now" to the order
 // appearing on staff screens (budget: 2 s), plus menu and order request latency.
 //
-//   ADMIN_EMAIL=admin@dineos.local ADMIN_PASSWORD=admin-demo-1234 \
+//   ADMIN_EMAIL=admin@mezmitra.local ADMIN_PASSWORD=admin-demo-1234 \
 //   API_URL=http://localhost:4000 DURATION_S=60 node infra/load/load-test.mjs
 //
 // It provisions its own throwaway tenant through the admin API, so it never touches real data.
@@ -44,7 +44,7 @@ function stats(values) {
 }
 
 async function setup() {
-  const admin = (await call('/admin/auth/login', { method: 'POST', body: { email: process.env.ADMIN_EMAIL ?? 'admin@dineos.local', password: process.env.ADMIN_PASSWORD ?? 'admin-demo-1234' } })).data.token;
+  const admin = (await call('/admin/auth/login', { method: 'POST', body: { email: process.env.ADMIN_EMAIL ?? 'admin@mezmitra.local', password: process.env.ADMIN_PASSWORD ?? 'admin-demo-1234' } })).data.token;
   const slug = `load-${Date.now().toString(36)}`;
   await call('/admin/tenants', {
     method: 'POST',

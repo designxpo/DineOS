@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import type { InvoiceDTO } from '@dineos/shared/dto';
+import type { InvoiceDTO } from '@mezmitra/shared/dto';
 import { formatRate } from '@/lib/format';
 import { Line, Receipt, Rule, usePrintData } from '@/components/print/receipt';
 

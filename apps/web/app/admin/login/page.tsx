@@ -20,7 +20,7 @@ export default function AdminLogin() {
     setError(null);
     try {
       const res = await apiFetch<{ token: string }>('/admin/auth/login', { method: 'POST', body: { email, password } });
-      writeLocal('dineos.admin.token', res.token);
+      writeLocal('mezmitra.admin.token', res.token);
       router.replace('/admin');
     } catch (err) {
       setError(errorMessage(err));

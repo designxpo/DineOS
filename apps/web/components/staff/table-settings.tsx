@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
-import type { MenuDTO } from '@dineos/shared/dto';
+import type { MenuDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { formatPaise } from '@/lib/format';
 import { useStaff } from '@/lib/staff';

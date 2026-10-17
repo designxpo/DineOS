@@ -1,4 +1,4 @@
-# DineOS
+# Mezmitra
 
 Multi-tenant restaurant and cafe platform for India: guests order from a table QR code on their own phone, orders reach the kitchen display and the manager's inbox in well under two seconds, and cashiers settle GST invoices with cash, the outlet's own UPI QR, card slips or split payments. Built to the *Restaurant & Cafe SaaS dev spec*: all of Phase 1, Phase 2 (operations and the offline tier), Phase 3 (camera table vision) and Phase 4 without a payment gateway (UPI checked against the bank statement).
 
@@ -7,7 +7,7 @@ Multi-tenant restaurant and cafe platform for India: guests order from a table Q
 | Guest QR menu (PWA, no app, no login, English/Hindi) | `/t/{table token}` | Guests |
 | Staff and owner portal: orders inbox, kitchen display, floor map, POS, bills, menu, tables and QR, reports, staff, settings | `/app` | Owners, managers, cashiers, waiters, kitchen |
 | Platform admin: restaurants, plans, subscription invoices, usage, support access | `/admin` | You |
-| Print agent for ESC/POS kitchen and bill printers; with `DINEOS_HUB=1` also the **outlet hub** that keeps the outlet trading through internet outages | `apps/print-agent` | Runs on one PC per outlet |
+| Print agent for ESC/POS kitchen and bill printers; with `MEZMITRA_HUB=1` also the **outlet hub** that keeps the outlet trading through internet outages | `apps/print-agent` | Runs on one PC per outlet |
 | Camera table vision worker (optional) | `edge/vision-worker` (Python) | Runs on a small box next to the outlet's IP cameras |
 
 ## Run it locally
@@ -17,7 +17,7 @@ Needs Node 22+ and PostgreSQL 16.
 ```bash
 npm install
 cp .env.example .env                      # then set TOKEN_SECRET to 32+ random characters
-npm run db:setup && npm run db:migrate    # creates roles and the dineos_dev database
+npm run db:setup && npm run db:migrate    # creates roles and the mezmitra_dev database
 npm run db:seed                           # a hotel restaurant: menu, 22 tables, staff, two weeks of trade,
                                           # stock and recipes, loyalty customers, tonight's bookings
 npm run dev                               # API on :4000, web on :3000
@@ -32,7 +32,7 @@ Open <http://localhost:3000/login> and sign in with restaurant code `aurum-court
 | Cashier | priya@courtyard.demo | demo1234 |
 | Waiter | ravi@courtyard.demo | demo1234 |
 | Kitchen | imran@courtyard.demo | demo1234 |
-| Platform admin, at `/admin/login` | admin@dineos.local | admin-demo-1234 |
+| Platform admin, at `/admin/login` | admin@mezmitra.local | admin-demo-1234 |
 
 To act as a guest, open **Floor**, tap a table and choose **Guest menu**, or print the QR sheet from **Tables & QR**. Phones on your network can scan it if you set `GUEST_URL_TEMPLATE` and `NEXT_PUBLIC_API_URL` to your machine's LAN address.
 
@@ -43,11 +43,11 @@ To act as a guest, open **Floor**, tap a table and choose **Guest menu**, or pri
 | `npm test` | All tests: shared billing/state rules, the API against a real Postgres (including the cross-tenant suite and an end-to-end internet outage through the outlet hub), print agent layouts, the web offline queue |
 | `cd edge/vision-worker && python3 -m unittest discover -s tests` | Camera worker tests (standard library; the detector test also runs with numpy) |
 | `npm run lint` / `npm run typecheck` | ESLint and TypeScript across the monorepo |
-| `npm run db:migrate` then `npm run db:codegen -w @dineos/api` | Apply a new migration and regenerate the typed schema |
+| `npm run db:migrate` then `npm run db:codegen -w @mezmitra/api` | Apply a new migration and regenerate the typed schema |
 | `node infra/load/load-test.mjs` | Load test at the spec's scale target (see docs/operations.md) |
 | `infra/backup/backup.sh`, `infra/backup/restore-drill.sh` | Encrypted backup; restore the newest backup into a scratch database and verify it |
-| `DINEOS_DRY_RUN=1 DINEOS_DEVICE_TOKEN=dv_... npm start -w @dineos/print-agent` | Run the print agent without a printer and see the tickets as text |
-| `DINEOS_HUB=1 DINEOS_DRY_RUN=1 DINEOS_DEVICE_TOKEN=dv_... npm start -w @dineos/print-agent` | Run the outlet hub locally on :4100 (see docs/operations.md) |
+| `MEZMITRA_DRY_RUN=1 MEZMITRA_DEVICE_TOKEN=dv_... npm start -w @mezmitra/print-agent` | Run the print agent without a printer and see the tickets as text |
+| `MEZMITRA_HUB=1 MEZMITRA_DRY_RUN=1 MEZMITRA_DEVICE_TOKEN=dv_... npm start -w @mezmitra/print-agent` | Run the outlet hub locally on :4100 (see docs/operations.md) |
 
 ## What is built
 
@@ -109,8 +109,8 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 
 ## Decisions that differ from the spec
 
-- **Web Push, by your decision.** Phone alerts go through the browser makers' push services (Google, Apple, Mozilla), an exception to the no-third-party rule. Nothing but the alert text leaves DineOS, and they are off until VAPID keys are set.
-- **SMS codes through MSG91, by your decision.** DineOS makes and checks the codes; MSG91 only delivers them. Without its keys, loyalty works as before.
+- **Web Push, by your decision.** Phone alerts go through the browser makers' push services (Google, Apple, Mozilla), an exception to the no-third-party rule. Nothing but the alert text leaves Mezmitra, and they are off until VAPID keys are set.
+- **SMS codes through MSG91, by your decision.** Mezmitra makes and checks the codes; MSG91 only delivers them. Without its keys, loyalty works as before.
 - **Delivery apps entered by hand for now.** Zomato and Swiggy only open their order APIs to approved partners; delivery orders are typed in at the POS until an aggregator (such as UrbanPiper) is connected.
 - **Service charge** is off by default and staff can remove it from any bill, because Indian consumer guidelines bar charging it automatically.
 - **GST rate** is set per dish with an outlet default; the seed uses 5%. For a hotel restaurant the right rate can depend on room tariffs, so confirm with your accountant before the pilot.

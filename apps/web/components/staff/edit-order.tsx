@@ -3,9 +3,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus, Search, Undo2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { MenuItemDTO, OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
-import { itemWasMade } from '@dineos/shared/order-state';
-import { searchDishes } from '@dineos/shared/search';
+import type { MenuItemDTO, OrderDTO, OrderItemDTO } from '@mezmitra/shared/dto';
+import { itemWasMade } from '@mezmitra/shared/order-state';
+import { searchDishes } from '@mezmitra/shared/search';
 import { errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
 import { usePopular, useStaffMenu } from '@/lib/menu-cache';

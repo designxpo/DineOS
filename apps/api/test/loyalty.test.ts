@@ -2,9 +2,9 @@
 // bills, levels, happy hours, moments, and rewards used on bills.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, BillLoyaltyDTO, CustomerDTO, LoyaltyReportDTO, OrderDTO } from '@dineos/shared/dto';
-import { EMPTY_PROGRAM, PROGRAM_TEMPLATES, type LoyaltyConfig } from '@dineos/shared/loyalty';
-import { businessDate } from '@dineos/shared/dates';
+import type { BillDTO, BillLoyaltyDTO, CustomerDTO, LoyaltyReportDTO, OrderDTO } from '@mezmitra/shared/dto';
+import { EMPTY_PROGRAM, PROGRAM_TEMPLATES, type LoyaltyConfig } from '@mezmitra/shared/loyalty';
+import { businessDate } from '@mezmitra/shared/dates';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;

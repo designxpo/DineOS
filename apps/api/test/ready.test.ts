@@ -2,7 +2,7 @@
 // when something is waiting at the pass, and waiters can serve the drinks while the food cooks.
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { ItemsReadyDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
+import type { ItemsReadyDTO, OrderDTO, TableDTO } from '@mezmitra/shared/dto';
 import type { PushMessage } from '../src/lib/push';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

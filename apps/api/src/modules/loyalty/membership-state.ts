@@ -1,8 +1,8 @@
 // Memberships a guest holds: what is running now and what it gives. Read by billing, the engine and
 // the guest app; imports nothing from them.
 
-import type { CustomerMembershipDTO } from '@dineos/shared/dto';
-import type { MembershipBenefits } from '@dineos/shared/loyalty';
+import type { CustomerMembershipDTO } from '@mezmitra/shared/dto';
+import type { MembershipBenefits } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 
 export interface SoldPlan {

@@ -6,6 +6,7 @@
 
 import { createStore, del, entries, set } from 'idb-keyval';
 import { ApiError, apiFetch, NetworkError, newKey, type RequestOptions } from './api';
+import { moveLegacyStore } from './legacy-names';
 
 export interface QueuedRequest {
   key: string;
@@ -33,11 +34,14 @@ export interface OutboxState {
 }
 
 const idb = typeof indexedDB !== 'undefined';
-const store = idb ? createStore('dineos-outbox', 'requests') : null;
-const rejectedStore = idb ? createStore('dineos-outbox-rejected', 'requests') : null;
+const store = idb ? createStore('mezmitra-outbox', 'requests') : null;
+const rejectedStore = idb ? createStore('mezmitra-outbox-rejected', 'requests') : null;
+// Changes queued under the product's earlier name move over before anything reads or sends them.
+const moved = Promise.all([moveLegacyStore('dineos-outbox', 'requests', store), moveLegacyStore('dineos-outbox-rejected', 'requests', rejectedStore)]);
 const listeners = new Set<(s: OutboxState) => void>();
 
 async function state(): Promise<OutboxState> {
+  await moved;
   return {
     pending: store ? (await entries(store)).length : 0,
     rejected: rejectedStore ? (await entries(rejectedStore)).length : 0,
@@ -57,22 +61,26 @@ export function onOutboxChange(fn: (s: OutboxState) => void): () => void {
 
 export async function listQueued(): Promise<QueuedRequest[]> {
   if (!store) return [];
+  await moved;
   return (await entries<string, QueuedRequest>(store)).map(([, v]) => v).sort((a, b) => a.queuedAt - b.queuedAt);
 }
 
 export async function listRejected(): Promise<RejectedRequest[]> {
   if (!rejectedStore) return [];
+  await moved;
   return (await entries<string, RejectedRequest>(rejectedStore)).map(([, v]) => v).sort((a, b) => b.rejectedAt - a.rejectedAt);
 }
 
 /** Drops a queued change without sending it. */
 export async function discard(key: string): Promise<void> {
+  await moved;
   if (store) await del(key, store);
   await notify();
 }
 
 export async function dismissRejected(key?: string): Promise<void> {
   if (!rejectedStore) return;
+  await moved;
   for (const r of key ? [{ key }] : await listRejected()) await del(r.key, rejectedStore);
   await notify();
 }
@@ -95,6 +103,7 @@ export async function send<T>(
   } catch (err) {
     // Manager approvals are short-lived and single-use, so those actions are never queued.
     if (!(err instanceof NetworkError) || !store || opts.approvalToken) throw err;
+    await moved;
     await set(key, { key, path, method: opts.method, body: opts.body, label: opts.label, queuedAt: Date.now(), token } satisfies QueuedRequest, store);
     await notify();
     return { queued: true };
@@ -107,6 +116,7 @@ let flushing = false;
 export async function flush(token: string): Promise<{ sent: number; failed: { label: string; message: string }[] }> {
   if (!store || flushing) return { sent: 0, failed: [] };
   flushing = true;
+  await moved;
   const failed: { label: string; message: string }[] = [];
   let sent = 0;
   try {

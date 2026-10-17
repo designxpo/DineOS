@@ -1,8 +1,8 @@
 import unittest
 
-from dineos_vision.geometry import box_overlap, center_in_zone, iou, point_in_polygon
-from dineos_vision.tracking import Detection, Tracker
-from dineos_vision.zones import NEEDS_CLEANING, OCCUPIED, VACANT, Debouncer, classify_zone
+from mezmitra_vision.geometry import box_overlap, center_in_zone, iou, point_in_polygon
+from mezmitra_vision.tracking import Detection, Tracker
+from mezmitra_vision.zones import NEEDS_CLEANING, OCCUPIED, VACANT, Debouncer, classify_zone
 
 SQUARE = [(0.2, 0.2), (0.6, 0.2), (0.6, 0.6), (0.2, 0.6)]
 # An L shape, to make sure concave zones work (tables pushed together).

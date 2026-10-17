@@ -10,7 +10,7 @@ let admin: ReturnType<typeof api>;
 
 beforeAll(async () => {
   t = await startApp();
-  const email = `leads-${randomUUID().slice(0, 6)}@dineos.test`;
+  const email = `leads-${randomUUID().slice(0, 6)}@mezmitra.test`;
   await t.ctx.adminDb.insertInto('platform_admins').values({ name: 'Sales', email, password_hash: await hashSecret('admin-password-1') }).execute();
   admin = api(t, (await t.app.inject({ method: 'POST', url: '/v1/admin/auth/login', payload: { email, password: 'admin-password-1' } })).json().token);
 });
@@ -20,7 +20,7 @@ const ask = (payload: object) => t.app.inject({ method: 'POST', url: '/v1/public
 const mine = async (restaurant: string) => ((await admin({ method: 'GET', url: '/v1/admin/demo-requests' })).json() as { restaurant: string; id: string; phone: string; status: string; pains: string[]; contacted_at: string | null }[]).filter((r) => r.restaurant === restaurant);
 
 describe('demo requests', () => {
-  it('records a request from the website for DineOS to follow up', async () => {
+  it('records a request from the website for Mezmitra to follow up', async () => {
     const restaurant = `Chai Point ${randomUUID().slice(0, 4)}`;
     const res = await ask({ name: 'Kavya', restaurant, phone: '98450 12345', city: 'Pune', tables: '11-25', plan: 'Table service', pains: ['payments_mismatch', 'month_end', 'month_end'], note: 'Two outlets soon' });
     expect(res.statusCode).toBe(201);

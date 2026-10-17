@@ -1,4 +1,4 @@
-import type { BrandingDTO } from '@dineos/shared/dto';
+import type { BrandingDTO } from '@mezmitra/shared/dto';
 import { cn } from '@/components/ui/cn';
 
 /**

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Restores an encrypted backup into a database.
-#   BACKUP_PASSPHRASE=... ./restore.sh backups/dineos-20261015T210000Z.dump.enc postgres://localhost:5432/dineos_restored
+#   BACKUP_PASSPHRASE=... ./restore.sh backups/mezmitra-20261015T210000Z.dump.enc postgres://localhost:5432/mezmitra_restored
 # The target database must exist and be empty. Roles dineos_app and dineos_admin are created if missing
 # (without passwords: set them afterwards with ALTER ROLE ... PASSWORD).
 set -euo pipefail

@@ -6,7 +6,7 @@ import { assertCan, requireStaff, type StaffAuth } from '../../lib/auth';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { idParams, parse } from '../../lib/validate';
 import { readGrid } from '../menu/import';
-import { businessDate } from '@dineos/shared/dates';
+import { businessDate } from '@mezmitra/shared/dates';
 import { importStatement, listStatements, statementDetail, upiCheck } from './service';
 import { parseStatement } from './statement';
 

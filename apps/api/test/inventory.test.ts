@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { IngredientDTO, OrderDTO, RecipesDTO, StockMovementDTO } from '@dineos/shared/dto';
+import type { IngredientDTO, OrderDTO, RecipesDTO, StockMovementDTO } from '@mezmitra/shared/dto';
 import { createOrder } from '../src/modules/orders/service';
 import { addStaff, api, createMenu, createTable, createTenant, setOutlet, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

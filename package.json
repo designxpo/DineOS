@@ -1,5 +1,5 @@
 {
-  "name": "dineos",
+  "name": "mezmitra",
   "private": true,
   "description": "DineOS: multi-tenant restaurant and cafe platform (QR ordering, POS, KDS, owner portal)",
   "workspaces": [
@@ -10,10 +10,10 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "npm run dev -w @dineos/api & npm run dev -w @dineos/web & wait",
-    "db:setup": "npm run db:setup -w @dineos/api",
-    "db:migrate": "npm run db:migrate -w @dineos/api",
-    "db:seed": "npm run db:seed -w @dineos/api",
+    "dev": "npm run dev -w @mezmitra/api & npm run dev -w @mezmitra/web & wait",
+    "db:setup": "npm run db:setup -w @mezmitra/api",
+    "db:migrate": "npm run db:migrate -w @mezmitra/api",
+    "db:seed": "npm run db:seed -w @mezmitra/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present",

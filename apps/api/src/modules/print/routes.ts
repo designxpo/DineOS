@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { BillDoc, KotDoc, PrintDoc, PrintJobDTO, PrintProblemDTO, PrintStatusDTO } from '@dineos/shared/print';
+import type { BillDoc, KotDoc, PrintDoc, PrintJobDTO, PrintProblemDTO, PrintStatusDTO } from '@mezmitra/shared/print';
 import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { assertCan, requireDevice, requireStaff } from '../../lib/auth';

@@ -5,8 +5,8 @@
 // render outside the page's own tree) carry it too. An empty branding leaves the Mezmitra look.
 
 import { useEffect } from 'react';
-import { brandShades } from '@dineos/shared/branding';
-import type { BrandingDTO } from '@dineos/shared/dto';
+import { brandShades } from '@mezmitra/shared/branding';
+import type { BrandingDTO } from '@mezmitra/shared/dto';
 
 // Mezmitra's own headings are sans (Manrope); a restaurant can choose classic serif ones.
 const SERIF = 'var(--font-fraunces), Georgia, serif';

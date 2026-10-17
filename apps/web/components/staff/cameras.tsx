@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Copy, ImageOff, Plus, RefreshCw, ShieldCheck, Trash2, Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { CameraDTO, TableDTO } from '@dineos/shared/dto';
+import type { CameraDTO, TableDTO } from '@mezmitra/shared/dto';
 import { API_URL, apiBlobUrl, errorMessage } from '@/lib/api';
 import { ago } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -120,7 +120,7 @@ export function CamerasSettings() {
 
       <Sheet open={!!token} onClose={() => setToken(null)} title="Camera box added">
         <p className="text-sm text-ink-soft">On the outlet computer, with Python 3.11 and the model from the setup guide, run the worker with this token. It is shown only once.</p>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-stone-900 p-3 text-xs text-stone-100">{`DINEOS_API_URL=${API_URL} \\\nDINEOS_DEVICE_TOKEN=${token} \\\nDINEOS_RTSP_COURTYARD=rtsp://user:pass@192.168.1.60/stream1 \\\npython -m dineos_vision`}</pre>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-stone-900 p-3 text-xs text-stone-100">{`MEZMITRA_API_URL=${API_URL} \\\nMEZMITRA_DEVICE_TOKEN=${token} \\\nMEZMITRA_RTSP_COURTYARD=rtsp://user:pass@192.168.1.60/stream1 \\\npython -m mezmitra_vision`}</pre>
         <Button className="mt-3" variant="outline" onClick={() => void navigator.clipboard.writeText(token ?? '').then(() => toast('Token copied'))}>
           <Copy className="size-4" /> Copy token
         </Button>
@@ -152,7 +152,7 @@ function AddCamera({ boxes, onClose }: { boxes: Device[]; onClose: () => void })
     <Sheet open onClose={onClose} title="Add camera" footer={<Button block onClick={() => void save()} disabled={!name.trim() || !/^[a-zA-Z0-9_]{1,40}$/.test(ref) || !box}>Add</Button>}>
       <div className="space-y-4">
         <Field label="Name">{(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} placeholder="Courtyard, east corner" autoFocus />}</Field>
-        <Field label="Stream setting on the camera box" hint={`The box reads the address from DINEOS_RTSP_${(ref || 'NAME').toUpperCase()}. The camera password stays on the box.`}>
+        <Field label="Stream setting on the camera box" hint={`The box reads the address from MEZMITRA_RTSP_${(ref || 'NAME').toUpperCase()}. The camera password stays on the box.`}>
           {(id) => <Input id={id} value={ref} onChange={(e) => setRef(e.target.value.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase())} placeholder="courtyard_east" />}
         </Field>
         {boxes.length > 1 && (

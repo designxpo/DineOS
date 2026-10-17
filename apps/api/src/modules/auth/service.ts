@@ -1,6 +1,6 @@
-import type { MeDTO } from '@dineos/shared/dto';
-import type { Role } from '@dineos/shared/enums';
-import { looksLikeEmail, normalizePhone } from '@dineos/shared/phone';
+import type { MeDTO } from '@mezmitra/shared/dto';
+import type { Role } from '@mezmitra/shared/enums';
+import { looksLikeEmail, normalizePhone } from '@mezmitra/shared/phone';
 import type { Tx } from '../../context';
 import { accessibleOutletIds, rolesAt, type StaffAuth } from '../../lib/auth';
 import { shownBrand } from '../../lib/branding';

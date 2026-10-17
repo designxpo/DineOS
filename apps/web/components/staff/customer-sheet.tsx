@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { CustomerDTO } from '@dineos/shared/dto';
+import type { CustomerDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';

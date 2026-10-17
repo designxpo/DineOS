@@ -9,7 +9,7 @@ except ImportError:  # the worker core runs without numpy; only the detector nee
 @unittest.skipUnless(np is not None, "numpy not installed")
 class PostprocessTest(unittest.TestCase):
     def test_decodes_yolox_grid_output(self):
-        from dineos_vision.detector import LABELS, postprocess
+        from mezmitra_vision.detector import LABELS, postprocess
 
         size = 640
         cells = sum((size // s) ** 2 for s in (8, 16, 32))

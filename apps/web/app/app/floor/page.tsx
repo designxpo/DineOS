@@ -3,9 +3,9 @@
 import { usePersistedQuery } from '@/lib/persisted-query';
 import { BellRing, CalendarClock, Cctv, HandPlatter, Link2, ReceiptIndianRupee, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { TableDTO } from '@dineos/shared/dto';
-import { TABLE_STATES, type TableState } from '@dineos/shared/enums';
-import { CLEANING_ALERT_MINUTES, GUESTS_WAITING_ALERT_MINUTES, paymentAlert } from '@dineos/shared/table-state';
+import type { TableDTO } from '@mezmitra/shared/dto';
+import { TABLE_STATES, type TableState } from '@mezmitra/shared/enums';
+import { CLEANING_ALERT_MINUTES, GUESTS_WAITING_ALERT_MINUTES, paymentAlert } from '@mezmitra/shared/table-state';
 import { ago, duration, formatPaise, minutesSince, time } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';

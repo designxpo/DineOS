@@ -3,8 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Gift, Minus, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { CustomerDTO } from '@dineos/shared/dto';
-import { MANUAL_COMP_REASONS, type CompReason } from '@dineos/shared/enums';
+import type { CustomerDTO } from '@mezmitra/shared/dto';
+import { MANUAL_COMP_REASONS, type CompReason } from '@mezmitra/shared/enums';
 import { formatPaise } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';

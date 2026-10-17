@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { INGREDIENT_UNITS, type RecipeLineDTO, type RecipesDTO, type StockMovementDTO } from '@dineos/shared/dto';
+import { INGREDIENT_UNITS, type RecipeLineDTO, type RecipesDTO, type StockMovementDTO } from '@mezmitra/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { assertCan, requireStaff } from '../../lib/auth';

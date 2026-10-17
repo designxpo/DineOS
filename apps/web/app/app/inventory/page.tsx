@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ClipboardCheck, Package, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { INGREDIENT_UNITS, type IngredientDTO, type IngredientUnit, type MenuItemDTO, type RecipeLineDTO, type RecipesDTO, type StockMovementDTO, type StockMovementType } from '@dineos/shared/dto';
+import { INGREDIENT_UNITS, type IngredientDTO, type IngredientUnit, type MenuItemDTO, type RecipeLineDTO, type RecipesDTO, type StockMovementDTO, type StockMovementType } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { dateTime, formatPaise, todayIst } from '@/lib/format';

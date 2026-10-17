@@ -3,8 +3,11 @@
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { createStore, get, set } from 'idb-keyval';
 import { useEffect, useState } from 'react';
+import { moveLegacyStore } from './legacy-names';
 
-const store = typeof indexedDB !== 'undefined' ? createStore('dineos-queries', 'snapshots') : null;
+const store = typeof indexedDB !== 'undefined' ? createStore('mezmitra-queries', 'snapshots') : null;
+// Snapshots saved under the product's earlier name come along before the cache is used.
+const moved = moveLegacyStore('dineos-queries', 'snapshots', store);
 
 /**
  * A query whose last good result is kept in IndexedDB (spec §2: POS and KDS cache open orders).
@@ -21,7 +24,7 @@ export function usePersistedQuery<T>(
 
   useEffect(() => {
     setSnapshot(undefined);
-    if (store) void get<{ data: T; savedAt: number }>(storeKey, store).then((v) => v && setSnapshot(v));
+    if (store) void moved.then(() => get<{ data: T; savedAt: number }>(storeKey, store)).then((v) => v && setSnapshot(v));
   }, [storeKey]);
 
   const query = useQuery({
@@ -30,7 +33,7 @@ export function usePersistedQuery<T>(
     refetchInterval: opts.refetchInterval,
     queryFn: async () => {
       const data = await fn();
-      if (store) void set(storeKey, { data, savedAt: Date.now() }, store);
+      if (store) void moved.then(() => set(storeKey, { data, savedAt: Date.now() }, store));
       return data;
     },
   });

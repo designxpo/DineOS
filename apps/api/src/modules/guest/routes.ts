@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { GuestJoinResponseDTO } from '@dineos/shared/dto';
+import type { GuestJoinResponseDTO } from '@mezmitra/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { requireGuest } from '../../lib/auth';
 import { AppError, badRequest, conflict, notFound, tooMany } from '../../lib/errors';

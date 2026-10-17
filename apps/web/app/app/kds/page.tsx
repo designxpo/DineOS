@@ -5,8 +5,8 @@ import { usePersistedQuery } from '@/lib/persisted-query';
 import { ArrowLeft, ChefHat, LogOut, Maximize, StickyNote } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
-import type { ItemStatus } from '@dineos/shared/enums';
+import type { OrderDTO, OrderItemDTO } from '@mezmitra/shared/dto';
+import type { ItemStatus } from '@mezmitra/shared/enums';
 import { errorMessage } from '@/lib/api';
 import { minutesSince } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';
@@ -43,7 +43,7 @@ export default function KdsPage() {
   const [, tick] = useState(0);
 
   useEffect(() => {
-    setStation(readLocal('dineos.kds.station', ''));
+    setStation(readLocal('mezmitra.kds.station', ''));
     const timer = setInterval(() => tick((n) => n + 1), 15_000);
     return () => clearInterval(timer);
   }, []);
@@ -118,7 +118,7 @@ export default function KdsPage() {
               aria-selected={station === s}
               onClick={() => {
                 setStation(s);
-                writeLocal('dineos.kds.station', s);
+                writeLocal('mezmitra.kds.station', s);
               }}
               className={cn('h-9 shrink-0 cursor-pointer rounded-lg px-3 text-sm font-semibold whitespace-nowrap capitalize', station === s ? 'bg-amber-400 text-stone-900' : 'text-stone-300 hover:text-white')}
             >

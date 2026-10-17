@@ -5,8 +5,8 @@
 //            payments carry on, printed straight to the outlet's printers
 //   back:    sends everything to the cloud (retrying until accepted), then follows the cloud again
 
-import { batchSyncPayload, type HubSnapshot, type HubSyncResult } from '@dineos/shared/hub';
-import type { FoundPrinter } from '@dineos/shared/print';
+import { batchSyncPayload, type HubSnapshot, type HubSyncResult } from '@mezmitra/shared/hub';
+import type { FoundPrinter } from '@mezmitra/shared/print';
 import { PrintAgent, type PrinterConfig, type Transport } from '../agent';
 import { emptyState, HubEngine, type HubState } from './engine';
 import { HubServer } from './server';

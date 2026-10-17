@@ -1,5 +1,7 @@
 'use client';
 
+// First: settings saved under the product's earlier name move to the new one before anything reads them.
+import '@/lib/legacy-names';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ToastProvider } from '@/components/ui/toast';

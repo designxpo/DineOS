@@ -9,7 +9,7 @@ let admin: ReturnType<typeof api>;
 
 beforeAll(async () => {
   t = await startApp();
-  const email = `ops-${randomUUID().slice(0, 6)}@dineos.test`;
+  const email = `ops-${randomUUID().slice(0, 6)}@mezmitra.test`;
   await t.ctx.adminDb.insertInto('platform_admins').values({ name: 'Ops', email, password_hash: await hashSecret('admin-password-1') }).execute();
   const res = await t.app.inject({ method: 'POST', url: '/v1/admin/auth/login', payload: { email, password: 'admin-password-1' } });
   expect(res.statusCode).toBe(200);

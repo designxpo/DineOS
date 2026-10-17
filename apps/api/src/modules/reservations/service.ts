@@ -1,4 +1,4 @@
-import type { ReservationDTO, ReservationStatus, WaitlistEntryDTO } from '@dineos/shared/dto';
+import type { ReservationDTO, ReservationStatus, WaitlistEntryDTO } from '@mezmitra/shared/dto';
 import type { Tx } from '../../context';
 import { conflict, notFound } from '../../lib/errors';
 import { seatTable } from '../tables/floor';

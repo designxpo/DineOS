@@ -2,8 +2,8 @@
 // (top-ups with a receipt, spending with proof the guest is there, refunds and cash-out).
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, BillLoyaltyDTO, CustomerDTO, LoyaltyReportDTO, MembershipPlanDTO, OrderDTO, UpiCheckDTO, WalletDTO, WalletPackDTO, WalletTopupDTO } from '@dineos/shared/dto';
-import { EMPTY_PROGRAM, MEMBERSHIP_TEMPLATES } from '@dineos/shared/loyalty';
+import type { BillDTO, BillLoyaltyDTO, CustomerDTO, LoyaltyReportDTO, MembershipPlanDTO, OrderDTO, UpiCheckDTO, WalletDTO, WalletPackDTO, WalletTopupDTO } from '@mezmitra/shared/dto';
+import { EMPTY_PROGRAM, MEMBERSHIP_TEMPLATES } from '@mezmitra/shared/loyalty';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 
 let t: TestApp;

@@ -21,7 +21,7 @@ What was built after Phase 1, the choices made where the spec is silent, and wha
 
 | Topic | Decision | Why |
 | --- | --- | --- |
-| Where it runs | The print agent with `DINEOS_HUB=1`, one per outlet, with the staff web app beside it | Outlets already run the agent; no second install |
+| Where it runs | The print agent with `MEZMITRA_HUB=1`, one per outlet, with the staff web app beside it | Outlets already run the agent; no second install |
 | How devices switch | A banner after 30 s offline; the session travels in the URL fragment to `http://<hub>/offline` | A secure page cannot call a plain-HTTP LAN address, and certificates for LAN addresses would need an outside service |
 | Staff sign-in offline | Hub recognises existing sessions by token hash; no passwords or PINs on the hub | A stolen hub file must not give away credentials |
 | Invoice numbers offline | Separate gap-free series `PREFIXH/FY/NNNNN` (16 characters at most) | The hub cannot take numbers from the cloud's counter while cut off; GST allows several series |

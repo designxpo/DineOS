@@ -3,9 +3,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cake, Coffee, Crown, Gift, PencilLine, Sparkles, Sun } from 'lucide-react';
 import { useState } from 'react';
-import type { LoyaltyProgramDTO, LoyaltyReportDTO, ProgramStatus } from '@dineos/shared/dto';
-import type { RewardSource } from '@dineos/shared/enums';
-import { EMPTY_PROGRAM, PROGRAM_TEMPLATES, type ProgramTemplateKey } from '@dineos/shared/loyalty';
+import type { LoyaltyProgramDTO, LoyaltyReportDTO, ProgramStatus } from '@mezmitra/shared/dto';
+import type { RewardSource } from '@mezmitra/shared/enums';
+import { EMPTY_PROGRAM, PROGRAM_TEMPLATES, type ProgramTemplateKey } from '@mezmitra/shared/loyalty';
 import { errorMessage } from '@/lib/api';
 import { formatPaise, formatRate, todayIst } from '@/lib/format';
 import { useStaff } from '@/lib/staff';

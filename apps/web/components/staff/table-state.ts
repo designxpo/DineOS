@@ -1,4 +1,4 @@
-import type { TableState } from '@dineos/shared/enums';
+import type { TableState } from '@mezmitra/shared/enums';
 
 export const TABLE_STATE: Record<TableState, { label: string; tile: string; dot: string }> = {
   vacant: { label: 'Vacant', tile: 'border-line bg-surface', dot: 'bg-state-vacant' },

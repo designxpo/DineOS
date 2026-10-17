@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { DELIVERY_CHANNELS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES, type OrderStatus } from '@dineos/shared/enums';
-import type { KotDoc } from '@dineos/shared/print';
+import { DELIVERY_CHANNELS, ITEM_STATUSES, ORDER_STATUSES, ORDER_TYPES, type OrderStatus } from '@mezmitra/shared/enums';
+import type { KotDoc } from '@mezmitra/shared/print';
 import type { AppContext } from '../../context';
 import { approvalHeader } from '../../lib/approvals';
 import { assertCan, assertOutletAccess, requireAction, requireStaff } from '../../lib/auth';

@@ -2,8 +2,8 @@
 // the case's thread (from the outlet, support, or the system) and tells the outlet's screens.
 
 import { sql, type Kysely } from 'kysely';
-import type { AdminSupportCaseDTO, SupportCaseDTO, SupportMessageDTO } from '@dineos/shared/dto';
-import { missedTarget, type SupportSeverity, type SupportStatus } from '@dineos/shared/support';
+import type { AdminSupportCaseDTO, SupportCaseDTO, SupportMessageDTO } from '@mezmitra/shared/dto';
+import { missedTarget, type SupportSeverity, type SupportStatus } from '@mezmitra/shared/support';
 import type { Tx } from '../../context';
 import type { DB } from '../../db';
 import { conflict, notFound } from '../../lib/errors';

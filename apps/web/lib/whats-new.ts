@@ -59,7 +59,7 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
   },
 ];
 
-const KEY = 'dineos.whatsnew.seen';
+const KEY = 'mezmitra.whatsnew.seen';
 
 export function whatsNewUnseen(): boolean {
   try {

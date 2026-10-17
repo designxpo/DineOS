@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { ROLES, type Role } from '@dineos/shared/enums';
-import { normalizePhone } from '@dineos/shared/phone';
+import { ROLES, type Role } from '@mezmitra/shared/enums';
+import { normalizePhone } from '@mezmitra/shared/phone';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { can, clearAuthCache, isTenantWide, requireStaff, rolesAt, type StaffAuth } from '../../lib/auth';

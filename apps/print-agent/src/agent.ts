@@ -1,12 +1,12 @@
 import { hostname } from 'node:os';
 import { io, type Socket } from 'socket.io-client';
-import type { OutletEvent } from '@dineos/shared/events';
-import type { FoundPrinter, PrintDoc, PrinterConfig, PrintJobDTO } from '@dineos/shared/print';
+import type { OutletEvent } from '@mezmitra/shared/events';
+import type { FoundPrinter, PrintDoc, PrinterConfig, PrintJobDTO } from '@mezmitra/shared/print';
 import { render } from './render';
 import { defaultTransport, type Transport } from './transports';
 import { AGENT_VERSION } from './version';
 
-export type { PrinterConfig } from '@dineos/shared/print';
+export type { PrinterConfig } from '@mezmitra/shared/print';
 export type { Transport } from './transports';
 
 /** How often the agent looks for printers again, besides at start and when the portal asks. */

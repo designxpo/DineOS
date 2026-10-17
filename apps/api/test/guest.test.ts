@@ -5,7 +5,7 @@
 //  - a closed table's old QR session cannot place an order
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CartDTO, GuestJoinResponseDTO, GuestSessionDTO, OrderDTO } from '@dineos/shared/dto';
+import type { CartDTO, GuestJoinResponseDTO, GuestSessionDTO, OrderDTO } from '@mezmitra/shared/dto';
 import { closeSession } from '../src/modules/tables/sessions';
 import {
   addStaff,

@@ -1,7 +1,7 @@
-import type { ItemsReadyDTO, OrderDTO, ServiceRequestDTO } from '@dineos/shared/dto';
-import type { Role } from '@dineos/shared/enums';
-import type { OutletEvent } from '@dineos/shared/events';
-import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, roleCan, type Action } from '@dineos/shared/permissions';
+import type { ItemsReadyDTO, OrderDTO, ServiceRequestDTO } from '@mezmitra/shared/dto';
+import type { Role } from '@mezmitra/shared/enums';
+import type { OutletEvent } from '@mezmitra/shared/events';
+import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, roleCan, type Action } from '@mezmitra/shared/permissions';
 
 /** What a staff phone shows. `tag` lets a newer alert for the same thing replace the older one. */
 export interface PushMessage {

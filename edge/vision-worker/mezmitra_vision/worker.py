@@ -12,7 +12,7 @@ from .cloud import CloudClient, CloudError
 from .tracking import Detection, Tracker
 from .zones import Debouncer, classify_zone
 
-log = logging.getLogger("dineos.vision")
+log = logging.getLogger("mezmitra.vision")
 
 Detector = Callable[[Any], list[Detection]]
 

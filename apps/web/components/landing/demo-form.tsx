@@ -2,7 +2,7 @@
 
 import { CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { DEMO_PAIN_LABELS, DEMO_PAINS, DEMO_TABLES, type DemoPain, type DemoTables } from '@dineos/shared/leads';
+import { DEMO_PAIN_LABELS, DEMO_PAINS, DEMO_TABLES, type DemoPain, type DemoTables } from '@mezmitra/shared/leads';
 import { apiFetch, errorMessage } from '@/lib/api';
 import { cn } from '@/components/ui/cn';
 

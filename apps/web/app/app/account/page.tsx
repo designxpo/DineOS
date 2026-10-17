@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { rolesCan } from '@dineos/shared/permissions';
+import { rolesCan } from '@mezmitra/shared/permissions';
 import { errorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { pushState, turnOffPush, turnOnPush, type PushState } from '@/lib/push-alerts';

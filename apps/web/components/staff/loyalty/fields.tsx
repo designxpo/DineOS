@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Reward } from '@dineos/shared/loyalty';
+import type { Reward } from '@mezmitra/shared/loyalty';
 import { cn } from '@/components/ui/cn';
 import { Input, Segmented } from '@/components/ui/primitives';
 

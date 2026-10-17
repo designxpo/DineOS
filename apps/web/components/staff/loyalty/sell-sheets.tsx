@@ -3,10 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Banknote, CreditCard, Smartphone, Wallet } from 'lucide-react';
 import { useState } from 'react';
-import type { BillDTO, MembershipPlanDTO, WalletPackDTO, WalletTopupDTO } from '@dineos/shared/dto';
-import type { TopupMethod } from '@dineos/shared/enums';
-import { describeMembership, describePack } from '@dineos/shared/loyalty';
-import { rupeesToPaise } from '@dineos/shared/money';
+import type { BillDTO, MembershipPlanDTO, WalletPackDTO, WalletTopupDTO } from '@mezmitra/shared/dto';
+import type { TopupMethod } from '@mezmitra/shared/enums';
+import { describeMembership, describePack } from '@mezmitra/shared/loyalty';
+import { rupeesToPaise } from '@mezmitra/shared/money';
 import { errorMessage } from '@/lib/api';
 import { formatPaise } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';

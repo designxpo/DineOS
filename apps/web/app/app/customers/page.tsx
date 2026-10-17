@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookUser, Crown, Download, Gift, PiggyBank, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState } from 'react';
-import type { CustomerDTO, CustomerLoyaltyDTO, LoyaltyEntryDTO } from '@dineos/shared/dto';
+import type { CustomerDTO, CustomerLoyaltyDTO, LoyaltyEntryDTO } from '@mezmitra/shared/dto';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { date, formatPaise } from '@/lib/format';
 import { useStaff } from '@/lib/staff';

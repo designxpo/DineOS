@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { LoyaltyProgramDTO, ProgramStatus } from '@dineos/shared/dto';
+import type { LoyaltyProgramDTO, ProgramStatus } from '@mezmitra/shared/dto';
 import {
   checkProgram,
   describeProgram,
@@ -13,7 +13,7 @@ import {
   type LoyaltyConfig,
   type ProgramTemplateKey,
   type Reward,
-} from '@dineos/shared/loyalty';
+} from '@mezmitra/shared/loyalty';
 import { formatPaise, formatRate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';

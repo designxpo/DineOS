@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { OutletDTO } from '@dineos/shared/dto';
+import type { OutletDTO } from '@mezmitra/shared/dto';
 import { API_URL, errorMessage } from '@/lib/api';
 import { dateTime, formatPaise, formatRate } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -302,7 +302,7 @@ function Brand() {
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'dineos-export.json';
+    a.download = 'mezmitra-export.json';
     a.click();
   };
 

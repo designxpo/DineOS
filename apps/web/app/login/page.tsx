@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { BrandingDTO, LoginResponseDTO } from '@dineos/shared/dto';
+import type { BrandingDTO, LoginResponseDTO } from '@mezmitra/shared/dto';
 import { apiFetch, errorMessage } from '@/lib/api';
 import { useBrandTheme } from '@/lib/brand-theme';
 import { saveStaffLogin } from '@/lib/staff';
@@ -21,11 +21,11 @@ export default function LoginPage() {
   const [brand, setBrand] = useState<{ name: string; slug: string; branding: BrandingDTO } | null>(null);
 
   useEffect(() => {
-    // The restaurant's sign-in link (?r=code) or subdomain ({slug}.dineos.in) prefills the code.
+    // The restaurant's sign-in link (?r=code) or subdomain ({slug}.<domain>) prefills the code.
     const host = window.location.hostname.split('.');
     const fromHost = host.length > 2 && !/^\d+$/.test(host[0]!) && host[0] !== 'www' && host[0] !== 'app' ? host[0] : null;
     const fromLink = new URLSearchParams(window.location.search).get('r');
-    const code = (fromLink ?? fromHost ?? readLocal<string>('dineos.slug', '')).trim().toLowerCase();
+    const code = (fromLink ?? fromHost ?? readLocal<string>('mezmitra.slug', '')).trim().toLowerCase();
     setSlug(code);
     // A restaurant with its own look gets it here too, before anyone signs in.
     if (code) {
@@ -45,7 +45,7 @@ export default function LoginPage() {
     try {
       const res = await apiFetch<LoginResponseDTO>('/auth/login', { method: 'POST', body: { tenant_slug: slug.trim().toLowerCase(), login: login.trim(), password } });
       saveStaffLogin(res);
-      writeLocal('dineos.slug', slug.trim().toLowerCase());
+      writeLocal('mezmitra.slug', slug.trim().toLowerCase());
       router.replace('/app');
     } catch (err) {
       setError(errorMessage(err));

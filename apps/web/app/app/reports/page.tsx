@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Bookmark, Download, FileSpreadsheet, Printer, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { CameraDTO, CompReportDTO } from '@dineos/shared/dto';
-import type { CompReason } from '@dineos/shared/enums';
-import { REPORT_TERMS, type ReportTermKey } from '@dineos/shared/report-terms';
+import type { CameraDTO, CompReportDTO } from '@mezmitra/shared/dto';
+import type { CompReason } from '@mezmitra/shared/enums';
+import { REPORT_TERMS, type ReportTermKey } from '@mezmitra/shared/report-terms';
 import { apiBlobUrl, errorMessage } from '@/lib/api';
 import { dateTime, formatPaise, formatRate, todayIst } from '@/lib/format';
 import { readLocal, writeLocal } from '@/lib/storage';
@@ -793,7 +793,7 @@ interface SavedView {
   from?: string;
   to?: string;
 }
-const VIEWS_KEY = 'dineos.reports.views';
+const VIEWS_KEY = 'mezmitra.reports.views';
 
 /** The reports someone opens every week, one tap away. Kept on this device. */
 function SavedViews({ current, onApply }: { current: Omit<SavedView, 'id' | 'name'>; onApply: (v: SavedView) => void }) {

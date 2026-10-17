@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import type { LoginResponseDTO } from '@dineos/shared/dto';
+import type { LoginResponseDTO } from '@mezmitra/shared/dto';
 import type { AppContext } from '../../context';
 import { audit } from '../../lib/audit';
 import { authenticate, bearerToken, clearAuthCache, evictCachedAuth, requireStaff, type StaffAuth } from '../../lib/auth';

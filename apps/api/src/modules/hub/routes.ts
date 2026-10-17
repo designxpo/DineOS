@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES } from '@dineos/shared/enums';
-import type { HubSyncPayload } from '@dineos/shared/hub';
+import { HUB_PAYMENT_METHODS, ITEM_STATUSES, ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES } from '@mezmitra/shared/enums';
+import type { HubSyncPayload } from '@mezmitra/shared/hub';
 import type { AppContext } from '../../context';
 import { requireDevice, type DeviceAuth } from '../../lib/auth';
 import { forbidden } from '../../lib/errors';

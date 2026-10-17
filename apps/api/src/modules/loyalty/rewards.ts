@@ -1,8 +1,8 @@
 // Using a guest's reward on their bill: money off waits on the draft until it prints; a free dish
 // is given as a free item (reason 'loyalty') on a line it fits.
 
-import type { BillDTO, BillLoyaltyDTO, RewardDTO } from '@dineos/shared/dto';
-import type { Reward } from '@dineos/shared/loyalty';
+import type { BillDTO, BillLoyaltyDTO, RewardDTO } from '@mezmitra/shared/dto';
+import type { Reward } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { audit } from '../../lib/audit';
 import { assertCan, type StaffAuth } from '../../lib/auth';

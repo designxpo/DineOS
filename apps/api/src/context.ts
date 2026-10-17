@@ -1,6 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { sql, type Transaction } from 'kysely';
-import type { Channel, EventType, OutletEvent } from '@dineos/shared/events';
+import type { Channel, EventType, OutletEvent } from '@mezmitra/shared/events';
 import type { Config } from './config';
 import { createDb, json, type Database, type DB } from './db';
 import { EventBus } from './lib/bus';

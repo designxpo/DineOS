@@ -2,7 +2,7 @@
 
 import { Minus, Plus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MenuCategoryDTO, MenuItemDTO } from '@dineos/shared/dto';
+import type { MenuCategoryDTO, MenuItemDTO } from '@mezmitra/shared/dto';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/components/ui/cn';
 import { VegMark } from '@/components/ui/primitives';

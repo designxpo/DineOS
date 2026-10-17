@@ -3,8 +3,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Clock, Download, ImageOff, ImagePlus, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { rupeesToPaise } from '@dineos/shared/money';
-import type { MenuCategoryDTO, MenuDTO, MenuItemDTO, ModifierGroupDTO } from '@dineos/shared/dto';
+import { rupeesToPaise } from '@mezmitra/shared/money';
+import type { MenuCategoryDTO, MenuDTO, MenuItemDTO, ModifierGroupDTO } from '@mezmitra/shared/dto';
 import { API_URL, apiBlobUrl, errorMessage } from '@/lib/api';
 import { formatPrice, formatRate, rupeesInput } from '@/lib/format';
 import { resizeImage } from '@/lib/image';

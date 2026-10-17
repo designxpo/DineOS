@@ -3,9 +3,9 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from dineos_vision.cloud import CloudClient, CloudError
-from dineos_vision.tracking import Detection
-from dineos_vision.worker import Worker
+from mezmitra_vision.cloud import CloudClient, CloudError
+from mezmitra_vision.tracking import Detection
+from mezmitra_vision.worker import Worker
 
 ZONE_A = [[0.2, 0.2], [0.6, 0.2], [0.6, 0.6], [0.2, 0.6]]
 ZONE_B = [[0.7, 0.2], [0.95, 0.2], [0.95, 0.6], [0.7, 0.6]]
@@ -123,7 +123,7 @@ class Recorder(BaseHTTPRequestHandler):
 
 
 class CloudClientTest(unittest.TestCase):
-    def test_talks_to_dineos_and_queues_through_an_outage(self):
+    def test_talks_to_mezmitra_and_queues_through_an_outage(self):
         Recorder.requests = []
         server = HTTPServer(("127.0.0.1", 0), Recorder)
         port = server.server_address[1]

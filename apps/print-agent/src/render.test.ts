@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BillDoc, KotDoc } from '@dineos/shared/print';
+import type { BillDoc, KotDoc } from '@mezmitra/shared/print';
 import { columns, toAscii, wrap } from './escpos';
 import { renderBill, renderKot } from './render';
 

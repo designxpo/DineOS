@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CameraDTO, TableDTO, VisionConfigDTO } from '@dineos/shared/dto';
+import type { CameraDTO, TableDTO, VisionConfigDTO } from '@mezmitra/shared/dto';
 import { runMaintenance } from '../src/lib/maintenance';
 import { addStaff, api, createMenu, createTable, createTenant, startApp, type TestApp, type TestMenu, type TestTenant } from './helpers';
 

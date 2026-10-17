@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRightLeft, Brush, ExternalLink, Link2, LogOut, Minus, Plus, ReceiptIndianRupee, ShoppingCart, UserRound, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import type { BillDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
+import type { BillDTO, OrderDTO, TableDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago, formatPaise } from '@/lib/format';
 import { useI18n, type I18nKey } from '@/lib/i18n';

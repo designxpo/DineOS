@@ -3,8 +3,8 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { DEMO_PAINS, DEMO_TABLES } from '@dineos/shared/leads';
-import { normalizePhone } from '@dineos/shared/phone';
+import { DEMO_PAINS, DEMO_TABLES } from '@mezmitra/shared/leads';
+import { normalizePhone } from '@mezmitra/shared/phone';
 import type { AppContext } from '../../context';
 import { requireAdmin } from '../../lib/auth';
 import { badRequest, notFound } from '../../lib/errors';

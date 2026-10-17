@@ -10,7 +10,7 @@ import { useStaff } from '@/lib/staff';
 import { readLocal, writeLocal } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 
-const HUB_URL_KEY = 'dineos.hub_url';
+const HUB_URL_KEY = 'mezmitra.hub_url';
 const SWITCH_AFTER_MS = 30_000;
 
 /** Changes the hub can take over from this device's offline queue; others wait for the cloud. */

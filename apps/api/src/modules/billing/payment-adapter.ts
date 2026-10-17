@@ -2,7 +2,7 @@
 // Phase 1"). Phase 1 has no gateway: UPI goes to the outlet's own VPA and staff confirm receipt by
 // hand. A gateway or bank integration later implements this interface; billing does not change.
 
-import type { PaymentMethod } from '@dineos/shared/enums';
+import type { PaymentMethod } from '@mezmitra/shared/enums';
 
 export interface PaymentRequest {
   billId: string;

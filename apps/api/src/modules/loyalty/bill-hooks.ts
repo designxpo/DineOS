@@ -1,7 +1,7 @@
 // Rewards on a bill, for billing to call: the money off they give, and what happens to them when
 // the bill prints, is voided or loses its guest. Imports nothing from billing.
 
-import type { Reward } from '@dineos/shared/loyalty';
+import type { Reward } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { runningMemberships, type SoldPlan } from './membership-state';
 

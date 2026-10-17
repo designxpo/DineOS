@@ -1,10 +1,10 @@
-// Help from inside the portal: staff raise a case with how bad it is; DineOS support picks it up,
+// Help from inside the portal: staff raise a case with how bad it is; Mezmitra support picks it up,
 // replies and moves it on; the outlet says when service runs again and closes it only when it works.
 
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AdminSupportCaseDTO, SupportCaseDTO } from '@dineos/shared/dto';
-import { missedTarget, supportOpen } from '@dineos/shared/support';
+import type { AdminSupportCaseDTO, SupportCaseDTO } from '@mezmitra/shared/dto';
+import { missedTarget, supportOpen } from '@mezmitra/shared/support';
 import { hashSecret } from '../src/lib/crypto';
 import type { PushMessage } from '../src/lib/push';
 import { addStaff, api, createTenant, startApp, type TestApp, type TestTenant } from './helpers';
@@ -27,7 +27,7 @@ beforeAll(async () => {
   const c = await addStaff(t, tenant, 'cashier');
   cashier = api(t, c.token);
   cashierId = c.userId;
-  const email = `support-${randomUUID().slice(0, 6)}@dineos.test`;
+  const email = `support-${randomUUID().slice(0, 6)}@mezmitra.test`;
   await t.ctx.adminDb.insertInto('platform_admins').values({ name: 'Asha', email, password_hash: await hashSecret('admin-password-1') }).execute();
   const res = await t.app.inject({ method: 'POST', url: '/v1/admin/auth/login', payload: { email, password: 'admin-password-1' } });
   admin = api(t, res.json().token);

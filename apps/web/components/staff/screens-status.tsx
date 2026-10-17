@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Monitor, Printer, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import type { ScreenKind, ScreensDTO } from '@dineos/shared/dto';
+import type { ScreenKind, ScreensDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { ago } from '@/lib/format';
 import { useStaff } from '@/lib/staff';

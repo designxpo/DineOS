@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Server, type Namespace } from 'socket.io';
-import { roomName, SOCKET_NAMESPACES, type Channel } from '@dineos/shared/events';
+import { roomName, SOCKET_NAMESPACES, type Channel } from '@mezmitra/shared/events';
 import type { AppContext } from '../context';
 import { accessibleOutletIds, authenticate, type Auth } from '../lib/auth';
 

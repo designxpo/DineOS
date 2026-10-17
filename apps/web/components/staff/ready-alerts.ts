@@ -1,6 +1,6 @@
 'use client';
 
-import type { ItemsReadyDTO } from '@dineos/shared/dto';
+import type { ItemsReadyDTO } from '@mezmitra/shared/dto';
 import { useI18n } from '@/lib/i18n';
 import { useOutletEvents } from '@/lib/realtime';
 import { chime } from '@/lib/sound';

@@ -113,7 +113,7 @@ back:     hub ──POST /v1/device/hub/sync──> cloud upserts by id, one tra
 
 ## Adding a feature
 
-1. Schema change: add `apps/api/migrations/NNNN_name.sql`, run `npm run db:migrate`, then `npm run db:codegen -w @dineos/api`. New tenant tables need `tenant_id`, RLS, a grant to `dineos_app`, and composite foreign keys; copy the patterns in `0001_init.sql` and `0006_tenant_scoped_foreign_keys.sql`.
+1. Schema change: add `apps/api/migrations/NNNN_name.sql`, run `npm run db:migrate`, then `npm run db:codegen -w @mezmitra/api`. New tenant tables need `tenant_id`, RLS, a grant to `dineos_app`, and composite foreign keys; copy the patterns in `0001_init.sql` and `0006_tenant_scoped_foreign_keys.sql`.
 2. Endpoint: in the module's `routes.ts`, parse input with zod (`parse`), check permission with `requireAction` / `assertCan` (actions live in `packages/shared/src/permissions.ts`), and do the work inside `ctx.tx`. Throw `AppError` helpers for expected failures.
 3. jsonb values must go through `json()`; arrays would otherwise be sent as Postgres arrays.
 4. Emit events late in the transaction: `emit` locks the outlet row until commit.

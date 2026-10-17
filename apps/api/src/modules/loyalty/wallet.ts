@@ -6,10 +6,10 @@
 
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { financialYear, formatInvoiceNo, businessDate } from '@dineos/shared/dates';
-import type { WalletDTO, WalletEntryDTO, WalletPackDTO, WalletTopupDTO } from '@dineos/shared/dto';
-import { TOPUP_METHODS, type TopupMethod } from '@dineos/shared/enums';
-import { checkPack, splitSpend, type WalletPackInput } from '@dineos/shared/loyalty';
+import { financialYear, formatInvoiceNo, businessDate } from '@mezmitra/shared/dates';
+import type { WalletDTO, WalletEntryDTO, WalletPackDTO, WalletTopupDTO } from '@mezmitra/shared/dto';
+import { TOPUP_METHODS, type TopupMethod } from '@mezmitra/shared/enums';
+import { checkPack, splitSpend, type WalletPackInput } from '@mezmitra/shared/loyalty';
 import type { Tx } from '../../context';
 import { requireApproval } from '../../lib/approvals';
 import { audit } from '../../lib/audit';

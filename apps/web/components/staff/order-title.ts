@@ -1,4 +1,4 @@
-import type { OrderDTO } from '@dineos/shared/dto';
+import type { OrderDTO } from '@mezmitra/shared/dto';
 import type { I18n } from '@/lib/i18n';
 
 /** What staff call an order: its table, "Zomato #4821", own delivery, takeaway or counter. */

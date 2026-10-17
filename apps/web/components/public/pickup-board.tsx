@@ -2,7 +2,7 @@
 
 import { Maximize, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { PickupBoardDTO } from '@dineos/shared/dto';
+import type { PickupBoardDTO } from '@mezmitra/shared/dto';
 import { ApiError, apiFetch } from '@/lib/api';
 import { useBrandTheme } from '@/lib/brand-theme';
 import { chime, unlockSound } from '@/lib/sound';

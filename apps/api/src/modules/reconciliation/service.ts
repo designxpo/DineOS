@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
-import type { BankCreditDTO, BankStatementDTO, MissingHints, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO, UpiCheckDTO } from '@dineos/shared/dto';
+import type { BankCreditDTO, BankStatementDTO, MissingHints, ReconPaymentDTO, ReconSummaryDTO, StatementDetailDTO, UpiCheckDTO } from '@mezmitra/shared/dto';
 import type { Tx } from '../../context';
 import { notFound } from '../../lib/errors';
 import type { ParsedStatement } from './statement';

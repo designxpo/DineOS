@@ -2,7 +2,7 @@
 // Rows are matched to existing items by category + name, so re-importing a sheet updates prices.
 
 import ExcelJS from 'exceljs';
-import { rupeesToPaise } from '@dineos/shared/money';
+import { rupeesToPaise } from '@mezmitra/shared/money';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { badRequest } from '../../lib/errors';

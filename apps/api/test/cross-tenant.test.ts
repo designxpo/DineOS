@@ -5,7 +5,7 @@
 
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BillDTO, OrderDTO } from '@dineos/shared/dto';
+import type { BillDTO, OrderDTO } from '@mezmitra/shared/dto';
 import { addStaff, api, createTenant, startApp, type TestApp, type TestTenant } from './helpers';
 
 let t: TestApp;

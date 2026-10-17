@@ -1,10 +1,10 @@
 // Core order loop: create, transition, per-item status, kitchen tickets (spec §5, §7).
 // Used by the guest module (QR orders), the staff inbox, KDS and POS.
 
-import { businessDate } from '@dineos/shared/dates';
-import type { AvailabilitySchedule, ItemsReadyDTO, ModifierSnapshot, OrderDTO } from '@dineos/shared/dto';
-import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@dineos/shared/enums';
-import { checkModifierSelection, isScheduleOpen, type ModifierGroupRule } from '@dineos/shared/menu';
+import { businessDate } from '@mezmitra/shared/dates';
+import type { AvailabilitySchedule, ItemsReadyDTO, ModifierSnapshot, OrderDTO } from '@mezmitra/shared/dto';
+import type { DeliveryChannel, ItemStatus, OrderSource, OrderStatus, OrderType } from '@mezmitra/shared/enums';
+import { checkModifierSelection, isScheduleOpen, type ModifierGroupRule } from '@mezmitra/shared/menu';
 import {
   canItemTransition,
   canTransition,
@@ -13,9 +13,9 @@ import {
   itemStatusForOrder,
   itemWasMade,
   readyNews,
-} from '@dineos/shared/order-state';
-import type { Action } from '@dineos/shared/permissions';
-import type { KotDoc } from '@dineos/shared/print';
+} from '@mezmitra/shared/order-state';
+import type { Action } from '@mezmitra/shared/permissions';
+import type { KotDoc } from '@mezmitra/shared/print';
 import type { Tx } from '../../context';
 import { json } from '../../db';
 import { requireApproval } from '../../lib/approvals';

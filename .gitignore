@@ -16,6 +16,7 @@ apps/web/next-env.d.ts
 apps/web/.next/
 
 # Outlet hub state when run from the repo
+mezmitra-hub.json*
 dineos-hub.json*
 
 # Camera box: local stream addresses, models and collected frames never go in git

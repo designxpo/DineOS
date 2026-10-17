@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { sql } from 'kysely';
-import type { Role } from '@dineos/shared/enums';
-import { rolesCan, type Action } from '@dineos/shared/permissions';
+import type { Role } from '@mezmitra/shared/enums';
+import { rolesCan, type Action } from '@mezmitra/shared/permissions';
 import type { AppContext, Tx } from '../context';
 import { sha256 } from './crypto';
 import { AppError, forbidden, unauthorized } from './errors';
