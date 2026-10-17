@@ -2,10 +2,11 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, PrinterIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PrintProblemDTO, PrintStatusDTO } from '@dineos/shared/print';
 import { errorMessage, onHub } from '@/lib/api';
 import { ago, time } from '@/lib/format';
+import { chime } from '@/lib/sound';
 import { useI18n } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,14 @@ export function PrintProblems() {
     refetchInterval: 30_000,
   });
   const problems = data?.problems ?? [];
+  // A ticket or bill that did not print is urgent: it sounds on every screen, even ones that
+  // turned other alerts off.
+  const seen = useRef<number | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    if (seen.current !== null && data.problems.length > seen.current) chime('alert');
+    seen.current = data.problems.length;
+  }, [data]);
   if (problems.length === 0) return null;
 
   const offline = data!.agents.length > 0 && data!.agents.every((a) => !a.online) ? data!.agents[0]! : null;

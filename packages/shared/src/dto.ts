@@ -151,6 +151,8 @@ export interface MenuItemDTO {
   in_stock: boolean;
   station: string;
   sort: number;
+  /** What staff type to find it fast ("PT"); set by the outlet. */
+  short_code: string | null;
   modifier_group_ids: string[];
   translations: Translations;
 }

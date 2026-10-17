@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { MenuDTO } from '@dineos/shared/dto';
-import { addStaff, api, createTenant, startApp, type TestApp, type TestTenant } from './helpers';
+import { addStaff, api, createMenu, createTenant, startApp, type TestApp, type TestTenant } from './helpers';
 import { multipart } from './multipart';
 
 let t: TestApp;
@@ -118,6 +118,28 @@ describe('menu management', () => {
     const event = t.events.slice(before).find((e) => e.event.type === 'item.stock_changed');
     expect(event?.event.channels).toEqual(['outlet', 'menu']);
     expect(event?.event.payload).toEqual({ item_id: itemId, in_stock: false });
+  });
+
+  it('gives dishes short codes to type at the till, one per dish', async () => {
+    const make = (name: string, short_code: string | null) =>
+      owner({ method: 'POST', url: '/v1/menu/items', payload: { outlet_id: tenant.outletId, category_id: categoryId, name, price_paise: 9900, is_veg: true, short_code } });
+    const tea = await make('Masala Tea', 'mt');
+    expect(tea.json().short_code).toBe('MT');
+    expect((await make('Mint Tonic', 'MT')).json().error.code).toBe('code_taken');
+    expect((await make('Mango Tango', 'm t')).statusCode).toBe(400);
+    // A deleted dish frees its code.
+    await owner({ method: 'DELETE', url: `/v1/menu/items/${tea.json().id}` });
+    expect((await make('Mint Tonic', 'MT')).statusCode).toBe(201);
+  });
+
+  it('lists what sold most lately, best first', async () => {
+    const popular = async () => (await owner({ method: 'GET', url: `/v1/menu/popular?outlet_id=${tenant.outletId}` })).json().item_ids as string[];
+    expect(await popular()).toEqual([]);
+    const m = await createMenu(t, tenant);
+    const order = (lines: object[]) => owner({ method: 'POST', url: '/v1/orders', payload: { outlet_id: tenant.outletId, type: 'counter', lines } });
+    expect((await order([{ item_id: m.chickenTikka, qty: 1 }, { item_id: m.paneerTikka, qty: 2 }])).statusCode).toBe(201);
+    await order([{ item_id: m.paneerTikka, qty: 1 }]);
+    expect(await popular()).toEqual([m.paneerTikka, m.chickenTikka]);
   });
 
   it('soft-deletes an item so it leaves the menu', async () => {

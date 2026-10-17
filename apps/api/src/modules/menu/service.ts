@@ -100,6 +100,7 @@ export async function loadMenu(tx: Tx, outletId: string, opts: { forGuest?: bool
     in_stock: i.in_stock,
     station: i.station,
     sort: i.sort,
+    short_code: i.short_code,
     modifier_group_ids: links.filter((l) => l.item_id === i.id).map((l) => l.group_id),
     translations: (i.translations ?? {}) as Translations,
   }));

@@ -7,9 +7,10 @@ import { Fragment, Suspense, useEffect, useMemo, useState } from 'react';
 import type { BillDTO, MenuItemDTO, OrderDTO, TableDTO } from '@dineos/shared/dto';
 import type { DeliveryChannel, OrderType } from '@dineos/shared/enums';
 import { isScheduleOpen } from '@dineos/shared/menu';
+import { searchDishes } from '@dineos/shared/search';
 import { ApiError, errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
-import { useStaffMenu } from '@/lib/menu-cache';
+import { usePopular, useStaffMenu } from '@/lib/menu-cache';
 import { send } from '@/lib/outbox';
 import { useI18n } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
@@ -45,6 +46,7 @@ function Pos() {
   const qc = useQueryClient();
   const toast = useToast();
   const menu = useStaffMenu();
+  const popular = usePopular();
   const tables = useQuery({ queryKey: ['tables', outletId], queryFn: () => api<TableDTO[]>(`/tables?outlet_id=${outletId}`) });
 
   const [type, setType] = useState<OrderType>('dine_in');
@@ -75,13 +77,14 @@ function Pos() {
   const categories = useMemo(() => m?.categories.filter((c) => c.is_active) ?? [], [m]);
   const items = useMemo(() => {
     if (!m) return [];
-    const q = query.trim().toLowerCase();
     const active = new Set(categories.map((c) => c.id));
+    const live = m.items.filter((i) => active.has(i.category_id));
+    // Typing searches the whole menu: short codes, initials ("pt"), then names; best sellers first.
+    if (query.trim()) return searchDishes(live, query, popular);
+    if (category === 'popular') return popular.map((id) => live.find((i) => i.id === id)).filter((i): i is MenuItemDTO => !!i && i.in_stock).slice(0, 16);
     const rank = new Map(categories.map((c, i) => [c.id, i]));
-    return m.items
-      .filter((i) => active.has(i.category_id) && (category === 'all' || i.category_id === category) && (!q || i.name.toLowerCase().includes(q)))
-      .sort((a, b) => (rank.get(a.category_id) ?? 0) - (rank.get(b.category_id) ?? 0));
-  }, [m, categories, category, query]);
+    return live.filter((i) => category === 'all' || i.category_id === category).sort((a, b) => (rank.get(a.category_id) ?? 0) - (rank.get(b.category_id) ?? 0));
+  }, [m, categories, category, query, popular]);
   const grouped = category === 'all' && !query.trim();
 
   const unit = (l: Line) => l.item.price_paise + l.modifierIds.reduce((a, id) => a + (allMods.find((x) => x.id === id)?.price_delta_paise ?? 0), 0);
@@ -276,15 +279,31 @@ function Pos() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-4rem-var(--tabbar-h))]">
+    <div className="flex h-[calc(100dvh-4rem-var(--tabbar-h)-var(--banners-h,0px))]">
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="space-y-3 border-b border-line bg-surface p-4">
           <label className="relative block">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('pos.search')} className="pl-9" aria-label={t('pos.search')} />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter takes the best match: "pt" then Enter rings up Paneer Tikka.
+                const first = items.find((i) => i.in_stock);
+                if (e.key === 'Enter' && query.trim() && first) {
+                  e.preventDefault();
+                  tap(first);
+                  setQuery('');
+                }
+              }}
+              enterKeyHint="done"
+              placeholder={t('pos.search')}
+              className="pl-9"
+              aria-label={t('pos.search')}
+            />
           </label>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
-            {[{ id: 'all', name: t('pos.all') }, ...categories].map((c) => (
+            {[{ id: 'all', name: t('pos.all') }, ...(popular.length ? [{ id: 'popular', name: t('pos.popular') }] : []), ...categories].map((c) => (
               <button
                 key={c.id}
                 onClick={() => setCategory(c.id)}
@@ -322,7 +341,8 @@ function Pos() {
                   >
                     <span className="flex items-start gap-1.5">
                       <VegMark veg={item.is_veg} className="mt-0.5" />
-                      <span className="text-sm leading-snug font-medium">{item.name}</span>
+                      <span className="min-w-0 flex-1 text-sm leading-snug font-medium">{item.name}</span>
+                      {item.short_code && <span className="shrink-0 rounded-md bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-ink-soft">{item.short_code}</span>}
                     </span>
                     <span className="mt-auto flex items-center justify-between pt-2 text-sm">
                       <span className="font-semibold tabular">{formatPrice(item.price_paise)}</span>

@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { sql } from 'kysely';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { assertCan, assertOutletAccess, requireAction, requireStaff } from '../../lib/auth';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, conflict, notFound } from '../../lib/errors';
 import { detectImage } from '../../lib/images';
 import { idParams, outletQuery, parse } from '../../lib/validate';
 import { IMPORT_TEMPLATE_CSV, importMenu, readSpreadsheet } from './import';
@@ -43,6 +44,13 @@ const itemFields = {
   in_stock: z.boolean().optional(),
   station: z.string().trim().min(1).max(30).optional(),
   sort: z.number().int().optional(),
+  short_code: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9]{1,8}$/, 'Use up to 8 letters and numbers')
+    .nullable()
+    .optional()
+    .transform((v) => (v ? v.toUpperCase() : v)),
   modifier_group_ids: z.array(z.uuid()).max(10).optional(),
   translations,
 };
@@ -151,6 +159,12 @@ async function upsertModifiers(tx: Tx, groupId: string, mods: z.infer<typeof mod
   }
 }
 
+/** Two live dishes cannot share a short code. */
+function codeTaken(err: unknown): never {
+  if ((err as { code?: string; constraint?: string }).constraint === 'menu_items_short_code_key') throw conflict('code_taken', 'Another dish already has that short code');
+  throw err;
+}
+
 async function findOne<T extends { id: string }>(list: T[], id: string): Promise<T> {
   const hit = list.find((x) => x.id === id);
   if (!hit) throw notFound('Menu entry');
@@ -186,6 +200,27 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const { outlet_id } = parse(outletQuery, req.query);
       assertOutletAccess(auth, outlet_id);
       return ctx.tx(auth.tenantId, (tx) => loadMenu(tx, outlet_id));
+    });
+
+    /** What this outlet sold most in the last 30 days, best first: search shows these first. */
+    app.get('/menu/popular', async (req) => {
+      const auth = requireStaff(req);
+      const { outlet_id } = parse(outletQuery, req.query);
+      assertOutletAccess(auth, outlet_id);
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const rows = await tx.db
+          .selectFrom('order_items')
+          .innerJoin('orders', 'orders.id', 'order_items.order_id')
+          .select(['order_items.item_id', sql<number>`sum(order_items.qty)`.as('qty')])
+          .where('orders.outlet_id', '=', outlet_id)
+          .where('orders.placed_at', '>', new Date(Date.now() - 30 * 86_400_000))
+          .where('order_items.status', '<>', 'cancelled')
+          .groupBy('order_items.item_id')
+          .orderBy('qty', 'desc')
+          .limit(60)
+          .execute();
+        return { item_ids: rows.map((r) => r.item_id) };
+      });
     });
 
     // ---------------------------------------------------------------- categories
@@ -288,10 +323,12 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
             in_stock: body.in_stock ?? true,
             station: body.station ?? outlet.kitchen_stations[0] ?? 'kitchen',
             sort: body.sort ?? 0,
+            short_code: body.short_code ?? null,
             translations: json(body.translations ?? {}),
           })
           .returning('id')
-          .executeTakeFirstOrThrow();
+          .executeTakeFirstOrThrow()
+          .catch(codeTaken);
         if (body.modifier_group_ids) await setItemGroups(tx, body.outlet_id, row.id, body.modifier_group_ids);
         await bumpMenu(tx, body.outlet_id);
         return findOne((await loadMenu(tx, body.outlet_id)).items, row.id);
@@ -313,7 +350,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           ...(hsn_sac !== undefined ? { hsn_sac } : {}),
           ...(tr !== undefined ? { translations: json(tr) } : {}),
         };
-        if (Object.keys(set).length) await tx.db.updateTable('menu_items').set(set).where('id', '=', id).execute();
+        if (Object.keys(set).length) await tx.db.updateTable('menu_items').set(set).where('id', '=', id).execute().catch(codeTaken);
         if (modifier_group_ids) await setItemGroups(tx, outletId, id, modifier_group_ids);
         await bumpMenu(tx, outletId);
         return findOne((await loadMenu(tx, outletId)).items, id);

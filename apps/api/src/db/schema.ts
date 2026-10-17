@@ -422,6 +422,7 @@ export interface MenuItems {
   outlet_id: string;
   photo_url: string | null;
   price_paise: number;
+  short_code: string | null;
   sort: Generated<number>;
   station: Generated<string>;
   tags: Generated<string[]>;

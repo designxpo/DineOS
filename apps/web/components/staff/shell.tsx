@@ -17,13 +17,14 @@ import {
   ReceiptIndianRupee,
   Settings,
   ShoppingCart,
+  Sparkles,
   UtensilsCrossed,
   Users,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { OrderDTO } from '@dineos/shared/dto';
 import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, type Action } from '@dineos/shared/permissions';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
@@ -38,6 +39,8 @@ import { HubModeBanner, HubSwitchBanner } from './offline-hub';
 import { OutboxBadge } from './outbox-panel';
 import { PrintProblems } from './print-problems';
 import { useSignOut } from './sign-out';
+import { SoundButton } from './sound-sheet';
+import { WhatsNewPill, WhatsNewSheet } from './whats-new';
 
 interface NavItem {
   href: string;
@@ -140,6 +143,34 @@ function useSecurityAlerts(enabled: boolean) {
   });
 }
 
+/**
+ * The warning banners under the header (offline hub, print problems). Their height is shared as
+ * --banners-h, so full-height screens like the POS keep their buttons on screen when one shows.
+ */
+function Banners() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const sync = () => root.style.setProperty('--banners-h', `${el.offsetHeight}px`);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--banners-h');
+    };
+  }, []);
+  return (
+    <div ref={ref}>
+      <HubModeBanner />
+      <HubSwitchBanner />
+      <PrintProblems />
+    </div>
+  );
+}
+
 /** Where each role starts its day. */
 export function homeFor(can: (a: Action) => boolean): string {
   if (can('report.view')) return '/app';
@@ -154,6 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const connection = useConnection();
   const [open, setOpen] = useState(false);
+  const [news, setNews] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   useLowStockAlerts(can('inventory.record'));
   useSecurityAlerts(can('staff.manage'));
@@ -199,9 +231,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (bare) {
     return (
       <>
-        <HubModeBanner />
-        <HubSwitchBanner />
-        <PrintProblems />
+        <Banners />
         {children}
       </>
     );
@@ -251,18 +281,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <p className="font-medium lg:hidden">{outlet?.name}</p>
           )}
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
-          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="ml-auto h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
+          <div className="ml-auto flex items-center gap-1">
+            <WhatsNewPill />
+            <SoundButton />
+          </div>
+          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
             {t('common.language')}
           </button>
           <div>{status}</div>
         </header>
-        <HubModeBanner />
-        <HubSwitchBanner />
-        <PrintProblems />
+        <Banners />
         <main className="flex-1 pb-[var(--tabbar-h)]">{children}</main>
       </div>
       <TabBar items={items} onMore={() => setOpen(true)} moreOpen={open} />
       {unsyncedDialog}
+      <WhatsNewSheet open={news} onClose={() => setNews(false)} />
 
       {/* "More" on phones: every screen, rising from the tab bar it was opened from. */}
       <Sheet open={open} onClose={() => setOpen(false)} title={me.tenant.name}>
@@ -293,6 +326,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {me.user.name} · {t('nav.account')}
             </span>
           </Link>
+          <button onClick={() => setNews(true)} className="flex h-12 w-full cursor-pointer items-center gap-3 px-4 text-sm text-ink">
+            <Sparkles className="size-4 text-ink-faint" /> {t('whatsnew.title')}
+          </button>
           <button onClick={() => void signOut()} className="flex h-12 w-full cursor-pointer items-center gap-3 px-4 text-sm text-rose-700">
             <LogOut className="size-4" /> {t('nav.signout')}
           </button>

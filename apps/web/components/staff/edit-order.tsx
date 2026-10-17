@@ -5,9 +5,10 @@ import { Minus, Plus, Search, Undo2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { MenuItemDTO, OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
 import { itemWasMade } from '@dineos/shared/order-state';
+import { searchDishes } from '@dineos/shared/search';
 import { errorMessage, newKey } from '@/lib/api';
 import { formatPaise, formatPrice } from '@/lib/format';
-import { useStaffMenu } from '@/lib/menu-cache';
+import { usePopular, useStaffMenu } from '@/lib/menu-cache';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -36,6 +37,7 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
   const toast = useToast();
   const withApproval = useWithApproval();
   const menu = useStaffMenu();
+  const popular = usePopular();
   const [qty, setQty] = useState<Record<string, number>>({});
   const [cancel, setCancel] = useState<Record<string, string>>({});
   // Whether the kitchen had made a cancelled dish (its ingredients are wasted); defaults from its status.
@@ -62,8 +64,8 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q || !menu.data) return [];
-    return menu.data.items.filter((i) => i.in_stock && i.name.toLowerCase().includes(q)).slice(0, 8);
-  }, [search, menu.data]);
+    return searchDishes(menu.data.items.filter((i) => i.in_stock), q, popular).slice(0, 8);
+  }, [search, menu.data, popular]);
 
   const changed = Object.keys(qty).length + Object.keys(cancel).length + adds.length > 0;
   const unit = (l: NewLine) => l.item.price_paise + l.modifierIds.reduce((a, id) => a + (allMods.find((m) => m.id === id)?.price_delta_paise ?? 0), 0);

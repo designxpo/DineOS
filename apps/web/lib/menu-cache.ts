@@ -29,3 +29,14 @@ export function useStaffMenu() {
   });
   return { ...query, data: query.data ?? cached };
 }
+
+/** What this outlet sold most lately, best first: search and the POS show these first. */
+export function usePopular(): string[] {
+  const { api, outletId } = useStaff();
+  const { data } = useQuery({
+    queryKey: ['menu-popular', outletId],
+    queryFn: () => api<{ item_ids: string[] }>(`/menu/popular?outlet_id=${outletId}`).then((r) => r.item_ids),
+    staleTime: 10 * 60_000,
+  });
+  return data ?? [];
+}

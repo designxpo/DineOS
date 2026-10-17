@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { usePersistedQuery } from '@/lib/persisted-query';
-import { ArrowLeft, Bell, BellOff, ChefHat, LogOut, Maximize, StickyNote } from 'lucide-react';
+import { ArrowLeft, ChefHat, LogOut, Maximize, StickyNote } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { OrderDTO, OrderItemDTO } from '@dineos/shared/dto';
@@ -13,7 +13,7 @@ import { useI18n, type I18nKey } from '@/lib/i18n';
 import { orderTitle } from '@/components/staff/order-title';
 import { send } from '@/lib/outbox';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
-import { chime, soundReady, unlockSound } from '@/lib/sound';
+import { chime } from '@/lib/sound';
 import { useStaff } from '@/lib/staff';
 import { readLocal, writeLocal } from '@/lib/storage';
 import { cn } from '@/components/ui/cn';
@@ -24,6 +24,7 @@ import { homeFor } from '@/components/staff/shell';
 import { useSignOut } from '@/components/staff/sign-out';
 import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
+import { SoundButton } from '@/components/staff/sound-sheet';
 
 const NEXT: Partial<Record<ItemStatus, ItemStatus>> = { accepted: 'preparing', preparing: 'ready' };
 
@@ -37,12 +38,10 @@ export default function KdsPage() {
   const toast = useToast();
   const connection = useConnection();
   const [station, setStation] = useState<string>('');
-  const [sound, setSound] = useState(false);
   const [, tick] = useState(0);
 
   useEffect(() => {
     setStation(readLocal('dineos.kds.station', ''));
-    setSound(soundReady());
     const timer = setInterval(() => tick((n) => n + 1), 15_000);
     return () => clearInterval(timer);
   }, []);
@@ -134,9 +133,7 @@ export default function KdsPage() {
           <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-10 cursor-pointer rounded-xl px-3 text-sm font-semibold text-stone-300 hover:bg-stone-800">
             {t('common.language')}
           </button>
-          <button onClick={() => setSound(unlockSound())} aria-label={sound ? 'Sound on' : 'Turn on sound'} className="grid size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
-            {sound ? <Bell className="size-5" /> : <BellOff className="size-5 text-rose-400" />}
-          </button>
+          <SoundButton dark />
           <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="hidden size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800 sm:grid">
             <Maximize className="size-5" />
           </button>

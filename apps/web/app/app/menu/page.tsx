@@ -231,6 +231,7 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
     hsn_sac: item?.hsn_sac ?? '996331',
     station: item?.station ?? outlet?.kitchen_stations[0] ?? 'kitchen',
     tags: item?.tags.join(', ') ?? '',
+    short_code: item?.short_code ?? '',
     category_id: item?.category_id ?? categoryId,
     groups: item?.modifier_group_ids ?? [],
   });
@@ -257,6 +258,7 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
       hsn_sac: form.hsn_sac || null,
       station: form.station,
       tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      short_code: form.short_code.trim() || null,
       category_id: form.category_id,
       modifier_group_ids: form.groups,
       translations: form.hi ? { hi: { name: form.hi } } : {},
@@ -351,6 +353,9 @@ function ItemEditor({ menu, item, categoryId, onClose }: { menu: MenuDTO; item: 
             </Field>
             <Field label="HSN / SAC">{(id) => <Input id={id} value={form.hsn_sac} onChange={(e) => set('hsn_sac', e.target.value)} />}</Field>
             <Field label="Tags" hint="Comma separated, e.g. bestseller, spicy">{(id) => <Input id={id} value={form.tags} onChange={(e) => set('tags', e.target.value)} />}</Field>
+            <Field label="Short code" hint="Typed at the till to find it fast, e.g. PT. Optional.">
+              {(id) => <Input id={id} value={form.short_code} maxLength={8} onChange={(e) => set('short_code', e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())} />}
+            </Field>
           </div>
           <div className="flex gap-2">
             {[true, false].map((v) => (
