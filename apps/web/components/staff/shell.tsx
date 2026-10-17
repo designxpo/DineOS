@@ -6,11 +6,11 @@ import {
   CalendarClock,
   ChefHat,
   ClipboardList,
-  LayoutDashboard,
+  House,
   Landmark,
   LayoutGrid,
   LogOut,
-  Menu as MenuIcon,
+  MoreHorizontal,
   Package,
   QrCode,
   ReceiptIndianRupee,
@@ -18,21 +18,24 @@ import {
   ShoppingCart,
   UtensilsCrossed,
   Users,
-  X,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import type { OrderDTO } from '@dineos/shared/dto';
 import type { Action } from '@dineos/shared/permissions';
 import { useConnection, useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { Sheet } from '@/components/ui/overlay';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { HubModeBanner, HubSwitchBanner } from './offline-hub';
 import { OutboxBadge } from './outbox-panel';
+import { PrintProblems } from './print-problems';
 import { useSignOut } from './sign-out';
 
 interface NavItem {
@@ -43,7 +46,7 @@ interface NavItem {
 }
 
 export const NAV: NavItem[] = [
-  { href: '/app', label: 'nav.dashboard', icon: LayoutDashboard, action: 'report.view' },
+  { href: '/app', label: 'nav.dashboard', icon: House, action: 'report.view' },
   { href: '/app/inbox', label: 'nav.orders', icon: ClipboardList, action: 'order.view' },
   { href: '/app/kds', label: 'nav.kitchen', icon: ChefHat, action: 'order.view' },
   { href: '/app/floor', label: 'nav.floor', icon: LayoutGrid, action: 'table.operate' },
@@ -68,6 +71,61 @@ function useLowStockAlerts(enabled: boolean) {
     const p = e.payload as { name: string; stock_qty: number; unit: string };
     toast(`${p.name} is running low: ${Number(p.stock_qty.toFixed(3))} ${p.unit} left`, 'error');
   });
+}
+
+/** The phone tab bar: the first four screens this person can open, in this order, then "More". */
+const TAB_ORDER = ['/app', '/app/inbox', '/app/floor', '/app/pos', '/app/bills', '/app/kds'];
+
+const isActive = (href: string, pathname: string) => (href === '/app' ? pathname === '/app' : pathname.startsWith(href));
+
+/**
+ * Bottom tab bar on phones, so staff move between their main screens with one thumb. The Orders
+ * tab carries the count of guest orders waiting to be accepted.
+ */
+function TabBar({ items, onMore, moreOpen }: { items: NavItem[]; onMore: () => void; moreOpen: boolean }) {
+  const { t } = useI18n();
+  const { api, outletId, can } = useStaff();
+  const pathname = usePathname();
+  // The kitchen screen is a tab only for people who cook; others reach it from "More".
+  const tabs = TAB_ORDER.filter((href) => href !== '/app/kds' || can('order.kitchen'))
+    .flatMap((href) => items.filter((i) => i.href === href))
+    .slice(0, 4);
+  const { data: waiting = 0 } = useQuery({
+    queryKey: ['orders', outletId, 'waiting-count'],
+    queryFn: () => api<OrderDTO[]>(`/orders?outlet_id=${outletId}&status=placed&limit=99`).then((list) => list.length),
+    enabled: can('order.accept'),
+    refetchInterval: 60_000,
+  });
+  const onTab = tabs.some((tab) => isActive(tab.href, pathname));
+  const cell = 'flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-90 active:duration-75';
+  return (
+    <nav data-tabbar aria-label={t('nav.more')} className="chrome fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden no-print">
+      <div className="mx-auto grid h-14 max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
+        {tabs.map((tab) => {
+          const active = isActive(tab.href, pathname);
+          const Icon = tab.icon;
+          const badge = tab.href === '/app/inbox' && waiting > 0 ? waiting : 0;
+          return (
+            <Link key={tab.href} href={tab.href} aria-current={active ? 'page' : undefined} className={cn(cell, active ? 'text-brand-700' : 'text-ink-faint')}>
+              <span className="relative">
+                <Icon className="size-[22px]" />
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] leading-[18px] font-semibold text-white tabular" aria-label={`${badge} waiting`}>
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
+              </span>
+              <span className="max-w-full truncate px-1">{t(tab.label)}</span>
+            </Link>
+          );
+        })}
+        <button type="button" onClick={onMore} aria-expanded={moreOpen} className={cn(cell, 'cursor-pointer', moreOpen || !onTab ? 'text-brand-700' : 'text-ink-faint')}>
+          <MoreHorizontal className="size-[22px]" />
+          <span>{t('nav.more')}</span>
+        </button>
+      </div>
+    </nav>
+  );
 }
 
 /** Where each role starts its day. */
@@ -95,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const nav = (
     <nav className="flex flex-col gap-0.5 p-3" aria-label="Main">
       {items.map((item) => {
-        const active = item.href === '/app' ? pathname === '/app' : pathname.startsWith(item.href);
+        const active = isActive(item.href, pathname);
         const Icon = item.icon;
         return (
           <Link
@@ -130,6 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <>
         <HubModeBanner />
         <HubSwitchBanner />
+        <PrintProblems />
         {children}
       </>
     );
@@ -167,9 +226,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="chrome sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:px-6">
-          <IconButton label="Open menu" className="lg:hidden" onClick={() => setOpen(true)}>
-            <MenuIcon className="size-5" />
-          </IconButton>
           {me.outlets.length > 1 ? (
             <Select value={outletId} onChange={(e) => setOutletId(e.target.value)} className="h-10 max-w-56" aria-label="Outlet">
               {me.outlets.map((o) => (
@@ -189,30 +245,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <HubModeBanner />
         <HubSwitchBanner />
-        <main className="flex-1">{children}</main>
+        <PrintProblems />
+        <main className="flex-1 pb-[var(--tabbar-h)]">{children}</main>
       </div>
+      <TabBar items={items} onMore={() => setOpen(true)} moreOpen={open} />
       {unsyncedDialog}
 
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 animate-fade-in bg-stone-950/40" onClick={() => setOpen(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-72 flex-col bg-surface shadow-[var(--shadow-pop)]">
-            <div className="flex h-16 items-center justify-between border-b border-line px-4">
-              <span className="font-display text-lg font-semibold">{me.tenant.name}</span>
-              <IconButton label="Close menu" onClick={() => setOpen(false)}>
-                <X className="size-5" />
-              </IconButton>
-            </div>
-            <div className="flex-1 overflow-y-auto">{nav}</div>
-            <Link href="/app/account" className="flex h-12 items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
+      {/* "More" on phones: every screen, rising from the tab bar it was opened from. */}
+      <Sheet open={open} onClose={() => setOpen(false)} title={me.tenant.name}>
+        <nav className="grid grid-cols-3 gap-2" aria-label="Main">
+          {items.map((item) => {
+            const active = isActive(item.href, pathname);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center text-xs font-medium transition active:scale-95 active:duration-75',
+                  active ? 'bg-brand-50 text-brand-700' : 'bg-stone-50 text-ink-soft',
+                )}
+              >
+                <Icon className="size-5" />
+                {t(item.label)}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line">
+          <Link href="/app/account" className="flex h-12 items-center gap-3 px-4 text-sm text-ink">
+            <span className="grid size-7 place-items-center rounded-full bg-stone-200 text-xs font-semibold text-ink-soft">{me.user.name.slice(0, 1)}</span>
+            <span className="flex-1 truncate">
               {me.user.name} · {t('nav.account')}
-            </Link>
-            <button onClick={() => void signOut()} className="flex h-14 cursor-pointer items-center gap-3 border-t border-line px-6 text-sm text-ink-soft">
-              <LogOut className="size-4" /> {t('nav.signout')}
-            </button>
-          </div>
+            </span>
+          </Link>
+          <button onClick={() => void signOut()} className="flex h-12 w-full cursor-pointer items-center gap-3 px-4 text-sm text-rose-700">
+            <LogOut className="size-4" /> {t('nav.signout')}
+          </button>
         </div>
-      )}
+      </Sheet>
     </div>
   );
 }

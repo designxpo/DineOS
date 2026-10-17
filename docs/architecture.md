@@ -9,7 +9,7 @@ Kitchen display ───┼── Caddy ── web (Next.js 16)
 Cashier POS ───────┤        └── api (Fastify 5) ──┼── Redis (Socket.IO fan-out between API servers)
 Owner / admin ─────┘              │               └── object storage (menu photos: local disk or S3/MinIO)
                                   └── Socket.IO /staff, /guest, /device
-Print agent (outlet PC) ── outbound socket + REST ── ESC/POS printers on port 9100
+Print agent (outlet PC) ── outbound socket + REST ── ESC/POS printers (network :9100, USB via the OS spooler, /dev/usb/lp*)
    └─ outlet hub mode: LAN copy of the outlet on :4100 for internet outages (staff app proxied beside it)
 Camera box (Python) ── RTSP from IP cameras ── HTTPS table states only ── api /v1/vision/*
 ```

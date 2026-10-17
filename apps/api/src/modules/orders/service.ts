@@ -23,7 +23,7 @@ import { can, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { syncStock } from '../inventory/stock';
-import { hasPrintAgent, queuePrintJob } from '../print/jobs';
+import { printTargets, queuePrintJob } from '../print/jobs';
 import { lockLiveSession, openSession, refreshSessionTables } from '../tables/sessions';
 import { loadOrder, toGuestOrder } from './serialize';
 
@@ -375,7 +375,7 @@ export async function createKots(
   const wanted = new Set(orderItemIds);
   const items = order.items.filter((i) => wanted.has(i.id));
   if (items.length === 0) return;
-  const printing = await hasPrintAgent(tx, outlet.id);
+  const printers = await printTargets(tx, outlet.id);
   const day = businessDate(new Date(), outlet.timezone);
   const stations = [...new Set(items.map((i) => i.station))];
   for (const station of stations) {
@@ -413,7 +413,7 @@ export async function createKots(
       })
       .returning('id')
       .executeTakeFirstOrThrow();
-    if (printing) await queuePrintJob(tx, outlet.id, { target: station, refId: kot.id, doc });
+    if (printers?.has(station)) await queuePrintJob(tx, outlet.id, { target: station, refId: kot.id, doc });
   }
 }
 

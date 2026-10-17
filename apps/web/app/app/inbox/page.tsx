@@ -101,7 +101,12 @@ export default function InboxPage() {
       ) : (
         <>
           <div className="px-4 pb-3 lg:hidden">
-            <Segmented value={tab} onChange={setTab} options={COLUMNS.map((c) => ({ value: c.key, label: t(c.label), count: byColumn(c).length }))} className="w-full overflow-x-auto" />
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              options={COLUMNS.map((c) => ({ value: c.key, label: t(c.key === 'ready' ? 'inbox.ready_short' : c.label), count: byColumn(c).length }))}
+              className="w-full"
+            />
           </div>
           <div className="grid gap-4 px-4 pb-10 lg:grid-cols-3 lg:px-8 xl:grid-cols-4">
             {COLUMNS.map((c) => {

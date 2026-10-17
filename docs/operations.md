@@ -78,27 +78,36 @@ How the API behaves on Vercel:
 3. **Menu → Import**: download the template, fill it in Excel, check the file, then import. Add photos per dish.
 4. **Tables & QR**: add tables (or "Add many"), then print the QR sheet (PDF) and place the cards.
 5. **Staff**: add managers, cashiers, waiters and kitchen staff. Managers set an approval PIN in **Settings → My PIN**.
-6. Optional printers: **Settings → Printers → Add print agent**, then install the agent (below).
+6. Optional printers: **Settings → Printers → Add print computer**, then paste the install line on the billing PC (below).
 7. Subscription: create a monthly invoice in the admin console; mark it paid when the UPI or bank transfer arrives.
 8. Optional, any time: **Settings → Loyalty & stock** (points, booking length, automatic sold-out), **Inventory** (ingredients and recipes), **Settings → Printers → Offline mode** (outlet hub), **Settings → Cameras**.
 
-## Print agent
+## Printers: kitchen tickets (KOT), bills and the cash drawer
 
-Runs on any always-on PC at the outlet (Windows, Linux, or a Raspberry Pi) on the same network as the thermal printers. It connects out to the API, so no port forwarding is needed.
+One always-on computer at the outlet runs the DineOS print agent, usually the billing PC (Windows), or a Mac, a Linux PC or a Raspberry Pi. Thermal printers connect to it in any of these ways:
 
-```bash
-npm run build -w @dineos/print-agent        # produces apps/print-agent/dist/main.js (single file)
-# copy main.js to the outlet PC, which needs Node 22+
-DINEOS_API_URL=https://API_DOMAIN DINEOS_DEVICE_TOKEN=dv_... node main.js
-```
+| Printer | How it connects | Address the agent uses |
+| --- | --- | --- |
+| USB printer at the billing desk | Plugged into the computer, with its Windows (or CUPS) driver installed | `printer:<name>`, e.g. `printer:EPSON TM-T82 Receipt` |
+| Network printer in the kitchen or bar | Ethernet or Wi-Fi on the outlet's network; give it a fixed IP in the router | `192.168.1.50:9100` |
+| USB printer on Linux / Raspberry Pi | Plugged in; no driver needed | `/dev/usb/lp0` |
 
-- Keep it running as a service: NSSM on Windows, a systemd unit on Linux.
-- Printer addresses (`192.168.1.50:9100`, 80 mm = 48 columns, 58 mm = 32) are set per device in the portal; restart the agent after changing them. **Settings → Printers → Test** prints a test page.
-- Jobs are acknowledged once printed. Failures retry up to five times, and jobs left unprinted while the PC was off print when it reconnects. If the agent is down, kitchen staff still see orders on the KDS, and bills can be printed from the browser.
+Any ESC/POS (Epson-compatible) 58 or 80 mm printer works: Epson TM-T82/T88, TVS RP3160, Rugtek, Posiflex, Everycom and most others sold in India. A cash drawer plugs into the bill printer's RJ11 "DK" port.
+
+1. **Settings → Printers → Add print computer**. Pick Windows, Mac or Linux, copy the line, and run it on that computer (Windows: PowerShell **as administrator**; Linux: it uses `sudo`). It installs Node.js if needed, downloads the agent from your DineOS site (`/agent/dineos-agent.mjs`), and starts it with the computer: a scheduled task on Windows (`C:\ProgramData\DineOS`, runs as SYSTEM), a systemd service on Linux (`/opt/dineos`), a launch agent on a Mac. Run the line again to update the agent. The log is `agent.log` in that folder.
+2. Within a minute the computer shows as **Online**, with the printers it found: printers installed on it, Linux USB devices, and network printers answering on port 9100 on its local network. **Search for printers** looks again after plugging one in.
+3. **Choose printers**: one printer per job (bills and each kitchen station), or the same printer for several. Set 80 or 58 mm paper, and switch on **Open the cash drawer on cash payments** for the bill printer if a drawer is attached. Changes reach the computer within seconds; no restart. **Test** prints a test page.
+
+How it behaves:
+- Accepted orders print one KOT per station on that station's printer; a station with no printer shows only on the kitchen screen. Finalising a bill prints it at the billing desk; a cash payment opens the drawer.
+- Jobs are acknowledged once printed and retried up to five times. Jobs queued while the computer was off print when it comes back. On hosts where the agent cannot keep its live connection (some serverless hosts), it checks for jobs every 5 seconds instead.
+- If a ticket or bill has not printed after 90 seconds, or failed, every staff screen (including the kitchen screen) shows a red **Printer problem** bar naming it, with **Print here** (browser printing on that device), **Try again** and **Done**.
+- To remove the agent: Windows `Unregister-ScheduledTask -TaskName 'DineOS Print Agent' -Confirm:$false`; Linux `sudo systemctl disable --now dineos-print-agent`; Mac `launchctl unload ~/Library/LaunchAgents/in.dineos.print-agent.plist`. **Remove** on its card stops it printing at once.
+- Developers: after changing `apps/print-agent`, run `npm run build:download -w @dineos/print-agent` and commit `apps/web/public/agent/dineos-agent.mjs`; that file is what installers download. `DINEOS_DRY_RUN=1` prints tickets as text, `DINEOS_SCAN=0` skips the printer search, `DINEOS_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
 
 ## Outlet hub (offline mode)
 
-The same print agent, started with `DINEOS_HUB=1`, keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to DineOS when the line returns.
+The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `DINEOS_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to DineOS when the line returns.
 
 1. Pick an always-on PC on the outlet's network (the print-agent PC is fine) and give it a fixed IP in the router.
 2. **Settings → Printers → Offline mode**: choose that device and enter its address, e.g. `http://192.168.1.20:4100`.

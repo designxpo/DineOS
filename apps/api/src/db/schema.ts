@@ -229,6 +229,7 @@ export interface Devices {
   config: Generated<Json>;
   created_at: Generated<Timestamp>;
   id: Generated<string>;
+  info: Generated<Json>;
   kind: string;
   last_seen_at: Timestamp | null;
   name: string;
@@ -573,6 +574,7 @@ export interface PrintJobs {
   attempts: Generated<number>;
   created_at: Generated<Timestamp>;
   device_id: string | null;
+  dismissed_at: Timestamp | null;
   doc: Json;
   id: Generated<string>;
   kind: string;

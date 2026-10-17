@@ -16,7 +16,7 @@ import { assertCan, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { markOrdersBilled } from '../orders/service';
-import { hasPrintAgent, queuePrintJob } from '../print/jobs';
+import { canPrint, openCashDrawer, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
 import { earnOnPaid, lockCustomer, redeemOnFinalise, reverseOnVoid, validateRedemption } from './loyalty';
 import { paymentAdapterFor } from './payment-adapter';
@@ -489,7 +489,7 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
 
   await redeemOnFinalise(tx, bill, auth.userId);
   await markFullyBilledOrders(tx, billId);
-  if (await hasPrintAgent(tx, outlet.id)) await printBill(tx, billId, false);
+  if (await canPrint(tx, outlet.id, 'bill')) await printBill(tx, billId, false);
   if (bill.total_paise === 0) {
     await earnOnPaid(tx, billId, auth.userId);
     await settleSessionIfDone(tx, billId);
@@ -647,6 +647,7 @@ export async function recordPayment(tx: Tx, auth: StaffAuth, billId: string, inp
     await earnOnPaid(tx, billId, auth.userId);
     await settleSessionIfDone(tx, billId);
   }
+  if (input.method === 'cash') await openCashDrawer(tx, bill.outlet_id);
   const dto = (await loadBill(tx, billId))!;
   await announceBill(tx, dto);
   return dto;

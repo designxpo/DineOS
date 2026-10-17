@@ -89,12 +89,12 @@ export default function BillPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 lg:px-8">
-      <div className="mb-5 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex items-start gap-2 sm:items-center sm:gap-3">
         <Link href="/app/bills" className="grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-stone-100" aria-label={t('bill.back')}>
           <ArrowLeft className="size-5" />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-2xl font-semibold">
+          <h1 className="font-display text-xl leading-tight font-semibold tracking-tight sm:text-2xl">
             {bill.table_label ? t('bill.table', { label: bill.table_label }) : t('bill.counter')}
             {bill.split_label && <span className="ml-2 text-base font-normal text-ink-faint">{bill.split_label}</span>}
           </h1>
@@ -106,7 +106,7 @@ export default function BillPage() {
               t('bill.draft_note')
             )}</p>
         </div>
-        <Badge tone={draft ? 'amber' : finalised ? 'blue' : bill.status === 'paid' ? 'green' : 'rose'} className="px-3 py-1 text-sm">
+        <Badge tone={draft ? 'amber' : finalised ? 'blue' : bill.status === 'paid' ? 'green' : 'rose'} className="mt-1.5 shrink-0 px-3 py-1 text-sm sm:mt-0">
           {draft ? t('bill.st_draft') : finalised ? t('bill.st_finalised') : bill.status === 'paid' ? t('bill.st_paid') : t('bill.st_void')}
         </Badge>
       </div>

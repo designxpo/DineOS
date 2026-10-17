@@ -13,7 +13,7 @@ import { formatHubInvoiceNo, type HubBill, type HubOrder, type HubOrderItem, typ
 import { checkModifierSelection, isScheduleOpen } from '@dineos/shared/menu';
 import { canItemTransition, cancelNeedsManager, canTransition, deriveOrderStatus, itemStatusForOrder, readyNews } from '@dineos/shared/order-state';
 import { rolesCan, type Action } from '@dineos/shared/permissions';
-import type { BillDoc, KotDoc, PrintDoc } from '@dineos/shared/print';
+import type { BillDoc, KotDoc, PrintDoc, PrinterConfig } from '@dineos/shared/print';
 import { deriveTableState } from '@dineos/shared/table-state';
 
 export class HubError extends Error {
@@ -76,7 +76,7 @@ export interface HubState {
   idempotency: Record<string, { at: number; status: number; body: unknown }>;
   sync: { at: string | null; error: string | null; failed: HubSyncResult['failed'] };
   /** Printer addresses from the portal, kept so the hub can print after a restart while offline. */
-  printers: Record<string, { address: string; width: 32 | 42 | 48 }>;
+  printers: Record<string, PrinterConfig>;
 }
 
 export function emptyState(): HubState {
@@ -1214,6 +1214,8 @@ export class HubEngine {
     }
     this.bump(b);
     if (b.status === 'paid') this.settleIfDone(b);
+    // The hub opens the drawer only if the bill printer has one (its print hook checks).
+    if (input.method === 'cash') this.hooks.print('bill', { kind: 'drawer' });
     const dto = this.billDto(b);
     this.emit('bill.updated', { bill_id: b.id, status: b.status, table_session_id: b.table_session_id });
     this.commit();

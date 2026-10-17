@@ -128,6 +128,15 @@ export function Segmented<T extends string>({
   const box = useRef<HTMLDivElement>(null);
   const placed = useRef(false);
   const [thumb, setThumb] = useState<{ x: number; w: number; animate: boolean } | null>(null);
+  // On a narrow screen the tabs scroll sideways; the edge that hides more tabs fades out.
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const measure = () => {
+    const el = box.current;
+    if (!el) return;
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((e) => (e.left === left && e.right === right ? e : { left, right }));
+  };
   useLayoutEffect(() => {
     const picked = box.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     if (!picked) {
@@ -136,14 +145,36 @@ export function Segmented<T extends string>({
     }
     const place = (animate: boolean) => setThumb({ x: picked.offsetLeft, w: picked.offsetWidth, animate });
     place(placed.current);
+    // Bring the picked tab into view without moving the page.
+    const el = box.current!;
+    if (el.scrollWidth > el.clientWidth) {
+      const target = picked.offsetLeft - (el.clientWidth - picked.offsetWidth) / 2;
+      el.scrollTo({ left: Math.max(0, target), behavior: placed.current ? 'smooth' : 'auto' });
+    }
     placed.current = true;
-    const watch = new ResizeObserver(() => place(false));
+    measure();
+    const watch = new ResizeObserver(() => {
+      place(false);
+      measure();
+    });
     watch.observe(picked);
+    watch.observe(el);
     return () => watch.disconnect();
   }, [value, options.length]);
 
+  const mask =
+    edges.left || edges.right
+      ? `linear-gradient(to right, ${edges.left ? 'transparent 0, #000 1.5rem' : '#000 0'}, ${edges.right ? '#000 calc(100% - 1.5rem), transparent 100%' : '#000 100%'})`
+      : undefined;
+
   return (
-    <div ref={box} role="tablist" className={cn('relative inline-flex rounded-xl bg-stone-100 p-1', className)}>
+    <div
+      ref={box}
+      role="tablist"
+      onScroll={measure}
+      style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+      className={cn('no-scrollbar relative inline-flex max-w-full overflow-x-auto rounded-xl bg-stone-100 p-1', className)}
+    >
       {thumb && (
         <span
           aria-hidden

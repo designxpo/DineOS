@@ -87,10 +87,12 @@ export default function TablesPage() {
                   .filter((t) => (t.zone ?? 'Tables') === zone)
                   .map((t) => (
                     <li key={t.id} className="flex items-center gap-3 px-4 py-2">
-                      <span className="w-16 font-display text-lg font-semibold">{t.label}</span>
-                      <span className="flex-1 text-sm text-ink-faint">
-                        {t.seats} seats · QR version {t.qr_token_version}
-                      </span>
+                      <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+                        <span className="truncate font-display text-lg font-semibold sm:w-16">{t.label}</span>
+                        <span className="text-xs text-ink-faint sm:flex-1 sm:text-sm">
+                          {t.seats} seats · QR version {t.qr_token_version}
+                        </span>
+                      </div>
                       <IconButton label={`Show QR for ${t.label}`} onClick={() => setQrFor(t)}>
                         <QrCode className="size-4" />
                       </IconButton>

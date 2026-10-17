@@ -126,5 +126,7 @@ export function render(doc: PrintDoc, width: number): EscPos {
       return renderBill(doc, width);
     case 'test':
       return renderTest(doc, width);
+    case 'drawer':
+      return new EscPos().init().drawer();
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@dineos/print-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "On-site agent: receives kitchen tickets and bills from DineOS and prints them on ESC/POS network printers",
@@ -11,7 +11,8 @@
     "start": "tsx src/main.ts",
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:download": "tsup && node -e \"const fs=require('fs');fs.mkdirSync('../web/public/agent',{recursive:true});fs.copyFileSync('dist/download/dineos-agent.mjs','../web/public/agent/dineos-agent.mjs')\""
   },
   "dependencies": {
     "@dineos/shared": "*",

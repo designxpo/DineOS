@@ -112,6 +112,27 @@ body {
 }
 
 /* Translucent chrome turns solid for people who ask for less transparency. */
+/* Phones get a bottom tab bar in the staff portal; fixed things (toasts, the POS cart button) sit
+   above it, and the page leaves room for it and for the iPhone home indicator. */
+:root {
+  --tabbar-h: 0px;
+}
+:root:has([data-tabbar]) {
+  --tabbar-h: calc(3.5rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 64rem) {
+  :root:has([data-tabbar]) {
+    --tabbar-h: 0px;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .chrome {
     background: var(--color-surface);

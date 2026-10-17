@@ -276,7 +276,7 @@ function Pos() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)]">
+    <div className="flex h-[calc(100dvh-4rem-var(--tabbar-h))]">
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="space-y-3 border-b border-line bg-surface p-4">
           <label className="relative block">
@@ -349,7 +349,7 @@ function Pos() {
       {lines.length > 0 && (
         <button
           onClick={() => setTicketOpen(true)}
-          className="fixed inset-x-4 bottom-4 z-30 flex h-14 cursor-pointer items-center justify-between rounded-2xl bg-[var(--brand)] px-5 text-white shadow-[var(--shadow-pop)] lg:hidden"
+          className="fixed inset-x-4 bottom-[calc(var(--tabbar-h)+1rem)] z-30 flex h-14 cursor-pointer items-center justify-between rounded-2xl bg-[var(--brand)] px-5 text-white shadow-[var(--shadow-pop)] lg:hidden"
         >
           <span className="font-semibold">{count} items</span>
           <span className="font-semibold tabular">{formatPaise(subtotal)} · {t('pos.review')} →</span>

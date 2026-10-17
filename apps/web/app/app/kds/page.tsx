@@ -20,6 +20,7 @@ import { cn } from '@/components/ui/cn';
 import { VegMark } from '@/components/ui/primitives';
 import { OutboxBadge } from '@/components/staff/outbox-panel';
 import { StaleBanner } from '@/components/staff/stale-banner';
+import { homeFor } from '@/components/staff/shell';
 import { useSignOut } from '@/components/staff/sign-out';
 import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
@@ -99,14 +100,16 @@ export default function KdsPage() {
   return (
     <div className="min-h-dvh bg-stone-900 text-stone-100">
       <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-stone-800 bg-stone-900/95 px-4 py-3 backdrop-blur">
-        {can('report.view') || can('bill.manage') ? (
-          <Link href="/app" aria-label="Back" className="grid size-11 place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
+        {/* Cooks stay on this screen; anyone with other work gets a way back to it. */}
+        {can('report.view') || can('bill.manage') || can('table.operate') || can('order.create') ? (
+          <Link href={homeFor(can)} aria-label="Back" className="grid size-11 shrink-0 place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
             <ArrowLeft className="size-5" />
           </Link>
         ) : null}
-        <ChefHat className="size-6 text-amber-400" />
-        <h1 className="text-lg font-semibold">{outlet?.name}</h1>
-        <div className="flex gap-1 rounded-xl bg-stone-800 p-1" role="tablist" aria-label="Station">
+        <ChefHat className="size-6 shrink-0 text-amber-400" />
+        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold sm:flex-none">{outlet?.name}</h1>
+        {/* On a phone the stations get their own row and scroll sideways. */}
+        <div className="no-scrollbar order-last flex w-full gap-1 overflow-x-auto rounded-xl bg-stone-800 p-1 sm:order-none sm:w-auto" role="tablist" aria-label="Station">
           {['', ...stations].map((s) => (
             <button
               key={s || 'all'}
@@ -116,13 +119,13 @@ export default function KdsPage() {
                 setStation(s);
                 writeLocal('dineos.kds.station', s);
               }}
-              className={cn('h-9 cursor-pointer rounded-lg px-3 text-sm font-semibold capitalize', station === s ? 'bg-amber-400 text-stone-900' : 'text-stone-300 hover:text-white')}
+              className={cn('h-9 shrink-0 cursor-pointer rounded-lg px-3 text-sm font-semibold whitespace-nowrap capitalize', station === s ? 'bg-amber-400 text-stone-900' : 'text-stone-300 hover:text-white')}
             >
               {s || t('kds.all_stations')}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <OutboxBadge />
           <span className="flex items-center gap-1.5 text-sm text-stone-400">
             <span className={cn('size-2.5 rounded-full', connection === 'online' ? 'bg-emerald-400' : 'bg-rose-500')} />
@@ -134,7 +137,7 @@ export default function KdsPage() {
           <button onClick={() => setSound(unlockSound())} aria-label={sound ? 'Sound on' : 'Turn on sound'} className="grid size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
             {sound ? <Bell className="size-5" /> : <BellOff className="size-5 text-rose-400" />}
           </button>
-          <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="grid size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800">
+          <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="hidden size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800 sm:grid">
             <Maximize className="size-5" />
           </button>
           <button

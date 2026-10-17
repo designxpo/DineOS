@@ -7,7 +7,7 @@ import { approvalHeader } from '../../lib/approvals';
 import { assertCan, assertOutletAccess, requireAction, requireStaff } from '../../lib/auth';
 import { badRequest, notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
-import { hasPrintAgent, queuePrintJob } from '../print/jobs';
+import { printTargets, queuePrintJob } from '../print/jobs';
 import { getOrCreateSession } from '../tables/sessions';
 import { editOrderItems } from './edit';
 import { loadOrder, loadOrders } from './serialize';
@@ -187,14 +187,15 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (body.station) q = q.where('station', '=', body.station);
         const kots = await q.orderBy('created_at').execute();
         if (kots.length === 0) throw notFound('Kitchen ticket');
-        if (!(await hasPrintAgent(tx, order.outlet_id))) {
-          return { queued: 0, message: 'No print agent is connected; use the browser print view' };
-        }
-        for (const kot of kots) {
+        const printers = await printTargets(tx, order.outlet_id);
+        if (!printers) return { queued: 0, message: 'No print agent is connected; use the browser print view' };
+        const printable = kots.filter((k) => printers.has(k.station));
+        if (printable.length === 0) return { queued: 0, message: 'No printer is set up for this station; use the browser print view' };
+        for (const kot of printable) {
           const doc = { ...(kot.items as unknown as KotDoc), reprint: true };
           await queuePrintJob(tx, order.outlet_id, { target: kot.station, refId: kot.id, doc });
         }
-        return { queued: kots.length };
+        return { queued: printable.length };
       });
     });
 

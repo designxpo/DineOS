@@ -127,16 +127,16 @@ function ItemsTab({ menu, manage }: { menu: MenuDTO; manage: boolean }) {
               <li key={i.id} className="flex items-center gap-3 px-3 py-2.5">
                 {i.photo_url ? <img src={i.photo_url} alt="" className="size-12 rounded-xl object-cover" /> : <div className="grid size-12 place-items-center rounded-xl bg-stone-100 text-ink-faint"><UtensilsCrossed className="size-4" /></div>}
                 <div className="min-w-0 flex-1">
-                  <p className={cn('flex items-center gap-2 font-medium', !i.in_stock && 'text-ink-faint')}>
-                    <VegMark veg={i.is_veg} /> <span className="truncate">{i.name}</span>
+                  <p className={cn('flex items-start gap-2 font-medium leading-snug', !i.in_stock && 'text-ink-faint')}>
+                    <VegMark veg={i.is_veg} className="mt-1 shrink-0" /> <span className="line-clamp-2">{i.name}</span>
                   </p>
                   <p className="text-xs text-ink-faint">
                     {formatPrice(i.price_paise)} · GST {formatRate(i.tax_rate_bp)} · {i.station}
                     {i.modifier_group_ids.length > 0 && ` · ${i.modifier_group_ids.length} option group${i.modifier_group_ids.length > 1 ? 's' : ''}`}
                   </p>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-ink-soft">
-                  {i.in_stock ? 'In stock' : <Badge tone="rose">Sold out</Badge>}
+                <label className="flex shrink-0 items-center gap-2 text-xs text-ink-soft">
+                  {i.in_stock ? <span className="hidden sm:inline">In stock</span> : <Badge tone="rose">Sold out</Badge>}
                   <Switch label={`${i.name} in stock`} checked={i.in_stock} onChange={(v) => void mutate(() => api(`/menu/items/${i.id}/stock`, { method: 'PATCH', body: { in_stock: v } }), v ? `${i.name} back in stock` : `${i.name} marked sold out`)} />
                 </label>
                 {manage && (

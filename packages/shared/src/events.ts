@@ -17,6 +17,7 @@ export const EVENT_TYPES = [
   'session.closed',
   'bill.updated',
   'print.job',
+  'device.command',
   'reservations.updated',
   'waitlist.updated',
   'inventory.low',

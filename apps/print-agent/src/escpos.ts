@@ -72,6 +72,13 @@ export class EscPos {
     return this;
   }
 
+  /** Pulses the cash drawer port (pin 2, the usual wiring): the drawer springs open. */
+  drawer(): this {
+    this.bytes.push(ESC, 0x70, 0, 25, 250);
+    this.preview.push('[open cash drawer]');
+    return this;
+  }
+
   /** QR code (model 2). `size` is the module size in dots, 1 to 16. */
   qr(data: string, size = 6): this {
     const payload = Buffer.from(data, 'utf8');

@@ -33,6 +33,7 @@ const INVALIDATES: Partial<Record<EventType, string[]>> = {
   'reservations.updated': ['reservations'],
   'waitlist.updated': ['waitlist'],
   'inventory.low': ['inventory'],
+  'print.job': ['print-status'],
 };
 
 const LATEST = 2_147_483_647;

@@ -6,6 +6,7 @@
 //   back:    sends everything to the cloud (retrying until accepted), then follows the cloud again
 
 import { batchSyncPayload, type HubSnapshot, type HubSyncResult } from '@dineos/shared/hub';
+import type { FoundPrinter } from '@dineos/shared/print';
 import { PrintAgent, type PrinterConfig, type Transport } from '../agent';
 import { emptyState, HubEngine, type HubState } from './engine';
 import { HubServer } from './server';
@@ -21,6 +22,7 @@ export interface HubOptions {
   webUpstream: string | null;
   printers?: Record<string, PrinterConfig>;
   transport?: Transport;
+  discover?: () => Promise<FoundPrinter[]>;
   fetch?: typeof fetch;
   log?: (msg: string) => void;
   healthMs?: number;
@@ -44,7 +46,7 @@ export class OutletHub {
     this.log = opts.log ?? ((m) => console.log(`[outlet-hub] ${new Date().toISOString()} ${m}`));
     this.fetch = opts.fetch ?? fetch;
     this.store = new JsonStore<HubState>(opts.dataFile, emptyState);
-    this.agent = new PrintAgent({ apiUrl: opts.apiUrl, token: opts.token, printers: opts.printers, transport: opts.transport, log: this.log });
+    this.agent = new PrintAgent({ apiUrl: opts.apiUrl, token: opts.token, printers: opts.printers, transport: opts.transport, discover: opts.discover, log: this.log });
     let server: HubServer | null = null;
     this.engine = new HubEngine(this.store.load(), {
       now: opts.now,
@@ -52,6 +54,7 @@ export class OutletHub {
       emit: (e) => server?.broadcast(e),
       print: (target, doc) => {
         const printers = Object.keys(this.agent.printerConfig).length ? this.agent.printerConfig : { ...this.engine.state.printers, ...(opts.printers ?? {}) };
+        if (doc.kind === 'drawer' && !printers[target]?.drawer) return;
         this.agent.printLocal(target, doc, printers);
       },
     });
@@ -124,6 +127,8 @@ export class OutletHub {
       return;
     }
     if (!was) this.log('cloud reachable');
+    // Printer changes made in the portal reach the agent while online; keep a copy for outages.
+    if (this.agentStarted) this.engine.state.printers = this.agent.printerConfig;
     if (!this.agentStarted) {
       try {
         await this.agent.start();

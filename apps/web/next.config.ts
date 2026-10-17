@@ -40,6 +40,15 @@ const config: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      {
+        // Print agent installers and download: plain text so `irm | iex` and `curl | sh` run them,
+        // and never cached so a reinstall gets the current agent.
+        source: '/agent/:file*',
+        headers: [
+          { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-cache' },
+        ],
+      },
     ];
   },
 };

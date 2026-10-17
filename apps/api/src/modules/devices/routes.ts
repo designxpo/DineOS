@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { AppContext } from '../../context';
+import type { AppContext, Tx } from '../../context';
 import { json } from '../../db';
 import { audit } from '../../lib/audit';
 import { assertCan, requireAction, requireStaff } from '../../lib/auth';
@@ -8,20 +8,29 @@ import { randomToken, sha256 } from '../../lib/crypto';
 import { notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
 
-const printerAddress = z.string().regex(/^[\w.-]+:\d{2,5}$/, 'Use host:port, e.g. 192.168.1.50:9100');
+/** A network printer (host:port), a printer installed on the agent's computer, or a Linux USB device. */
+const printerAddress = z
+  .string()
+  .trim()
+  .max(140)
+  .refine(
+    (a) => /^[\w.-]+(:\d{2,5})?$/.test(a) || (/^printer:[^'"]{1,120}$/.test(a) && !/\p{Cc}/u.test(a)) || /^\/dev\/[\w./-]{1,60}$/.test(a),
+    'Pick a printer the computer found, or type an address like 192.168.1.50:9100',
+  );
 const printerConfig = z.object({
   /** target ('bill' or a kitchen station) -> printer */
   printers: z
     .record(
       z.string().min(1).max(30),
-      z.object({ address: printerAddress, width: z.union([z.literal(32), z.literal(42), z.literal(48)]).default(48) }),
+      z.object({ address: printerAddress, width: z.union([z.literal(32), z.literal(42), z.literal(48)]).default(48), drawer: z.boolean().optional() }),
     )
     .default({}),
 });
 
-const ONLINE_WINDOW_MS = 2 * 60_000;
+/** A device that checked in this recently counts as online (agents check in every minute). */
+export const ONLINE_WINDOW_MS = 2 * 60_000;
 
-function deviceDto(d: { id: string; outlet_id: string; kind: string; name: string; status: string; config: unknown; last_seen_at: Date | null; created_at: Date }) {
+function deviceDto(d: { id: string; outlet_id: string; kind: string; name: string; status: string; config: unknown; info: unknown; last_seen_at: Date | null; created_at: Date }) {
   return {
     id: d.id,
     outlet_id: d.outlet_id,
@@ -29,13 +38,19 @@ function deviceDto(d: { id: string; outlet_id: string; kind: string; name: strin
     name: d.name,
     status: d.status,
     config: d.config,
+    info: d.info,
     last_seen_at: d.last_seen_at?.toISOString() ?? null,
     online: !!d.last_seen_at && Date.now() - d.last_seen_at.getTime() < ONLINE_WINDOW_MS,
     created_at: d.created_at.toISOString(),
   };
 }
 
-const COLUMNS = ['id', 'outlet_id', 'kind', 'name', 'status', 'config', 'last_seen_at', 'created_at'] as const;
+const COLUMNS = ['id', 'outlet_id', 'kind', 'name', 'status', 'config', 'info', 'last_seen_at', 'created_at'] as const;
+
+/** Commands reach the outlet's agents on their socket; each acts only on its own id. */
+async function tellAgent(tx: Tx, outletId: string, deviceId: string, command: 'reload' | 'scan'): Promise<void> {
+  await tx.emit({ outletId, type: 'device.command', channels: ['print'], payload: { device_id: deviceId, command } });
+}
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
   return async (app) => {
@@ -97,6 +112,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('id', '=', id)
           .returning(COLUMNS)
           .executeTakeFirstOrThrow();
+        // A running agent picks up new printers straight away.
+        if (body.config) await tellAgent(tx, d.outlet_id, id, 'reload');
         if (body.status && body.status !== d.status) {
           // A revoked device stops being the outlet hub.
           if (body.status === 'revoked') await tx.db.updateTable('outlets').set({ hub_device_id: null }).where('hub_device_id', '=', id).execute();
@@ -104,6 +121,19 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         }
         return deviceDto(row);
       });
+    });
+
+    /** Asks a print agent to look for printers again (after plugging one in). */
+    app.post('/devices/:id/scan', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      await ctx.tx(auth.tenantId, async (tx) => {
+        const d = await tx.db.selectFrom('devices').select(['outlet_id', 'kind']).where('id', '=', id).where('status', '=', 'active').executeTakeFirst();
+        if (!d || d.kind !== 'print_agent') throw notFound('Print computer');
+        assertCan(auth, d.outlet_id, 'device.manage');
+        await tellAgent(tx, d.outlet_id, id, 'scan');
+      });
+      return reply.status(202).send({ ok: true });
     });
 
     app.post('/devices/:id/rotate-token', async (req) => {

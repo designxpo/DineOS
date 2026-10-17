@@ -1,17 +1,18 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Download, Plus, Printer, Trash2 } from 'lucide-react';
+import { Download, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { OutletDTO } from '@dineos/shared/dto';
 import { API_URL, errorMessage } from '@/lib/api';
 import { dateTime, formatPaise, formatRate } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
-import { Sheet } from '@/components/ui/overlay';
 import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { CamerasSettings } from '@/components/staff/cameras';
+import { PrinterSettings } from '@/components/staff/printer-settings';
+import { useSaveOutlet } from '@/components/staff/use-save-outlet';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
 type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
@@ -36,14 +37,21 @@ export default function SettingsPage() {
     <div className="pb-12">
       <PageHeader title="Settings" />
       <div className="px-4 pb-4 lg:px-8">
-        <Segmented value={tab} onChange={setTab} options={tabs} className="max-w-full overflow-x-auto" />
+        <Select value={tab} onChange={(e) => setTab(e.target.value as Tab)} aria-label="Settings section" className="sm:hidden">
+          {tabs.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+        <Segmented value={tab} onChange={setTab} options={tabs} className="hidden sm:inline-flex" />
       </div>
       <div className="max-w-3xl px-4 lg:px-8">
         {tab === 'outlet' && <OutletForm fields={['name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix']} />}
         {tab === 'orders' && <OrderingForm />}
         {tab === 'billing' && <BillingForm />}
         {tab === 'guests' && <GuestsForm />}
-        {tab === 'printers' && <Printers />}
+        {tab === 'printers' && <PrinterSettings />}
         {tab === 'cameras' && <CamerasSettings />}
         {tab === 'brand' && <Brand />}
         {tab === 'outlets' && <Outlets />}
@@ -52,21 +60,6 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-}
-
-function useSaveOutlet() {
-  const { api, outletId } = useStaff();
-  const qc = useQueryClient();
-  const toast = useToast();
-  return async (body: Partial<OutletDTO>) => {
-    try {
-      await api(`/outlets/${outletId}`, { method: 'PATCH', body });
-      await qc.invalidateQueries({ queryKey: ['outlet'] });
-      toast('Saved');
-    } catch (err) {
-      toast(errorMessage(err), 'error');
-    }
-  };
 }
 
 const LABELS: Record<string, { label: string; hint?: string }> = {
@@ -306,191 +299,6 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
       </div>
       <div className="shrink-0">{children}</div>
     </div>
-  );
-}
-
-interface Device {
-  id: string;
-  kind: string;
-  name: string;
-  status: string;
-  online: boolean;
-  last_seen_at: string | null;
-  config: { printers?: Record<string, { address: string; width: number }> };
-}
-
-function Printers() {
-  const { api, outletId, outlet } = useStaff();
-  const qc = useQueryClient();
-  const toast = useToast();
-  const { data: all } = useQuery({ queryKey: ['devices', outletId], queryFn: () => api<Device[]>(`/devices?outlet_id=${outletId}`), refetchInterval: 30_000 });
-  // Camera boxes are managed under Cameras.
-  const devices = all?.filter((d) => d.kind === 'print_agent');
-  const [created, setCreated] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Device | null>(null);
-  const targets = ['bill', ...(outlet?.kitchen_stations ?? [])];
-
-  const add = async () => {
-    try {
-      const res = await api<{ token: string }>('/devices', { method: 'POST', body: { outlet_id: outletId, name: 'Print agent' } });
-      setCreated(res.token);
-      await qc.invalidateQueries({ queryKey: ['devices'] });
-    } catch (err) {
-      toast(errorMessage(err), 'error');
-    }
-  };
-  const test = async (target: string) => {
-    try {
-      await api('/print/test', { method: 'POST', body: { outlet_id: outletId, target } });
-      toast(`Test page sent to ${target}`);
-    } catch (err) {
-      toast(errorMessage(err), 'error');
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <h2 className="font-semibold">Kitchen and bill printers</h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          Install the DineOS print agent on one computer at the outlet that is on the same network as your thermal printers. It connects out to DineOS, so no router setup is needed. Without it,
-          the kitchen display and browser printing still work.
-        </p>
-        <Button className="mt-3" onClick={() => void add()}>
-          <Plus className="size-4" /> Add print agent
-        </Button>
-      </Card>
-      {(devices ?? []).map((d) => (
-        <Card key={d.id} className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold">{d.name}</p>
-              <p className="text-xs text-ink-faint">{d.last_seen_at ? `Last seen ${dateTime(d.last_seen_at)}` : 'Never connected'}</p>
-            </div>
-            <Badge tone={d.status === 'revoked' ? 'rose' : d.online ? 'green' : 'neutral'}>{d.status === 'revoked' ? 'Revoked' : d.online ? 'Online' : 'Offline'}</Badge>
-          </div>
-          <ul className="mt-3 space-y-1.5 text-sm">
-            {targets.map((t) => (
-              <li key={t} className="flex items-center gap-3">
-                <span className="w-24 font-medium capitalize">{t}</span>
-                <span className="flex-1 text-ink-faint">{d.config.printers?.[t]?.address ?? 'not set'}</span>
-                {d.config.printers?.[t] && (
-                  <Button size="sm" variant="ghost" onClick={() => void test(t)}>
-                    <Printer className="size-4" /> Test
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setEditing(d)}>
-              Set printer addresses
-            </Button>
-            {d.status !== 'revoked' && (
-              <Button size="sm" variant="ghost" className="text-rose-700" onClick={() => void api(`/devices/${d.id}`, { method: 'PATCH', body: { status: 'revoked' } }).then(() => qc.invalidateQueries({ queryKey: ['devices'] }))}>
-                Revoke
-              </Button>
-            )}
-          </div>
-        </Card>
-      ))}
-      <Sheet open={!!created} onClose={() => setCreated(null)} title="Print agent created">
-        <p className="text-sm text-ink-soft">Run this on the outlet computer. This token is shown only once; keep it safe.</p>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-stone-900 p-3 text-xs text-stone-100">{`DINEOS_API_URL=${API_URL} \\\nDINEOS_DEVICE_TOKEN=${created} \\\nnpx dineos-print-agent`}</pre>
-        <Button className="mt-3" variant="outline" onClick={() => void navigator.clipboard.writeText(created ?? '').then(() => toast('Token copied'))}>
-          <Copy className="size-4" /> Copy token
-        </Button>
-      </Sheet>
-      {editing && <PrinterMap device={editing} targets={targets} onClose={() => setEditing(null)} />}
-      {(devices ?? []).some((d) => d.status === 'active') && <HubSettings devices={(devices ?? []).filter((d) => d.status === 'active')} />}
-    </div>
-  );
-}
-
-/** One print agent can also run as the outlet hub that keeps the outlet trading offline. */
-function HubSettings({ devices }: { devices: Device[] }) {
-  const { outlet } = useStaff();
-  const save = useSaveOutlet();
-  const [deviceId, setDeviceId] = useState(outlet?.hub_device_id ?? '');
-  const [url, setUrl] = useState(outlet?.hub_url ?? '');
-  useEffect(() => {
-    setDeviceId(outlet?.hub_device_id ?? '');
-    setUrl(outlet?.hub_url ?? '');
-  }, [outlet?.hub_device_id, outlet?.hub_url]);
-  const hub = devices.find((d) => d.id === outlet?.hub_device_id);
-  return (
-    <Card className="space-y-4 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">Offline mode (outlet hub)</h2>
-          <p className="mt-1 text-sm text-ink-soft">
-            When the internet goes down, staff screens can switch to this computer on your Wi-Fi and keep taking orders, sending kitchen tickets and printing GST bills. Everything is sent to
-            DineOS when the connection returns.
-          </p>
-        </div>
-        {hub && <Badge tone={hub.online ? 'green' : 'amber'}>{hub.online ? 'Hub ready' : 'Hub not connected'}</Badge>}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Computer that runs the hub">
-          {(id) => (
-            <Select id={id} value={deviceId} onChange={(e) => setDeviceId(e.target.value)}>
-              <option value="">Off</option>
-              {devices.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <Field label="Its address on your Wi-Fi" hint="Give the computer a fixed IP in your router">
-          {(id) => <Input id={id} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://192.168.1.20:4100" />}
-        </Field>
-      </div>
-      {deviceId && (
-        <pre className="overflow-x-auto rounded-xl bg-stone-900 p-3 text-xs text-stone-100">{`DINEOS_HUB=1 DINEOS_HUB_PORT=4100 DINEOS_HUB_DATA=./dineos-hub.json \\\nDINEOS_API_URL=${API_URL} DINEOS_DEVICE_TOKEN=dv_... \\\nnpx dineos-print-agent`}</pre>
-      )}
-      <Button onClick={() => void save({ hub_device_id: deviceId || null, hub_url: deviceId ? url.trim() || null : null })} disabled={!!deviceId && !/^https?:\/\/\S+$/.test(url.trim())}>
-        Save offline mode
-      </Button>
-    </Card>
-  );
-}
-
-function PrinterMap({ device, targets, onClose }: { device: Device; targets: string[]; onClose: () => void }) {
-  const { api } = useStaff();
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [map, setMap] = useState<Record<string, { address: string; width: number }>>(device.config.printers ?? {});
-  const save = async () => {
-    const printers = Object.fromEntries(Object.entries(map).filter(([, v]) => v.address.trim()));
-    try {
-      await api(`/devices/${device.id}`, { method: 'PATCH', body: { config: { printers } } });
-      await qc.invalidateQueries({ queryKey: ['devices'] });
-      toast('Printers saved. Restart the agent to pick them up.');
-      onClose();
-    } catch (err) {
-      toast(errorMessage(err), 'error');
-    }
-  };
-  return (
-    <Sheet open onClose={onClose} title="Printer addresses" footer={<Button block onClick={() => void save()}>Save</Button>}>
-      <p className="mb-3 text-sm text-ink-soft">Network printers usually listen on port 9100, e.g. 192.168.1.50:9100. 80 mm paper is 48 characters wide, 58 mm is 32.</p>
-      <div className="space-y-3">
-        {targets.map((t) => (
-          <div key={t} className="flex items-end gap-2">
-            <Field label={t === 'bill' ? 'Bills' : `${t} tickets`} className="flex-1">
-              {(id) => <Input id={id} value={map[t]?.address ?? ''} onChange={(e) => setMap({ ...map, [t]: { address: e.target.value, width: map[t]?.width ?? 48 } })} placeholder="192.168.1.50:9100" />}
-            </Field>
-            <Select value={map[t]?.width ?? 48} onChange={(e) => setMap({ ...map, [t]: { address: map[t]?.address ?? '', width: Number(e.target.value) } })} className="w-28" aria-label="Paper width">
-              <option value={48}>80 mm</option>
-              <option value={42}>80 mm (42)</option>
-              <option value={32}>58 mm</option>
-            </Select>
-          </div>
-        ))}
-      </div>
-    </Sheet>
   );
 }
 
