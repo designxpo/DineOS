@@ -23,6 +23,7 @@ export async function salesSummary(tx: Tx, r: Range) {
       eb.fn.sum<number>('subtotal_paise').as('gross_paise'),
       eb.fn.sum<number>('item_discount_paise').as('item_discount_paise'),
       eb.fn.sum<number>('bill_discount_paise').as('bill_discount_paise'),
+      eb.fn.sum<number>('loyalty_discount_paise').as('loyalty_discount_paise'),
       eb.fn.sum<number>('service_charge_paise').as('service_charge_paise'),
       eb.fn.sum<number>('taxable_paise').as('taxable_paise'),
       eb.fn.sum<number>('cgst_paise').as('cgst_paise'),
@@ -106,7 +107,9 @@ export async function salesSummary(tx: Tx, r: Range) {
     totals: {
       bills,
       gross_paise: n(totals.gross_paise),
-      discount_paise: n(totals.item_discount_paise) + n(totals.bill_discount_paise) - n(free.comp_paise),
+      // Loyalty, reward and member money off is a discount too (kept apart on the bill).
+      discount_paise: n(totals.item_discount_paise) + n(totals.bill_discount_paise) + n(totals.loyalty_discount_paise) - n(free.comp_paise),
+      loyalty_discount_paise: n(totals.loyalty_discount_paise),
       complimentary_paise: n(free.comp_paise),
       service_charge_paise: n(totals.service_charge_paise),
       taxable_paise: n(totals.taxable_paise),
@@ -326,12 +329,12 @@ export async function dayEnd(tx: Tx, r: Range) {
     .execute();
   const discounted = await tx.db
     .selectFrom('bills')
-    .select(['invoice_no', 'discount_reason', sql<number>`item_discount_paise + bill_discount_paise`.as('discount_paise')])
+    .select(['invoice_no', 'discount_reason', 'loyalty_discount_paise', sql<number>`item_discount_paise + bill_discount_paise + loyalty_discount_paise`.as('discount_paise')])
     .where('outlet_id', '=', r.outletId)
     .where('status', 'in', LIVE)
     .where('invoice_date', '>=', r.from)
     .where('invoice_date', '<=', r.to)
-    .where(sql<boolean>`item_discount_paise + bill_discount_paise > 0`)
+    .where(sql<boolean>`item_discount_paise + bill_discount_paise + loyalty_discount_paise > 0`)
     .execute();
   const refunds = await tx.db
     .selectFrom('payments')
@@ -393,7 +396,7 @@ export async function dayEnd(tx: Tx, r: Range) {
     tax: gst.by_rate,
     invoices: gst.invoices,
     voids: voided.map((v) => ({ invoice_no: v.invoice_no, total_paise: v.total_paise, reason: v.void_reason, voided_by: v.voided_by })),
-    discounts: discounted.map((d) => ({ invoice_no: d.invoice_no, discount_paise: n(d.discount_paise), reason: d.discount_reason })),
+    discounts: discounted.map((d) => ({ invoice_no: d.invoice_no, discount_paise: n(d.discount_paise), reason: d.discount_reason ?? (d.loyalty_discount_paise > 0 ? 'Loyalty or membership' : null) })),
     refunds: refunds.map((x) => ({ invoice_no: x.invoice_no, method: x.method, amount_paise: x.amount_paise, reason: x.reason })),
     orders_by_status: Object.fromEntries(orders.map((o) => [o.status, n(o.count)])),
     open_bills: { count: n(openBills.count), balance_paise: n(openBills.balance_paise) },

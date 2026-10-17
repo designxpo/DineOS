@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { BillDTO } from '@dineos/shared/dto';
 import { previousRange } from '../src/modules/reports/insights';
@@ -130,5 +131,51 @@ describe('reports', () => {
     const base = { outletId: 'o', timezone: 'Asia/Kolkata' };
     expect(previousRange({ ...base, from: '2026-10-15', to: '2026-10-15' })).toMatchObject({ from: '2026-10-14', to: '2026-10-14' });
     expect(previousRange({ ...base, from: '2026-10-01', to: '2026-10-07' })).toMatchObject({ from: '2026-09-24', to: '2026-09-30' });
+  });
+
+  it('builds the month-end pack: definitions, totals that match the reports, and every invoice', async () => {
+    const month = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()).slice(0, 7);
+    const res = await owner({ method: 'GET', url: `/v1/reports/month-pack?outlet_id=${tenant.outletId}&month=${month}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('spreadsheetml');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer);
+    expect(wb.worksheets.map((w) => w.name)).toEqual([
+      'Read me', 'Summary', 'Sales by day', 'GST by rate', 'HSN summary', 'Invoices', 'B2B invoices', 'Delivery apps 9(5)', 'Payments', 'Wallet top-ups', 'Free items', 'Discounts', 'Voids', 'Refunds',
+    ]);
+    const readme = wb.getWorksheet('Read me')!;
+    const terms: string[] = [];
+    readme.eachRow((r) => terms.push(String(r.getCell(1).value ?? '')));
+    expect(terms).toContain('Net sales');
+    expect(terms).toContain('Wallet top-ups');
+
+    const summary = wb.getWorksheet('Summary')!;
+    const figure = (label: string) => {
+      let v: unknown;
+      summary.eachRow((r) => {
+        if (r.getCell(1).value === label) v = r.getCell(2).value;
+      });
+      return v;
+    };
+    expect(figure('Net sales')).toBe(paidTotals / 100);
+    expect(figure('Discounts')).toBe(-50);
+
+    // Every invoice, the voided one included and marked.
+    const invoices = wb.getWorksheet('Invoices')!;
+    expect(invoices.rowCount).toBe(1 + 4);
+    const statuses: string[] = [];
+    invoices.eachRow((r, i) => i > 1 && statuses.push(String(r.getCell(4).value)));
+    expect(statuses.sort()).toEqual(['Paid', 'Paid', 'Paid', 'Voided']);
+    const payments = wb.getWorksheet('Payments')!;
+    let paid = 0;
+    payments.eachRow((r, i) => {
+      if (i > 3) paid += Number(r.getCell(5).value);
+    });
+    expect(Math.round(paid * 100)).toBe(paidTotals);
+
+    expect((await owner({ method: 'GET', url: `/v1/reports/month-pack?outlet_id=${tenant.outletId}&month=2999-01` })).statusCode).toBe(400);
+    expect((await owner({ method: 'GET', url: `/v1/reports/month-pack?outlet_id=${tenant.outletId}&month=2026-13` })).statusCode).toBe(400);
+    const waiter = api(t, (await addStaff(t, tenant, 'waiter')).token);
+    expect((await waiter({ method: 'GET', url: `/v1/reports/month-pack?outlet_id=${tenant.outletId}&month=${month}` })).statusCode).toBe(403);
   });
 });

@@ -10,6 +10,7 @@ import { roomCharges } from '../billing/rooms';
 import { compReport } from '../comps/service';
 import { visionAudit } from '../vision/audit';
 import { insights } from './insights';
+import { monthPack } from './month-pack';
 import { loyaltyReport } from '../loyalty/report';
 import { dashboard, dayEnd, deliveryReport, gstReport, itemSales, salesSummary, toCsv, type Range } from './service';
 
@@ -172,6 +173,26 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       assertCan(auth, r.outletId, 'report.view');
       const data = await ctx.tx(auth.tenantId, (tx) => inventoryReport(tx, r));
       return format === 'csv' ? sendCsv(reply, `inventory-${r.from}-${r.to}`, data.ingredients) : data;
+    });
+
+    /** Everything the accountant asks for at month end, as one Excel workbook. */
+    app.get('/reports/month-pack', async (req, reply) => {
+      const auth = requireStaff(req);
+      const q = parse(z.object({ outlet_id: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) }), req.query);
+      assertCan(auth, q.outlet_id, 'report.view');
+      const data = await ctx.tx(auth.tenantId, async (tx) => {
+        const outlet = await tx.db.selectFrom('outlets').select('timezone').where('id', '=', q.outlet_id).executeTakeFirst();
+        if (!outlet) throw badRequest('invalid_outlet', 'Unknown outlet');
+        const today = businessDate(new Date(), outlet.timezone);
+        if (q.month > today.slice(0, 7)) throw badRequest('future_month', 'That month has not started yet');
+        const [y, m] = q.month.split('-').map(Number) as [number, number];
+        const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+        const toDate = last > today;
+        return monthPack(tx, { outletId: q.outlet_id, from: `${q.month}-01`, to: toDate ? today : last, timezone: outlet.timezone }, { month: q.month, toDate });
+      });
+      reply.header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      reply.header('content-disposition', `attachment; filename="month-end-${q.month}.xlsx"`);
+      return reply.send(data);
     });
 
     app.get('/reports/dashboard', async (req) => {

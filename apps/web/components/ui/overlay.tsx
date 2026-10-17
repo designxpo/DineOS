@@ -8,21 +8,31 @@ import { cn } from './cn';
 
 function useOverlay(open: boolean, onClose: () => void) {
   const panel = useRef<HTMLDivElement>(null);
+  // Callers often pass a fresh arrow function each render (e.g. while someone types in the sheet);
+  // the setup below must run on open and close only, or focus jumps out of the field mid-word.
+  const close = useRef(onClose);
+  useLayoutEffect(() => {
+    close.current = onClose;
+  });
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    // Move focus into the panel for keyboard and screen-reader users.
-    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button, textarea, select')?.focus());
+    // Move focus into the panel for keyboard and screen-reader users, unless a field there already
+    // took it (autoFocus): someone may be typing.
+    requestAnimationFrame(() => {
+      if (panel.current?.contains(document.activeElement)) return;
+      panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button, textarea, select')?.focus();
+    });
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   return panel;
 }
 

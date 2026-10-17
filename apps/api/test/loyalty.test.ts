@@ -192,6 +192,14 @@ describe('money off', () => {
     await use(tenPct);
     const printed: BillDTO = (await cashier({ method: 'POST', url: `/v1/bills/${bill.id}/finalise` })).json();
     expect(printed.reward_discount_paise).toBe(5000);
+    // Reports count reward money off as a discount on that invoice, so the totals add up.
+    const day = (await owner({ method: 'GET', url: `/v1/reports/day-end?outlet_id=${outlet()}` })).json();
+    expect(day.discounts.find((d: { invoice_no: string }) => d.invoice_no === printed.invoice_no)).toMatchObject({ discount_paise: 5000, reason: 'Loyalty or membership' });
+    const sales = (await owner({ method: 'GET', url: `/v1/reports/sales?outlet_id=${outlet()}` })).json();
+    expect(sales.totals.loyalty_discount_paise).toBeGreaterThanOrEqual(5000);
+    const t0 = sales.totals;
+    // Prices here exclude GST: gross, less free dishes and discounts, plus service charge, is the taxable value.
+    expect(t0.gross_paise - t0.complimentary_paise - t0.discount_paise + t0.service_charge_paise).toBe(t0.taxable_paise);
     expect((await rewardRows(g.id)).find((r) => r.id === tenPct)).toMatchObject({ status: 'used' });
     const approval = (await cashier({ method: 'POST', url: '/v1/approvals', payload: { outlet_id: outlet(), action: 'bill.void', login: manager.login, pin: '1357' } })).json().approval_token;
     const voided = await cashier({ method: 'POST', url: `/v1/bills/${bill.id}/void`, payload: { reason: 'Wrong table' }, headers: { 'x-approval-token': approval } });

@@ -1,5 +1,6 @@
 'use client';
 
+import { Info } from 'lucide-react';
 import { forwardRef, useId, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from './cn';
 
@@ -211,12 +212,33 @@ export function Segmented<T extends string>({
   );
 }
 
-export function Stat({ label, value, sub, className }: { label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string }) {
+/** A small (i) that shows what a figure means, in place, on tap or click. */
+export function InfoToggle({ label, open, onToggle, className }: { label: string; open: boolean; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={`What "${label}" means`}
+      title={`What "${label}" means`}
+      className={cn('-m-1.5 grid size-7 shrink-0 cursor-pointer place-items-center rounded-full p-1.5 transition', open ? 'text-[var(--brand)]' : 'text-ink-faint hover:text-ink-soft', className)}
+    >
+      <Info className="size-3.5" />
+    </button>
+  );
+}
+
+export function Stat({ label, value, sub, className, info }: { label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string; info?: string }) {
+  const [open, setOpen] = useState(false);
   return (
     <Card className={cn('p-4', className)}>
-      <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">{label}</p>
+      <div className="flex items-start gap-1">
+        <p className="min-w-0 flex-1 text-xs font-medium tracking-wide text-ink-faint uppercase">{label}</p>
+        {info && <InfoToggle label={label} open={open} onToggle={() => setOpen(!open)} />}
+      </div>
       <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-ink-faint">{sub}</p>}
+      {info && open && <p className="mt-2 rounded-lg bg-stone-50 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">{info}</p>}
     </Card>
   );
 }

@@ -33,6 +33,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from DineOS support is on it, and you close it only when it works.',
         hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। DineOS सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
       },
+      {
+        en: 'Reports explain themselves: tap the (i) by any figure to see what it counts. Owners can download a month-end pack for the accountant (Reports → Month-end pack) and save the reports they open often.',
+        hi: 'रिपोर्ट खुद समझाती हैं: किसी भी आंकड़े के पास (i) दबाकर देखें कि उसमें क्या गिना गया। मालिक अकाउंटेंट के लिए महीने के अंत का पैक डाउनलोड कर सकते हैं (रिपोर्ट → Month-end pack) और बार-बार खुलने वाली रिपोर्ट सेव कर सकते हैं।',
+      },
     ],
     moved: [
       {
