@@ -534,6 +534,8 @@ export interface Modifiers {
 }
 
 export interface OrderItems {
+  claimed_at: Timestamp | null;
+  claimed_by: string | null;
   cancelled_disposition: string | null;
   cancelled_made: boolean | null;
   cancelled_reason: string | null;
@@ -549,6 +551,7 @@ export interface OrderItems {
   position: Generated<number>;
   price_snapshot_paise: number;
   qty: number;
+  ready_at: Timestamp | null;
   seat_no: number | null;
   station: string;
   status: Generated<string>;

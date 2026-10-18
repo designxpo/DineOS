@@ -1129,3 +1129,24 @@ export interface DayCloseDTO {
     counted_cash_paise: number | null;
   };
 }
+
+// ---------- Food waiting at the pass ----------
+
+export interface PassItemDTO {
+  order_item_id: string;
+  order_id: string;
+  order_no: number;
+  name: string;
+  qty: number;
+  station: string;
+  table_label: string | null;
+  order_type: string;
+  /** The table's assigned waiter, who is expected to carry it unless someone else takes it. */
+  assigned_waiter_id: string | null;
+  assigned_waiter_name: string | null;
+  ready_at: string;
+  claimed_by: string | null;
+  claimed_by_name: string | null;
+  claimed_at: string | null;
+  level: 'waiting' | 'overdue' | 'escalated';
+}

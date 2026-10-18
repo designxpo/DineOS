@@ -13,6 +13,7 @@ import { cn } from '@/components/ui/cn';
 import { Segmented, Spinner } from '@/components/ui/primitives';
 import { useGuestsWaitingAlerts } from '@/components/staff/floor-alerts';
 import { useReadyAlerts } from '@/components/staff/ready-alerts';
+import { PassStrip } from '@/components/staff/pass-strip';
 import { ServiceRequestStrip, useServiceRequestAlerts } from '@/components/staff/service-requests';
 import { PageHeader } from '@/components/staff/shell';
 import { StaleBanner } from '@/components/staff/stale-banner';
@@ -56,6 +57,7 @@ export default function FloorPage() {
       />
       <StaleBanner show={stale} />
       <ServiceRequestStrip />
+      <PassStrip />
       {isLoading ? (
         <div className="grid place-items-center py-24">
           <Spinner />
