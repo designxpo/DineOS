@@ -28,7 +28,7 @@ afterEach(async () => {
 describe('offline outbox', () => {
   it('queues while offline and replays in order with the same idempotency key and original session', async () => {
     const { flush, listQueued, onOutboxChange, send } = await import('./outbox');
-    const states: { pending: number; rejected: number }[] = [];
+    const states: { pending: number; rejected: number; sent: number }[] = [];
     const off = onOutboxChange((s) => states.push(s));
 
     expect(await send('st_waiter', '/orders', { method: 'POST', body: { a: 1 }, label: 'Order for T1' })).toEqual({ queued: true });
@@ -48,7 +48,7 @@ describe('offline outbox', () => {
       ['/order-items/x/status', 'Bearer st_waiter', queued[1]!.key],
     ]);
     expect(await listQueued()).toEqual([]);
-    expect(states.at(-1)).toEqual({ pending: 0, rejected: 0 });
+    expect(states.at(-1)).toEqual({ pending: 0, rejected: 0, sent: 2 });
     off();
   });
 
@@ -75,6 +75,19 @@ describe('offline outbox', () => {
     const { listQueued, send } = await import('./outbox');
     await expect(send('st_a', '/bills/1/void', { method: 'POST', body: {}, label: 'Void bill', approvalToken: 'ap_x' })).rejects.toThrow('No connection');
     expect(await listQueued()).toEqual([]);
+  });
+
+  it('remembers for a day what was sent after reconnecting, so counts can be checked', async () => {
+    const { flush, listSent, send } = await import('./outbox');
+    await send('st_a', '/orders', { method: 'POST', body: {}, label: 'Order for T7' });
+    online = true;
+    respond = () => new Response(JSON.stringify({ ok: true }), { status: 201, headers: { 'content-type': 'application/json' } });
+    await flush('st_a');
+    expect((await listSent())[0]).toMatchObject({ label: 'Order for T7', sentAt: expect.any(Number) });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 25 * 3_600_000);
+    expect((await listSent()).map((x) => x.label)).not.toContain('Order for T7');
+    vi.useRealTimers();
   });
 
   it('lets staff discard a queued change', async () => {

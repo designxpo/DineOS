@@ -28,7 +28,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { OrderDTO } from '@mezmitra/shared/dto';
 import { PIN_LOCK_MINUTES, PIN_MAX_ATTEMPTS, type Action } from '@mezmitra/shared/permissions';
-import { useConnection, useOutletEvents } from '@/lib/realtime';
+import { useOutletEvents } from '@/lib/realtime';
 import { useI18n, type I18nKey } from '@/lib/i18n';
 import { useStaff } from '@/lib/staff';
 import { useBrandTheme } from '@/lib/brand-theme';
@@ -41,7 +41,7 @@ import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { HelpButton } from './help';
 import { HubModeBanner, HubSwitchBanner } from './offline-hub';
-import { OutboxBadge } from './outbox-panel';
+import { SyncStatus } from './outbox-panel';
 import { PrintProblems } from './print-problems';
 import { useSignOut } from './sign-out';
 import { SoundButton } from './sound-sheet';
@@ -211,7 +211,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { me, outletId, outlet, setOutletId, can } = useStaff();
   const { t, lang, setLang } = useI18n();
   const pathname = usePathname();
-  const connection = useConnection();
   const [open, setOpen] = useState(false);
   const [news, setNews] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
@@ -252,15 +251,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </nav>
   );
 
-  const status = (
-    <div className="flex items-center gap-2 text-xs">
-      <OutboxBadge />
-      <span className="flex items-center gap-1.5 text-ink-faint" role="status">
-        <span className={cn('size-2 rounded-full', connection === 'online' ? 'bg-emerald-500' : connection === 'connecting' ? 'bg-amber-400' : 'bg-rose-500')} />
-        {connection === 'online' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}
-      </span>
-    </div>
-  );
+  const status = <SyncStatus />;
 
   if (bare) {
     return (

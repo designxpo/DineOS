@@ -174,7 +174,15 @@ const FAQ = [
   },
   {
     q: 'What happens when the internet goes down?',
-    a: 'For a short drop, every tap is kept on the phone and sent when it reconnects. For longer outages, the Continuity add-on runs an outlet hub on your counter PC that keeps orders, kitchen tickets, bills and printing going, then syncs.',
+    a: (
+      <>
+        For a short drop, orders, kitchen updates and payments are kept on the phone and sent when it reconnects. For longer outages, the Continuity add-on runs an outlet hub on your counter PC that keeps orders, kitchen tickets, bills and printing going, then syncs.{' '}
+        <a href="/offline-guide" className="font-medium text-ink underline">
+          See exactly what works offline
+        </a>
+        .
+      </>
+    ),
   },
   {
     q: 'Will my staff manage it?',

@@ -97,6 +97,10 @@ Many restaurants have paid a year ahead for other billing software. An outlet ca
 
 Before full payment, the owner and cashier run nine scenarios on their own devices in Settings → Go-live. For each, Mezmitra shows what it saw since the rehearsal began (the mixed bar and kitchen order, the split, the free dish, the cooked cancellation, a ticket that failed and printed, orders through the outlet hub, the month-end pack download). Failing or leaving a scenario out needs a note; only the owner signs, and only when nothing is failed or unmarked. The signed sheet is frozen with the devices used and prints on A4, saying plainly which passes Mezmitra did not see. Tests: `golive.test.ts`.
 
+### When the internet drops
+
+Tapping the connection dot opens Connection and sync: whether the device is online, on the outlet hub, or connected with changes still stuck; how many changes are waiting, were sent in the last day, and were refused (with the reason); the recovery steps; and exactly what works offline, with and without the hub. The same list is published at `/offline-guide` and linked from the website's FAQ. Drilled on two devices with the internet off: each change reached the server once across repeated reconnects, and a stale one was listed as refused. Tests: `apps/web/lib/outbox.test.ts`.
+
 ### Since the pilot review: safety, money and less manual work
 
 | Feature | What it does | Tests |

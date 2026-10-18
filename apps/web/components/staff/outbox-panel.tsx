@@ -1,11 +1,14 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CloudOff, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CloudOff, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { OFFLINE_CHECKLIST, OFFLINE_LEVELS } from '@mezmitra/shared/offline';
+import { onHub } from '@/lib/api';
 import { ago } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
-import { discard, dismissRejected, flush, listQueued, listRejected, onOutboxChange, type OutboxState, type QueuedRequest, type RejectedRequest } from '@/lib/outbox';
+import { discard, dismissRejected, flush, listQueued, listRejected, listSent, onOutboxChange, type OutboxState, type QueuedRequest, type RejectedRequest, type SentRequest } from '@/lib/outbox';
+import { useConnection } from '@/lib/realtime';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
@@ -13,7 +16,7 @@ import { Sheet } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
 
 export function useOutboxState(): OutboxState {
-  const [s, setS] = useState<OutboxState>({ pending: 0, rejected: 0 });
+  const [s, setS] = useState<OutboxState>({ pending: 0, rejected: 0, sent: 0 });
   useEffect(() => onOutboxChange(setS), []);
   return s;
 }
@@ -49,17 +52,42 @@ export function OutboxBadge({ className }: { className?: string }) {
   );
 }
 
+/**
+ * The header's connection dot, which opens the sync sheet even when nothing is waiting: during an
+ * outage staff need the counts and the recovery steps, not only when something went wrong.
+ */
+export function SyncStatus() {
+  const { t } = useI18n();
+  const connection = useConnection();
+  const [open, setOpen] = useState(false);
+  const hub = onHub();
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <OutboxBadge />
+      <button type="button" onClick={() => setOpen(true)} className="flex cursor-pointer items-center gap-1.5 rounded-full px-1.5 py-1 text-ink-faint hover:bg-stone-100" aria-label={t('sync.aria')} role="status">
+        <span className={cn('size-2 rounded-full', hub ? 'bg-sky-500' : connection === 'online' ? 'bg-emerald-500' : connection === 'connecting' ? 'bg-amber-400' : 'bg-rose-500')} />
+        {hub ? 'Hub' : connection === 'online' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}
+      </button>
+      {open && <OutboxSheet onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
 export function OutboxSheet({ onClose }: { onClose: () => void }) {
   const { token } = useStaff();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
+  const connection = useConnection();
+  const hub = onHub();
   const [queued, setQueued] = useState<QueuedRequest[]>([]);
   const [rejected, setRejected] = useState<RejectedRequest[]>([]);
+  const [sent, setSent] = useState<SentRequest[]>([]);
   const [busy, setBusy] = useState(false);
   const reload = useCallback(async () => {
     setQueued(await listQueued());
     setRejected(await listRejected());
+    setSent(await listSent());
   }, []);
   useEffect(() => onOutboxChange(() => void reload()), [reload]);
 
@@ -89,6 +117,38 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-5">
+        {/* Live updates can be up while requests still fail; waiting changes say which is true. */}
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium',
+            hub ? 'bg-sky-50 text-sky-950' : connection === 'online' && !queued.length ? 'bg-emerald-50 text-emerald-950' : connection === 'offline' ? 'bg-rose-50 text-rose-950' : 'bg-amber-50 text-amber-950',
+          )}
+        >
+          {connection === 'online' && !hub && !queued.length ? <CheckCircle2 className="size-4" /> : <CloudOff className="size-4" />}
+          {hub
+            ? t('sync.hub')
+            : connection === 'online'
+              ? queued.length
+                ? t('sync.stuck', { n: queued.length })
+                : t('sync.online')
+              : connection === 'connecting'
+                ? t('sync.connecting')
+                : t('sync.offline')}
+        </div>
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          {(
+            [
+              ['sync.waiting', queued.length, queued.length ? 'text-amber-800' : ''],
+              ['sync.sent', sent.length, ''],
+              ['sync.refused', rejected.length, rejected.length ? 'text-rose-700' : ''],
+            ] as const
+          ).map(([label, n, tone]) => (
+            <div key={label} className="rounded-xl border border-line px-2 py-2.5">
+              <dd className={cn('text-2xl font-semibold tabular', tone)}>{n}</dd>
+              <dt className="text-xs text-ink-faint">{t(label)}</dt>
+            </div>
+          ))}
+        </dl>
         {queued.length > 0 && (
           <section>
             <p className="mb-2 text-sm text-ink-soft">{t('outbox.queued_hint')}</p>
@@ -137,7 +197,57 @@ export function OutboxSheet({ onClose }: { onClose: () => void }) {
             </ul>
           </section>
         )}
-        {!queued.length && !rejected.length && <p className="py-8 text-center text-sm text-ink-faint">{t('outbox.synced')}</p>}
+        {!queued.length && !rejected.length && <p className="text-center text-sm text-ink-faint">{t('outbox.synced')}</p>}
+        {sent.length > 0 && (
+          <details className="rounded-xl border border-line">
+            <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+              {t('sync.sent_list')} ({sent.length})
+            </summary>
+            <ul className="divide-y divide-line border-t border-line">
+              {sent.slice(0, 30).map((x) => (
+                <li key={x.key} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                  <span className="min-w-0 flex-1 truncate">{x.label}</span>
+                  <span className="text-xs text-ink-faint">{ago(new Date(x.sentAt).toISOString())}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <details className="rounded-xl border border-line" open={connection !== 'online' || hub}>
+          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">{t('sync.checklist')}</summary>
+          <ol className="list-decimal space-y-1.5 border-t border-line py-3 pr-3 pl-8 text-sm text-ink-soft">
+            {OFFLINE_CHECKLIST.map((c) => (
+              <li key={c.en}>{c[lang]}</li>
+            ))}
+          </ol>
+        </details>
+        <details className="rounded-xl border border-line">
+          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">{t('sync.works')}</summary>
+          <div className="space-y-4 border-t border-line p-3 text-sm">
+            {OFFLINE_LEVELS.map((l) => (
+              <section key={l.id}>
+                <h3 className="font-semibold">{l.title[lang]}</h3>
+                <p className="mt-0.5 text-xs text-ink-faint">{l.summary[lang]}</p>
+                <p className="mt-2 text-xs font-semibold tracking-wide text-emerald-800 uppercase">{t('sync.works_label')}</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink-soft">
+                  {l.works.map((w) => (
+                    <li key={w.en}>{w[lang]}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs font-semibold tracking-wide text-ink-faint uppercase">{t('sync.waits_label')}</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink-soft">
+                  {l.waits.map((w) => (
+                    <li key={w.en}>{w[lang]}</li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+            <a href="/offline-guide" target="_blank" rel="noreferrer" className="block font-medium text-brand-700 underline">
+              {t('sync.full_list')}
+            </a>
+          </div>
+        </details>
       </div>
     </Sheet>
   );

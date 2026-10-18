@@ -14,6 +14,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
     date: '18 Oct 2026',
     items: [
       {
+        en: 'Tap the Live dot at the top to see the connection, changes waiting, sent and refused, what to do when the internet drops, and exactly what works offline.',
+        hi: 'ऊपर "Live" बिंदु दबाकर कनेक्शन, बाकी, भेजे गए और अस्वीकार बदलाव, इंटरनेट बंद होने पर क्या करें, और ठीक-ठीक ऑफ़लाइन क्या चलता है, देखें।',
+      },
+      {
         en: 'Go-live rehearsal (Settings → Go-live): run the nine hardest moments of a service on your own devices. Mezmitra shows what it saw for each, and the owner signs the acceptance sheet at the end.',
         hi: 'गो-लाइव रिहर्सल (सेटिंग्स → Go-live): सर्विस के नौ सबसे कठिन पल अपने ही डिवाइस पर चलाएँ। Mezmitra हर एक के लिए दिखाता है कि उसने क्या देखा, और आख़िर में मालिक स्वीकृति पत्र पर हस्ताक्षर करते हैं।',
       },

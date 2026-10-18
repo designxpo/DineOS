@@ -28,14 +28,27 @@ export interface RejectedRequest {
   rejectedAt: number;
 }
 
+/** A queued change that reached the server after the connection came back. */
+export interface SentRequest {
+  key: string;
+  label: string;
+  queuedAt: number;
+  sentAt: number;
+}
+
 export interface OutboxState {
   pending: number;
   rejected: number;
+  /** Queued changes sent in the last day: staff check the counts match after an outage. */
+  sent: number;
 }
+
+const SENT_KEPT_MS = 86_400_000;
 
 const idb = typeof indexedDB !== 'undefined';
 const store = idb ? createStore('mezmitra-outbox', 'requests') : null;
 const rejectedStore = idb ? createStore('mezmitra-outbox-rejected', 'requests') : null;
+const sentStore = idb ? createStore('mezmitra-outbox-sent', 'requests') : null;
 // Changes queued under the product's earlier name move over before anything reads or sends them.
 const moved = Promise.all([moveLegacyStore('dineos-outbox', 'requests', store), moveLegacyStore('dineos-outbox-rejected', 'requests', rejectedStore)]);
 const listeners = new Set<(s: OutboxState) => void>();
@@ -45,6 +58,7 @@ async function state(): Promise<OutboxState> {
   return {
     pending: store ? (await entries(store)).length : 0,
     rejected: rejectedStore ? (await entries(rejectedStore)).length : 0,
+    sent: (await listSent()).length,
   };
 }
 
@@ -69,6 +83,15 @@ export async function listRejected(): Promise<RejectedRequest[]> {
   if (!rejectedStore) return [];
   await moved;
   return (await entries<string, RejectedRequest>(rejectedStore)).map(([, v]) => v).sort((a, b) => b.rejectedAt - a.rejectedAt);
+}
+
+/** Queued changes sent in the last day, newest first; older ones are forgotten. */
+export async function listSent(): Promise<SentRequest[]> {
+  if (!sentStore) return [];
+  const cutoff = Date.now() - SENT_KEPT_MS;
+  const all = (await entries<string, SentRequest>(sentStore)).map(([, v]) => v);
+  for (const old of all.filter((s) => s.sentAt < cutoff)) await del(old.key, sentStore);
+  return all.filter((s) => s.sentAt >= cutoff).sort((a, b) => b.sentAt - a.sentAt);
 }
 
 /** Drops a queued change without sending it. */
@@ -124,6 +147,7 @@ export async function flush(token: string): Promise<{ sent: number; failed: { la
       try {
         await apiFetch(req.path, { method: req.method, body: req.body, token: req.token ?? token, idempotencyKey: req.key });
         await del(req.key, store);
+        if (sentStore) await set(req.key, { key: req.key, label: req.label, queuedAt: req.queuedAt, sentAt: Date.now() } satisfies SentRequest, sentStore);
         sent++;
       } catch (err) {
         if (err instanceof NetworkError) break;

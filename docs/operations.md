@@ -130,6 +130,10 @@ How it behaves:
 - To remove the agent: Windows `Unregister-ScheduledTask -TaskName 'Mezmitra Print Agent' -Confirm:$false`; Linux `sudo systemctl disable --now mezmitra-print-agent`; Mac `launchctl unload ~/Library/LaunchAgents/app.mezmitra.print-agent.plist`. **Remove** on its card stops it printing at once.
 - Developers: after changing `apps/print-agent`, run `npm run build:download -w @mezmitra/print-agent` and commit `apps/web/public/agent/mezmitra-agent.mjs` with its `.sha256`; installers download the file and refuse it if the checksum does not match. `MEZMITRA_DRY_RUN=1` prints tickets as text, `MEZMITRA_SCAN=0` skips the printer search, `MEZMITRA_SCAN_HOSTS=10.0.5.20,10.0.5.21` checks printers on another network.
 
+## When the internet drops
+
+What keeps working, what waits for the line and the steps staff follow are in one list, `packages/shared/src/offline.ts`, shown in the app (tap the connection dot in the header: connection state, changes waiting, sent in the last day and refused, the recovery steps) and published at `/offline-guide`. Change that file whenever the outbox callers or the hub's routes change. Drill it before go-live: internet off with Wi-Fi on, orders and a status change on two devices, reconnect a few times; the server should hold each change once, and a change made stale meanwhile shows under Refused with the reason.
+
 ## Outlet hub (offline mode)
 
 The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `MEZMITRA_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to Mezmitra when the line returns.
