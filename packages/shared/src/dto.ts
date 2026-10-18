@@ -1150,3 +1150,32 @@ export interface PassItemDTO {
   claimed_at: string | null;
   level: 'waiting' | 'overdue' | 'escalated';
 }
+
+// ---------- Delivery payouts ----------
+
+export type PayoutLineKind = 'commission' | 'ads' | 'discount_funded' | 'refund' | 'tax' | 'penalty' | 'other';
+
+export interface ChannelPayoutDTO {
+  id: string;
+  channel: 'zomato' | 'swiggy';
+  period_from: string;
+  period_to: string;
+  reference: string | null;
+  /** What the app's statement says. */
+  orders_claimed: number;
+  gross_paise: number;
+  net_paise: number;
+  lines: { id: string; kind: PayoutLineKind; amount_paise: number; note: string | null }[];
+  /** What the outlet billed for the same orders. */
+  ours: { orders: number; sales_paise: number; commission_bp: number; expected_net_paise: number };
+  bank: { credit_id: string; txn_date: string; amount_paise: number } | null;
+  /** Our sales minus the app's gross: orders the app did not pay for (positive) or paid extra for. */
+  missing_paise: number;
+  /** Gross minus deductions minus net: money the statement does not itself explain. */
+  unexplained_paise: number;
+  /** Net payout against what the outlet's commission rate led it to expect (negative: paid less). */
+  vs_expected_paise: number;
+  /** Net payout against what reached the bank (positive: the bank got less than the statement). */
+  bank_gap_paise: number | null;
+  dispute: null | { status: 'open' | 'recovered' | 'written_off'; note: string | null; recovered_paise: number };
+}

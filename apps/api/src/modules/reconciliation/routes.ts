@@ -11,6 +11,7 @@ import { importStatement, listStatements, statementDetail, upiCheck } from './se
 import { deleteSalesImport, importSales, listSalesImports, salesImport } from './sales';
 import { parseSalesExport, SALES_ROLES } from './sales-export';
 import { parseStatement } from './statement';
+import { payoutViews } from './payouts';
 
 const MAX_FILE = 5 * 1024 * 1024;
 
@@ -157,6 +158,129 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       });
       return reply.status(204).send();
     });
+
+    // ---------------------------------------------------------------- delivery payouts
+
+    const outletOf = async (tx: Tx, outletId: string) => {
+      const outlet = await tx.db.selectFrom('outlets').select(['id', 'timezone']).where('id', '=', outletId).executeTakeFirst();
+      if (!outlet) throw notFound('Outlet');
+      return outlet;
+    };
+    const DISMISS_PREFIX = 'Delivery payout';
+    const paise = z.number().int().min(-100_000_000).max(100_000_000);
+
+    /** Payouts recorded for the outlet, each set beside what was billed and what the bank received. */
+    app.get('/reconciliation/payouts', async (req) => {
+      const auth = requireStaff(req);
+      const q = parse(z.object({ outlet_id: z.uuid() }), req.query);
+      assertCan(auth, q.outlet_id, 'payment.reconcile');
+      return ctx.tx(auth.tenantId, async (tx) => payoutViews(tx, await outletOf(tx, q.outlet_id)));
+    });
+
+    /** Records one payout cycle from the app's statement: gross, each deduction, and the net. */
+    app.post('/reconciliation/payouts', async (req, reply) => {
+      const auth = requireStaff(req);
+      const body = parse(
+        z.object({
+          outlet_id: z.uuid(),
+          channel: z.enum(['zomato', 'swiggy']),
+          period_from: z.iso.date(),
+          period_to: z.iso.date(),
+          reference: z.string().trim().max(80).nullable().optional(),
+          orders_claimed: z.number().int().min(0).max(1_000_000),
+          gross_paise: z.number().int().min(0).max(1_000_000_000),
+          net_paise: paise,
+          lines: z.array(z.object({ kind: z.enum(['commission', 'ads', 'discount_funded', 'refund', 'tax', 'penalty', 'other']), amount_paise: paise, note: z.string().trim().max(200).nullable().optional() })).max(40),
+          bank_credit_id: z.uuid().nullable().optional(),
+        }),
+        req.body,
+      );
+      assertCan(auth, body.outlet_id, 'payment.reconcile');
+      if (body.period_to < body.period_from) throw badRequest('bad_period', 'The period ends before it starts');
+      const view = await ctx.tx(auth.tenantId, async (tx) => {
+        const outlet = await outletOf(tx, body.outlet_id);
+        const dup = await tx.db
+          .selectFrom('channel_payouts')
+          .select('id')
+          .where('outlet_id', '=', outlet.id)
+          .where('channel', '=', body.channel)
+          .where('period_from', '=', body.period_from)
+          .where('period_to', '=', body.period_to)
+          .executeTakeFirst();
+        if (dup) throw conflict('payout_exists', 'That cycle is already recorded for this app');
+        if (body.bank_credit_id) await assertLinkable(tx, outlet.id, body.bank_credit_id);
+        const row = await tx.db
+          .insertInto('channel_payouts')
+          .values({
+            tenant_id: tx.tenantId,
+            outlet_id: outlet.id,
+            channel: body.channel,
+            period_from: body.period_from,
+            period_to: body.period_to,
+            reference: body.reference || null,
+            orders_claimed: body.orders_claimed,
+            gross_paise: body.gross_paise,
+            net_paise: body.net_paise,
+            bank_credit_id: body.bank_credit_id ?? null,
+            created_by: auth.userId,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        if (body.lines.length) {
+          await tx.db.insertInto('channel_payout_lines').values(body.lines.map((l) => ({ tenant_id: tx.tenantId, payout_id: row.id, kind: l.kind, amount_paise: l.amount_paise, note: l.note || null }))).execute();
+        }
+        if (body.bank_credit_id) await explainCredit(tx, auth, body.bank_credit_id, `${DISMISS_PREFIX}: ${body.channel} ${body.period_from} to ${body.period_to}`);
+        await audit(tx, auth, { outletId: outlet.id, action: 'payout.record', entity: 'channel_payout', entityId: row.id, after: { channel: body.channel, from: body.period_from, to: body.period_to, gross_paise: body.gross_paise, net_paise: body.net_paise } });
+        return (await payoutViews(tx, outlet, row.id))[0]!;
+      });
+      return reply.status(201).send(view);
+    });
+
+    /** Opens, updates or closes the dispute with the app over a shortfall. */
+    app.patch('/reconciliation/payouts/:id/dispute', async (req) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      const body = parse(z.object({ status: z.enum(['open', 'recovered', 'written_off']).nullable(), note: z.string().trim().max(1000).nullable().optional(), recovered_paise: z.number().int().min(0).max(1_000_000_000).optional() }), req.body);
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const p = await tx.db.selectFrom('channel_payouts').select(['id', 'outlet_id']).where('id', '=', id).forUpdate().executeTakeFirst();
+        if (!p) throw notFound('Payout');
+        assertCan(auth, p.outlet_id, 'payment.reconcile');
+        await tx.db
+          .updateTable('channel_payouts')
+          .set({ dispute_status: body.status, dispute_note: body.status ? (body.note ?? null) : null, recovered_paise: body.status === 'recovered' ? (body.recovered_paise ?? 0) : 0 })
+          .where('id', '=', id)
+          .execute();
+        await audit(tx, auth, { outletId: p.outlet_id, action: 'payout.dispute', entity: 'channel_payout', entityId: id, after: { status: body.status, recovered_paise: body.recovered_paise ?? 0 }, reason: body.note ?? undefined });
+        return (await payoutViews(tx, await outletOf(tx, p.outlet_id), id))[0]!;
+      });
+    });
+
+    app.delete('/reconciliation/payouts/:id', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      await ctx.tx(auth.tenantId, async (tx) => {
+        const p = await tx.db.selectFrom('channel_payouts').select(['id', 'outlet_id', 'channel', 'period_from', 'period_to', 'bank_credit_id']).where('id', '=', id).forUpdate().executeTakeFirst();
+        if (!p) throw notFound('Payout');
+        assertCan(auth, p.outlet_id, 'payment.reconcile');
+        await tx.db.deleteFrom('channel_payouts').where('id', '=', id).execute();
+        if (p.bank_credit_id) await tx.db.updateTable('bank_credits').set({ dismissed_reason: null, dismissed_by: null }).where('id', '=', p.bank_credit_id).where('dismissed_reason', 'like', `${DISMISS_PREFIX}%`).execute();
+        await audit(tx, auth, { outletId: p.outlet_id, action: 'payout.delete', entity: 'channel_payout', entityId: id, before: { channel: p.channel, from: p.period_from, to: p.period_to } });
+      });
+      return reply.status(204).send();
+    });
+
+    /** A credit can be a payout's if it is this outlet's, not a UPI sale, and not another payout's. */
+    async function assertLinkable(tx: Tx, outletId: string, creditId: string) {
+      const credit = await tx.db.selectFrom('bank_credits').select(['id', 'outlet_id', 'payment_id']).where('id', '=', creditId).executeTakeFirst();
+      if (!credit || credit.outlet_id !== outletId) throw badRequest('invalid_credit', 'Pick a credit from this outlet’s bank statement');
+      if (credit.payment_id) throw badRequest('invalid_credit', 'That credit is already matched to a UPI payment');
+      const taken = await tx.db.selectFrom('channel_payouts').select('id').where('bank_credit_id', '=', creditId).executeTakeFirst();
+      if (taken) throw conflict('credit_taken', 'That credit already belongs to another payout');
+    }
+    /** The payout explains the credit, so it stops being flagged as money with no bill. */
+    async function explainCredit(tx: Tx, auth: StaffAuth, creditId: string, reason: string) {
+      await tx.db.updateTable('bank_credits').set({ dismissed_reason: reason, dismissed_by: auth.userId }).where('id', '=', creditId).where('dismissed_reason', 'is', null).execute();
+    }
 
     /** Staff tie a credit to a UPI payment by hand (e.g. the guest paid a different total). */
     app.post('/reconciliation/credits/:id/match', async (req) => {

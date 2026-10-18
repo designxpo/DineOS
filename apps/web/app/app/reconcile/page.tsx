@@ -14,6 +14,7 @@ import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
 import { Badge, Card, EmptyState, Field, Input, Select, Spinner, Stat } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { DeliveryPayouts } from '@/components/staff/delivery-payouts';
 import { SalesImports, useSalesUpload } from '@/components/staff/sales-imports';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
@@ -119,6 +120,7 @@ export default function ReconcilePage() {
             {detail.data ? <Detail d={detail.data} onChange={update} elsewhere={!!system} /> : <Spinner />}
           </>
         )}
+        <DeliveryPayouts credits={detail.data?.credits ?? []} />
       </div>
     </div>
   );

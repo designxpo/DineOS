@@ -341,6 +341,37 @@ export interface Devices {
   updated_at: Generated<Timestamp>;
 }
 
+export interface ChannelPayoutLines {
+  amount_paise: number;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  kind: string;
+  note: string | null;
+  payout_id: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface ChannelPayouts {
+  bank_credit_id: string | null;
+  channel: string;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  dispute_note: string | null;
+  dispute_status: string | null;
+  gross_paise: number;
+  id: Generated<string>;
+  net_paise: number;
+  orders_claimed: number;
+  outlet_id: string;
+  period_from: string;
+  period_to: string;
+  recovered_paise: Generated<number>;
+  reference: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface GoliveChecks {
   checked_at: Generated<Timestamp>;
   checked_by: string | null;
@@ -1120,6 +1151,8 @@ export interface DB {
   day_closes: DayCloses;
   demo_requests: DemoRequests;
   devices: Devices;
+  channel_payout_lines: ChannelPayoutLines;
+  channel_payouts: ChannelPayouts;
   golive_checks: GoliveChecks;
   golive_rehearsals: GoliveRehearsals;
   idempotency_keys: IdempotencyKeys;
