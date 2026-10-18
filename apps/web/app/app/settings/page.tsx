@@ -5,6 +5,7 @@ import { Download, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { OutletDTO } from '@mezmitra/shared/dto';
+import { CURRENT_SYSTEMS, noContract } from '@mezmitra/shared/leads';
 import { API_URL, errorMessage } from '@/lib/api';
 import { dateTime, formatPaise, formatRate } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
@@ -167,6 +168,7 @@ function BillingForm() {
   const rates = [0, 500, 1200, 1800, 2800];
   return (
     <div className="space-y-4">
+      <WhereBills />
       <Card className="divide-y divide-line">
         <Row title="Menu prices include GST" hint="Turn on only if your printed menu prices already include tax.">
           <Switch label="Menu prices include GST" checked={outlet.prices_include_tax} onChange={(v) => void save({ prices_include_tax: v })} />
@@ -275,6 +277,59 @@ function GuestsForm() {
         </Row>
       </Card>
     </div>
+  );
+}
+
+/**
+ * Which system makes this outlet's bills. An outlet that paid a year ahead for another one keeps
+ * billing there and uses the money check meanwhile; billing moves here when that year ends.
+ */
+function WhereBills() {
+  const { outlet } = useStaff();
+  const save = useSaveOutlet();
+  const [system, setSystem] = useState('');
+  if (!outlet) return null;
+  const elsewhere = outlet.billing_elsewhere;
+  return (
+    <Card className="space-y-3 p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-semibold">Where this outlet bills</h2>
+        <Badge tone={elsewhere ? 'blue' : 'green'}>{elsewhere ? `On ${elsewhere}` : 'On Mezmitra'}</Badge>
+      </div>
+      {elsewhere ? (
+        <>
+          <p className="text-sm text-ink-soft">
+            Orders and bills are made on {elsewhere}, so Mezmitra takes none: the QR menu is for reading and calling a waiter. Upload {elsewhere}&rsquo;s sales export and your bank statement under{' '}
+            <Link href="/app/reconcile" className="font-medium text-brand-700 underline">
+              Money check
+            </Link>{' '}
+            to see every UPI payment that never reached the bank.
+          </p>
+          <Button variant="outline" onClick={() => void save({ billing_elsewhere: null })}>
+            Move billing to Mezmitra
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-ink-soft">
+            Already paid a year of another billing system? Keep billing there until it ends and use Mezmitra to check the money meanwhile. Nothing is billed twice.
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Billing system it uses" className="w-64">
+              {(id) => <Input id={id} list="billing-systems" value={system} onChange={(e) => setSystem(e.target.value)} placeholder="e.g. Petpooja" maxLength={40} />}
+            </Field>
+            <datalist id="billing-systems">
+              {CURRENT_SYSTEMS.filter((s) => !noContract(s) && s !== 'Other software').map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+            <Button variant="outline" disabled={!system.trim()} onClick={() => void save({ billing_elsewhere: system.trim() })}>
+              Bill there for now
+            </Button>
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 

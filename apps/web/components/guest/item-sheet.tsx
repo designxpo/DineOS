@@ -37,6 +37,8 @@ export function ItemSheet({ g, item, onClose }: { g: GuestApi; item: MenuItemDTO
   const unit = (item?.price_paise ?? 0) + picked.reduce((a, id) => a + (groups.flatMap((gr) => gr.modifiers).find((m) => m.id === id)?.price_delta_paise ?? 0), 0);
 
   if (!item) return null;
+  // While the restaurant bills on another system the menu is for reading: guests order with staff.
+  const ordering = g.context?.outlet.ordering !== false;
 
   const toggle = (group: ModifierGroupDTO, id: string) => {
     setPicked((current) => {
@@ -72,6 +74,7 @@ export function ItemSheet({ g, item, onClose }: { g: GuestApi; item: MenuItemDTO
       open
       onClose={onClose}
       footer={
+        !ordering ? undefined : (
         <div className="flex items-center gap-3">
           <div className="flex h-12 items-center rounded-xl border border-line">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Fewer" className="grid h-full w-11 cursor-pointer place-items-center text-ink-soft">
@@ -86,6 +89,7 @@ export function ItemSheet({ g, item, onClose }: { g: GuestApi; item: MenuItemDTO
             {t('guest.add_item')} · <span className="tabular">{formatRupee(unit * qty)}</span>
           </Button>
         </div>
+        )
       }
     >
       {item.photo_url && <img src={item.photo_url} alt="" className="-mx-5 mb-4 aspect-[16/9] w-[calc(100%+2.5rem)] max-w-none object-cover sm:rounded-t-3xl" />}
@@ -148,17 +152,21 @@ export function ItemSheet({ g, item, onClose }: { g: GuestApi; item: MenuItemDTO
         );
       })}
 
-      <label className="mt-6 block">
-        <span className="text-sm font-medium text-ink">{t('guest.order_note')}</span>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={200}
-          rows={2}
-          placeholder={t('guest.note_placeholder')}
-          className="mt-1.5 w-full rounded-xl border border-line px-3.5 py-2.5 text-[15px] focus:border-[var(--brand)] focus:outline-none"
-        />
-      </label>
+      {ordering ? (
+        <label className="mt-6 block">
+          <span className="text-sm font-medium text-ink">{t('guest.order_note')}</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={200}
+            rows={2}
+            placeholder={t('guest.note_placeholder')}
+            className="mt-1.5 w-full rounded-xl border border-line px-3.5 py-2.5 text-[15px] focus:border-[var(--brand)] focus:outline-none"
+          />
+        </label>
+      ) : (
+        <p className="mt-6 rounded-xl bg-stone-50 px-3.5 py-2.5 text-sm text-ink-soft">{t('guest.menu_only')}</p>
+      )}
     </Sheet>
   );
 }

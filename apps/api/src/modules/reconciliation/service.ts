@@ -166,6 +166,7 @@ async function paymentDtos(tx: Tx, ids: string[]): Promise<Map<string, ReconPaym
     .selectFrom('payments')
     .leftJoin('bills', 'bills.id', 'payments.bill_id')
     .leftJoin('wallet_topups', 'wallet_topups.id', 'payments.wallet_topup_id')
+    .leftJoin('outside_bills', 'outside_bills.id', 'payments.outside_bill_id')
     .leftJoin('table_sessions', 'table_sessions.id', 'bills.table_session_id')
     .leftJoin('tables', 'tables.id', 'table_sessions.table_id')
     .leftJoin('users', 'users.id', 'payments.confirmed_by')
@@ -174,6 +175,7 @@ async function paymentDtos(tx: Tx, ids: string[]): Promise<Map<string, ReconPaym
       'payments.bill_id',
       'bills.invoice_no',
       'wallet_topups.receipt_no',
+      'outside_bills.bill_no as outside_bill_no',
       'tables.label as table_label',
       'payments.amount_paise',
       'payments.reference',

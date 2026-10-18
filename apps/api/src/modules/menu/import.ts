@@ -76,7 +76,7 @@ function toRecords(grid: string[][]): Record<string, string>[] {
   return body.map((cells) => Object.fromEntries(keys.map((k, i) => [k, (cells[i] ?? '').trim()])));
 }
 
-/** First sheet of an .xlsx, or a .csv, as rows of text cells. Dates become YYYY-MM-DD. */
+/** First sheet of an .xlsx, or a .csv, as rows of text cells. Dates become YYYY-MM-DD (with HH:MM when a time is set). */
 export async function readGrid(filename: string, buffer: Buffer): Promise<string[][]> {
   if (/\.xlsx$/i.test(filename)) {
     const wb = new ExcelJS.Workbook();
@@ -86,7 +86,11 @@ export async function readGrid(filename: string, buffer: Buffer): Promise<string
     const grid: string[][] = [];
     const cell = (v: unknown): string => {
       if (v == null) return '';
-      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      // Excel keeps the wall-clock time as UTC; a time of day is kept for sales exports.
+      if (v instanceof Date) {
+        const iso = v.toISOString();
+        return iso.slice(11, 16) === '00:00' ? iso.slice(0, 10) : `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
+      }
       if (typeof v === 'object' && 'text' in v) return String((v as { text: unknown }).text);
       if (typeof v === 'object' && 'result' in v) return cell((v as { result: unknown }).result);
       return String(v);

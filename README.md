@@ -89,6 +89,10 @@ An edge worker turns camera frames into a table state (vacant, occupied, needs c
 
 Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from any major Indian bank) and see the UPI payments the bank never received, UPI money with no bill, and other money in. Matching is by UTR, then by amount and date. The dashboard reminds owners of the past week's UPI payments not yet checked against a statement and lists any the bank never received. Tests: `reconciliation.test.ts` and the statement parser tests. A payment gateway still needs your decision on one external dependency; the `PaymentAdapter` seam is ready for it.
 
+### Money check, for restaurants still on other billing software
+
+Many restaurants have paid a year ahead for other billing software. An outlet can name that system: Mezmitra then takes no orders or bills there (nothing is billed twice), the QR menu is for reading and calling a waiter, and the outlet uploads that system's sales export beside its bank statement to see every UPI payment the bills claim that never arrived. Billing moves to Mezmitra when the year ends. Demo requests record what a restaurant bills on and the month it renews; admins see who to call under Leads → Renewing soon. Tests: `money-check.test.ts`, the sales export parser tests, `leads.test.ts`.
+
 ### Since the pilot review: safety, money and less manual work
 
 | Feature | What it does | Tests |

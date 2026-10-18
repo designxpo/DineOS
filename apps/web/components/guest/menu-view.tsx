@@ -173,6 +173,8 @@ function ItemRow({ g, item, available, onOpen }: { g: GuestApi; item: MenuItemDT
   const qty = lines.reduce((a, l) => a + l.qty, 0);
   const customisable = item.modifier_group_ids.length > 0;
   const disabled = !item.in_stock || !available;
+  // While the restaurant bills on another system the menu is for reading: guests order with staff.
+  const ordering = g.context?.outlet.ordering !== false;
   const busy = g.addLine.isPending || g.updateLine.isPending;
   const desc = description(item);
 
@@ -209,9 +211,12 @@ function ItemRow({ g, item, available, onOpen }: { g: GuestApi; item: MenuItemDT
             <img src={item.photo_url} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
           </button>
         ) : (
-          <div className="h-[60px]" />
+          <div className={ordering || disabled ? 'h-[60px]' : ''} />
         )}
-        <div className={cn('absolute inset-x-2', item.photo_url ? '-bottom-3' : 'bottom-0')}>
+        {!ordering && disabled && (
+          <p className="mt-2 text-center text-[11px] font-semibold text-ink-faint">{!item.in_stock ? t('guest.sold_out') : t('guest.not_now')}</p>
+        )}
+        {ordering && <div className={cn('absolute inset-x-2', item.photo_url ? '-bottom-3' : 'bottom-0')}>
           {disabled ? (
             <div className="flex h-10 items-center justify-center rounded-xl border border-line bg-surface px-2 text-center text-[11px] leading-tight font-semibold text-ink-faint shadow-sm">
               {!item.in_stock ? t('guest.sold_out') : t('guest.not_now')}
@@ -238,8 +243,8 @@ function ItemRow({ g, item, available, onOpen }: { g: GuestApi; item: MenuItemDT
               </button>
             </div>
           )}
-        </div>
-        {customisable && !disabled && <p className={cn('text-center text-[11px] text-ink-faint', item.photo_url ? 'mt-4' : 'mt-11')}>{t('guest.customisable')}</p>}
+        </div>}
+        {ordering && customisable && !disabled && <p className={cn('text-center text-[11px] text-ink-faint', item.photo_url ? 'mt-4' : 'mt-11')}>{t('guest.customisable')}</p>}
       </div>
     </li>
   );

@@ -55,6 +55,10 @@ export const REPORT_TERMS = {
     label: 'Dish revenue',
     means: 'Menu price times quantity for dishes cooked in the period, by the day they were ordered. Before discounts and GST, so it will not match net sales.',
   },
+  outside_bills: {
+    label: 'Bills on another system',
+    means: 'Bills from the billing system the outlet used instead of Mezmitra, from the sales exports uploaded for the money check. They are not Mezmitra invoices: their GST record is in that system. "In bank" says whether a UPI payment was found on a bank statement.',
+  },
 } as const satisfies Record<string, ReportTerm>;
 
 export type ReportTermKey = keyof typeof REPORT_TERMS;

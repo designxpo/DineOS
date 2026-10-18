@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
 import type { AdminSupportCaseDTO } from '@mezmitra/shared/dto';
 import { rupeesToPaise } from '@mezmitra/shared/money';
-import { DEMO_PAIN_LABELS, type DemoPain } from '@mezmitra/shared/leads';
+import { callFrom, DEMO_PAIN_LABELS, noContract, type DemoPain } from '@mezmitra/shared/leads';
 import { SUPPORT_HOURS, SUPPORT_TARGET_MINUTES, type SupportSeverity, type SupportStatus } from '@mezmitra/shared/support';
 import { ApiError, apiFetch, errorMessage, type RequestOptions } from '@/lib/api';
 import { ago, date, dateTime, formatPaise, rupeesInput } from '@/lib/format';
@@ -684,11 +684,20 @@ interface DemoRequest {
   plan: string | null;
   pains: DemoPain[];
   note: string | null;
+  current_system: string | null;
+  /** First of the month their current software renews. */
+  renews_on: string | null;
   status: 'new' | 'contacted' | 'won' | 'lost';
   created_at: string;
 }
 
-/** Restaurants that asked for a demo on the website, newest first. */
+const month = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/**
+ * Restaurants that asked for a demo on the website, newest first. Most already pay for billing
+ * software; "Renewing soon" lists the ones whose year ends within 90 days, soonest first, as the
+ * people to call this week.
+ */
 function Leads({ api }: { api: Api }) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -701,15 +710,25 @@ function Leads({ api }: { api: Api }) {
       toast(errorMessage(err), 'error');
     }
   };
+  const [view, setView] = useState<'all' | 'renewing'>('all');
+  const today = new Date().toISOString().slice(0, 10);
+  const soon = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
+  const renewing = (data ?? [])
+    .filter((d) => d.renews_on && d.renews_on >= today.slice(0, 8) + '01' && d.renews_on <= soon && d.status !== 'won' && d.status !== 'lost')
+    .sort((a, b) => a.renews_on!.localeCompare(b.renews_on!));
+  const rows = view === 'renewing' ? renewing : (data ?? []);
   const fresh = (data ?? []).filter((d) => d.status === 'new').length;
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-faint">Demo requests from the website. {fresh > 0 && <Badge tone="amber">{fresh} not contacted yet</Badge>}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Segmented value={view} onChange={setView} options={[{ value: 'all', label: 'All requests' }, { value: 'renewing', label: `Renewing soon (${renewing.length})` }]} />
+        <p className="text-sm text-ink-faint">Demo requests from the website. {fresh > 0 && <Badge tone="amber">{fresh} not contacted yet</Badge>}</p>
+      </div>
       <Card className="overflow-x-auto">
-        <table className="w-full min-w-[60rem] text-sm">
+        <table className="w-full min-w-[68rem] text-sm">
           <thead className="bg-stone-50 text-left text-xs text-ink-faint">
             <tr>
-              {['When', 'Restaurant', 'Contact', 'Tables', 'Plan', 'What hurts', 'Status'].map((h) => (
+              {['When', 'Restaurant', 'Contact', 'Bills on', 'Tables', 'Plan', 'What hurts', 'Status'].map((h) => (
                 <th key={h} className="px-4 py-2 font-medium">
                   {h}
                 </th>
@@ -717,7 +736,7 @@ function Leads({ api }: { api: Api }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-line align-top">
-            {(data ?? []).map((d) => (
+            {rows.map((d) => (
               <tr key={d.id}>
                 <td className="px-4 py-2.5 whitespace-nowrap text-ink-faint">{ago(d.created_at)}</td>
                 <td className="px-4 py-2.5">
@@ -734,6 +753,15 @@ function Leads({ api }: { api: Api }) {
                       WhatsApp
                     </a>
                   </p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p>{d.current_system ?? ''}</p>
+                  {d.renews_on && (
+                    <p className={`text-xs ${callFrom(d.renews_on) <= today ? 'font-semibold text-rose-700' : 'text-ink-faint'}`}>
+                      Renews {month(d.renews_on)} · call from {date(callFrom(d.renews_on))}
+                    </p>
+                  )}
+                  {d.current_system && noContract(d.current_system) && <p className="text-xs text-emerald-700">No contract to wait for</p>}
                 </td>
                 <td className="px-4 py-2.5">{d.tables ?? ''}</td>
                 <td className="px-4 py-2.5">{d.plan ?? ''}</td>
@@ -759,6 +787,7 @@ function Leads({ api }: { api: Api }) {
           </div>
         )}
         {data?.length === 0 && <p className="py-10 text-center text-ink-faint">No demo requests yet.</p>}
+        {data && data.length > 0 && rows.length === 0 && <p className="py-10 text-center text-ink-faint">No one&rsquo;s software renews in the next 90 days.</p>}
       </Card>
     </div>
   );

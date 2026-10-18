@@ -257,6 +257,8 @@ export interface CreateOrderInput {
 
 export async function createOrder(tx: Tx, input: CreateOrderInput): Promise<OrderDTO> {
   const outlet = await loadOutlet(tx, input.outletId);
+  // Until its paid year on another system ends, the outlet bills there: an order here would be billed twice.
+  if (outlet.billing_elsewhere) throw conflict('bills_elsewhere', `This outlet bills on ${outlet.billing_elsewhere} for now, so orders are taken there`);
   const now = new Date();
 
   let session: Awaited<ReturnType<typeof lockLiveSession>> | null = null;

@@ -8,6 +8,8 @@ import { idParams, parse } from '../../lib/validate';
 import { readGrid } from '../menu/import';
 import { businessDate } from '@mezmitra/shared/dates';
 import { importStatement, listStatements, statementDetail, upiCheck } from './service';
+import { deleteSalesImport, importSales, listSalesImports, salesImport } from './sales';
+import { parseSalesExport, SALES_ROLES } from './sales-export';
 import { parseStatement } from './statement';
 
 const MAX_FILE = 5 * 1024 * 1024;
@@ -94,6 +96,64 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         assertCan(auth, s.outlet_id, 'payment.reconcile');
         await tx.db.deleteFrom('bank_statements').where('id', '=', id).execute();
         await audit(tx, auth, { outletId: s.outlet_id, action: 'reconciliation.delete', entity: 'bank_statement', entityId: id, before: { file: s.file_name } });
+      });
+      return reply.status(204).send();
+    });
+
+    /**
+     * A sales export from the billing system the outlet uses instead of Mezmitra, as base64 in
+     * JSON: {outlet_id, file_name, data}, CSV or .xlsx. When its columns cannot be told from their
+     * names the answer says so with the headers found, and `columns` names them on the next try.
+     */
+    app.post('/reconciliation/sales', { bodyLimit: Math.ceil(MAX_FILE * 1.4) }, async (req, reply) => {
+      const auth = requireStaff(req);
+      const body = parse(
+        z.object({
+          outlet_id: z.uuid(),
+          file_name: z.string().trim().min(1).max(120),
+          data: z.base64(),
+          columns: z.partialRecord(z.enum(SALES_ROLES), z.string().trim().max(120)).optional(),
+        }),
+        req.body,
+      );
+      assertCan(auth, body.outlet_id, 'payment.reconcile');
+      const buffer = Buffer.from(body.data, 'base64');
+      if (buffer.length > MAX_FILE) throw badRequest('file_too_large', 'Sales files can be up to 5 MB');
+      const parsed = parseSalesExport(await readGrid(body.file_name, buffer), body.columns);
+      const result = await ctx.tx(auth.tenantId, async (tx) => {
+        const outlet = await tx.db.selectFrom('outlets').select(['id', 'timezone', 'billing_elsewhere']).where('id', '=', body.outlet_id).executeTakeFirst();
+        if (!outlet) throw notFound('Outlet');
+        const id = await importSales(tx, outlet, auth.userId, body.file_name, parsed);
+        const imported = await salesImport(tx, id);
+        await audit(tx, auth, {
+          outletId: body.outlet_id,
+          action: 'reconciliation.sales_import',
+          entity: 'sales_import',
+          entityId: id,
+          after: { file: body.file_name, from: parsed.period_from, to: parsed.period_to, bills: imported.bills, duplicates: imported.duplicates, skipped: imported.skipped },
+        });
+        return { import: imported, columns: parsed.columns, unsplit: parsed.unsplit };
+      });
+      return reply.status(201).send(result);
+    });
+
+    app.get('/reconciliation/sales', async (req) => {
+      const auth = requireStaff(req);
+      const q = parse(z.object({ outlet_id: z.uuid() }), req.query);
+      assertCan(auth, q.outlet_id, 'payment.reconcile');
+      return ctx.tx(auth.tenantId, (tx) => listSalesImports(tx, q.outlet_id));
+    });
+
+    /** Removes a wrong sales upload. Its bills go too; bank matches made to them are undone. */
+    app.delete('/reconciliation/sales/:id', async (req, reply) => {
+      const auth = requireStaff(req);
+      const { id } = parse(idParams, req.params);
+      await ctx.tx(auth.tenantId, async (tx) => {
+        const s = await tx.db.selectFrom('sales_imports').select(['outlet_id', 'file_name']).where('id', '=', id).executeTakeFirst();
+        if (!s) throw notFound('Sales upload');
+        assertCan(auth, s.outlet_id, 'payment.reconcile');
+        await deleteSalesImport(tx, id);
+        await audit(tx, auth, { outletId: s.outlet_id, action: 'reconciliation.sales_delete', entity: 'sales_import', entityId: id, before: { file: s.file_name } });
       });
       return reply.status(204).send();
     });

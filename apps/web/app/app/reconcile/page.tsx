@@ -5,30 +5,26 @@ import { AlertTriangle, CheckCircle2, FileSpreadsheet, Landmark, Upload } from '
 import { useRef, useState } from 'react';
 import type { BankCreditDTO, BankStatementDTO, ReconPaymentDTO, StatementDetailDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
+import { readBase64 } from '@/lib/files';
 import { date, dateTime, formatPaise } from '@/lib/format';
-import { missingNote } from '@/lib/reconcile';
+import { missingNote, paymentLabel } from '@/lib/reconcile';
 import { useStaff } from '@/lib/staff';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
 import { Badge, Card, EmptyState, Field, Input, Select, Spinner, Stat } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { SalesImports, useSalesUpload } from '@/components/staff/sales-imports';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
 const KIND: Record<NonNullable<BankCreditDTO['match_kind']>, string> = { utr: 'UTR', amount_date: 'Amount and date', manual: 'By hand' };
 
-function readBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
-    r.onerror = () => reject(new Error('Could not read the file'));
-    r.readAsDataURL(file);
-  });
-}
-
 export default function ReconcilePage() {
-  const { api, outletId, can } = useStaff();
+  const { api, outletId, can, outlet } = useStaff();
   const toast = useToast();
+  // An outlet billing on another system checks that system's bills: the money check.
+  const system = outlet?.billing_elsewhere ?? null;
+  const sales = useSalesUpload(system ?? '');
   const qc = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -66,18 +62,34 @@ export default function ReconcilePage() {
   return (
     <div className="pb-12">
       <PageHeader
-        title="UPI check"
-        subtitle="Staff confirm UPI payments by eye. Import your bank statement to check that every one reached the bank."
+        title={system ? 'Money check' : 'UPI check'}
+        subtitle={
+          system
+            ? `Upload ${system}'s sales export and your bank statement: every UPI payment its bills claim is checked against the bank.`
+            : 'Staff confirm UPI payments by eye. Import your bank statement to check that every one reached the bank.'
+        }
         actions={
           <>
             <input ref={input} type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
+            {system && (
+              <Button variant="outline" onClick={sales.pick} loading={sales.busy}>
+                <FileSpreadsheet className="size-4" /> Upload {system} sales
+              </Button>
+            )}
             <Button onClick={() => input.current?.click()} loading={uploading}>
               <Upload className="size-4" /> Import statement
             </Button>
           </>
         }
       />
+      {sales.element}
       <div className="space-y-4 px-4 lg:px-8">
+        {system && (
+          <>
+            <SalesImports system={system} onPick={sales.pick} busy={sales.busy} />
+            <h2 className="pt-2 text-sm font-semibold text-ink-soft">Bank statements</h2>
+          </>
+        )}
         {list.isLoading ? (
           <Spinner />
         ) : !list.data?.length ? (
@@ -104,7 +116,7 @@ export default function ReconcilePage() {
                 ))}
               </Select>
             )}
-            {detail.data ? <Detail d={detail.data} onChange={update} /> : <Spinner />}
+            {detail.data ? <Detail d={detail.data} onChange={update} elsewhere={!!system} /> : <Spinner />}
           </>
         )}
       </div>
@@ -112,7 +124,7 @@ export default function ReconcilePage() {
   );
 }
 
-function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: StatementDetailDTO) => void }) {
+function Detail({ d, onChange, elsewhere }: { d: StatementDetailDTO; onChange: (d: StatementDetailDTO) => void; elsewhere: boolean }) {
   const { api } = useStaff();
   const toast = useToast();
   const [matching, setMatching] = useState<{ credit?: BankCreditDTO; payment?: ReconPaymentDTO } | null>(null);
@@ -139,7 +151,7 @@ function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: Statemen
       </p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Matched" value={formatPaise(s.matched_paise)} sub={`${s.matched} payments`} />
-        <Stat label="Not in the bank" value={<span className={s.missing ? 'text-rose-700' : ''}>{formatPaise(s.missing_paise)}</span>} sub={`${s.missing} UPI payment${s.missing === 1 ? '' : 's'} confirmed by staff`} />
+        <Stat label="Not in the bank" value={<span className={s.missing ? 'text-rose-700' : ''}>{formatPaise(s.missing_paise)}</span>} sub={`${s.missing} UPI payment${s.missing === 1 ? '' : 's'} ${elsewhere ? 'on bills' : 'confirmed by staff'}`} />
         <Stat label="Not billed" value={<span className={s.unrecorded_upi ? 'text-amber-700' : ''}>{formatPaise(s.unrecorded_upi_paise)}</span>} sub={`${s.unrecorded_upi} UPI credit${s.unrecorded_upi === 1 ? '' : 's'} with no payment`} />
         <Stat label="Other money in" value={s.other_credits} sub={`Cash deposits, card settlements${s.dismissed ? ` · ${s.dismissed} set aside` : ''}`} />
       </div>
@@ -147,11 +159,11 @@ function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: Statemen
       <Section
         tone="rose"
         title="UPI payments the bank did not receive"
-        hint="Staff marked these paid by UPI, but no matching credit is on the statement. Check the guest's payment screen or the UTR with the cashier."
+        hint={`${elsewhere ? 'The bills say these were paid by UPI' : 'Staff marked these paid by UPI'}, but no matching credit is on the statement. Check the guest's payment screen or the UTR with the cashier.`}
         empty="Every UPI payment in these dates reached the bank."
       >
         {d.missing.map((m) => (
-          <Row key={m.id} amount={m.amount_paise} note={missingNote(m)} title={`${m.invoice_no ?? (m.receipt_no ? `Wallet top-up ${m.receipt_no}` : 'Bill')}${m.table_label ? ` · ${m.table_label}` : ''}`} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
+          <Row key={m.id} amount={m.amount_paise} note={missingNote(m)} title={paymentLabel(m)} sub={[dateTime(m.created_at), m.confirmed_by_name && `confirmed by ${m.confirmed_by_name}`, m.reference && `ref ${m.reference}`].filter(Boolean).join(' · ')}>
             {m.late_possible && <Badge tone="neutral">May post on the next statement</Badge>}
             <Button size="sm" variant="outline" onClick={() => setMatching({ payment: m })} disabled={!unrecorded.some((c) => c.amount_paise === m.amount_paise)}>
               Match…
@@ -194,7 +206,7 @@ function Detail({ d, onChange }: { d: StatementDetailDTO; onChange: (d: Statemen
             <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
               <span className="w-24 text-ink-faint">{date(c.txn_date)}</span>
               <span className="min-w-0 flex-1 truncate">
-                {c.payment!.invoice_no} {c.payment!.table_label && `· ${c.payment!.table_label}`}
+                {paymentLabel(c.payment!)}
               </span>
               <Badge tone={c.match_kind === 'utr' ? 'green' : c.match_kind === 'manual' ? 'violet' : 'blue'}>{KIND[c.match_kind!]}</Badge>
               <span className="w-24 text-right font-semibold tabular">{formatPaise(c.amount_paise)}</span>
@@ -267,7 +279,7 @@ function CreditRow({ c, children }: { c: BankCreditDTO; children: React.ReactNod
 function MatchSheet({ d, from, onClose, onMatch }: { d: StatementDetailDTO; from: { credit?: BankCreditDTO; payment?: ReconPaymentDTO }; onClose: () => void; onMatch: (creditId: string, paymentId: string) => void }) {
   const amount = from.credit?.amount_paise ?? from.payment!.amount_paise;
   const options = from.credit
-    ? d.missing.filter((m) => m.amount_paise === amount).map((m) => ({ id: m.id, title: `${m.invoice_no ?? (m.receipt_no ? `Wallet top-up ${m.receipt_no}` : 'Bill')}${m.table_label ? ` · ${m.table_label}` : ''}`, sub: dateTime(m.created_at) }))
+    ? d.missing.filter((m) => m.amount_paise === amount).map((m) => ({ id: m.id, title: paymentLabel(m), sub: dateTime(m.created_at) }))
     : d.credits.filter((c) => !c.payment && !c.dismissed_reason && c.amount_paise === amount).map((c) => ({ id: c.id, title: c.narration, sub: `${date(c.txn_date)}${c.utr ? ` · UTR ${c.utr}` : ''}` }));
   return (
     <Sheet open onClose={onClose} title={`Match ${formatPaise(amount)}`}>

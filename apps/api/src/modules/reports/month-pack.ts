@@ -100,8 +100,24 @@ export async function monthPack(tx: Tx, r: Range, opts: { month: string; toDate:
   const payments = await tx.db
     .selectFrom('payments')
     .leftJoin('bills', 'bills.id', 'payments.bill_id')
+    .leftJoin('outside_bills', 'outside_bills.id', 'payments.outside_bill_id')
     .leftJoin('users', 'users.id', 'payments.confirmed_by')
-    .select([local('payments.created_at').as('at'), 'bills.invoice_no', 'payments.wallet_topup_id', 'payments.method', 'payments.kind', 'payments.amount_paise', 'payments.reference', 'payments.reason', 'payments.room_no', 'users.name as confirmed_by'])
+    .select((eb) => [
+      local('payments.created_at').as('at'),
+      'bills.invoice_no',
+      'payments.wallet_topup_id',
+      'payments.outside_bill_id',
+      'outside_bills.bill_no as outside_bill_no',
+      'outside_bills.business_date as outside_date',
+      'payments.method',
+      'payments.kind',
+      'payments.amount_paise',
+      'payments.reference',
+      'payments.reason',
+      'payments.room_no',
+      'users.name as confirmed_by',
+      eb.exists(eb.selectFrom('bank_credits').select('bank_credits.id').whereRef('bank_credits.payment_id', '=', 'payments.id')).as('in_bank'),
+    ])
     .where('payments.outlet_id', '=', r.outletId)
     .where(sql<string>`(payments.created_at at time zone ${r.timezone})::date`, '>=', r.from)
     .where(sql<string>`(payments.created_at at time zone ${r.timezone})::date`, '<=', r.to)
@@ -303,8 +319,32 @@ export async function monthPack(tx: Tx, r: Range, opts: { month: string; toDate:
     by: p.confirmed_by,
     reason: p.reason,
   });
-  table(wb, 'Payments', paymentColumns, payments.filter((p) => !p.wallet_topup_id).map(paymentRow), REPORT_TERMS.payments.means);
+  table(wb, 'Payments', paymentColumns, payments.filter((p) => !p.wallet_topup_id && !p.outside_bill_id).map(paymentRow), REPORT_TERMS.payments.means);
   table(wb, 'Wallet top-ups', paymentColumns.filter((c) => c.key !== 'invoice' && c.key !== 'room'), payments.filter((p) => p.wallet_topup_id).map(paymentRow), REPORT_TERMS.wallet_topups.means);
+  const outside = payments.filter((p) => p.outside_bill_id);
+  if (outside.length) {
+    table(
+      wb,
+      'Bills on another system',
+      [
+        { header: 'Date', key: 'date', width: 12 },
+        { header: 'Bill', key: 'bill', width: 16 },
+        { header: 'Method', key: 'method' },
+        { header: 'Amount (₹)', key: 'amount', width: 14, money: true },
+        { header: 'Reference', key: 'reference', width: 22 },
+        { header: 'In bank', key: 'bank' },
+      ],
+      outside.map((p) => ({
+        date: p.outside_date,
+        bill: p.outside_bill_no,
+        method: p.method.replace('_', ' '),
+        amount: inr(p.amount_paise),
+        reference: p.reference,
+        bank: p.method !== 'upi' ? null : p.in_bank ? 'Yes' : 'Not found',
+      })),
+      REPORT_TERMS.outside_bills.means,
+    );
+  }
 
   table(
     wb,

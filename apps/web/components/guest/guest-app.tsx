@@ -1,12 +1,14 @@
 'use client';
 
-import { QrCode, Utensils, WifiOff } from 'lucide-react';
+import { BellRing, QrCode, Utensils, WifiOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { errorMessage } from '@/lib/api';
 import { useBrandTheme } from '@/lib/brand-theme';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { BrandMark } from '@/components/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { useToast } from '@/components/ui/toast';
 import { CartSheet } from './cart-sheet';
 import { MenuView } from './menu-view';
 import { StatusView } from './status-view';
@@ -127,17 +129,53 @@ function GuestShell({ qr }: { qr: string }) {
         <StatusView g={g} onAddMore={() => setTab('menu')} />
       )}
 
-      <CartBar g={g} onOpen={() => setCartOpen(true)} />
-      <CartSheet
-        g={g}
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        onOrdered={() => {
-          setCartOpen(false);
-          setTab('status');
-          window.scrollTo({ top: 0 });
-        }}
-      />
+      {ctx?.outlet.ordering === false ? (
+        <MenuOnlyBar g={g} />
+      ) : (
+        <>
+          <CartBar g={g} onOpen={() => setCartOpen(true)} />
+          <CartSheet
+            g={g}
+            open={cartOpen}
+            onClose={() => setCartOpen(false)}
+            onOrdered={() => {
+              setCartOpen(false);
+              setTab('status');
+              window.scrollTo({ top: 0 });
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** A menu for reading (the restaurant bills on another system): guests order with a waiter, and can call one. */
+function MenuOnlyBar({ g }: { g: ReturnType<typeof useGuest> }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [called, setCalled] = useState(false);
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface/95 p-2 pl-4 shadow-[var(--shadow-pop)] backdrop-blur">
+        <p className="min-w-0 flex-1 text-sm leading-snug text-ink-soft">{t('guest.menu_only')}</p>
+        <Button
+          size="lg"
+          disabled={!g.session || called}
+          loading={g.callWaiter.isPending}
+          onClick={() =>
+            g.callWaiter.mutate(undefined, {
+              onSuccess: () => {
+                setCalled(true);
+                toast(t('guest.waiter_coming'));
+              },
+              onError: (e) => toast(errorMessage(e), 'error'),
+            })
+          }
+        >
+          <BellRing className="size-4" /> {called ? t('guest.waiter_coming') : t('guest.call_waiter')}
+        </Button>
+      </div>
     </div>
   );
 }

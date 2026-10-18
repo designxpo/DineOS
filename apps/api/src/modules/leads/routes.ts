@@ -3,7 +3,7 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { DEMO_PAINS, DEMO_TABLES } from '@mezmitra/shared/leads';
+import { DEMO_PAINS, DEMO_TABLES, noContract } from '@mezmitra/shared/leads';
 import { normalizePhone } from '@mezmitra/shared/phone';
 import type { AppContext } from '../../context';
 import { requireAdmin } from '../../lib/auth';
@@ -25,6 +25,9 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           plan: text(40).optional(),
           pains: z.array(z.enum(DEMO_PAINS)).max(DEMO_PAINS.length).optional(),
           note: text(1000).optional(),
+          current_system: text(40).optional(),
+          // The month their current software renews, as YYYY-MM.
+          renews: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Pick the month it renews').optional(),
           // Hidden on the page: a person never fills it.
           website: z.string().max(200).optional(),
         }),
@@ -32,7 +35,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       );
       if (body.website) return reply.status(201).send({ ok: true });
       const phone = normalizePhone(body.phone);
-      if (!/^\+\d{10,15}$/.test(phone)) throw badRequest('invalid_phone', 'Enter a phone number we can call or WhatsApp');
+      if (!/^\+\d{7,15}$/.test(phone)) throw badRequest('invalid_phone', 'Enter a phone number we can call or WhatsApp');
       await ctx.adminDb
         .insertInto('demo_requests')
         .values({
@@ -44,6 +47,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           plan: body.plan || null,
           pains: [...new Set(body.pains ?? [])],
           note: body.note || null,
+          current_system: body.current_system || null,
+          renews_on: body.renews && !noContract(body.current_system) ? `${body.renews}-01` : null,
         })
         .execute();
       return reply.status(201).send({ ok: true });
@@ -51,7 +56,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
 
     app.get('/admin/demo-requests', async (req) => {
       requireAdmin(req);
-      return ctx.adminDb.selectFrom('demo_requests').selectAll().orderBy('created_at', 'desc').limit(500).execute();
+      return ctx.adminDb.selectFrom('demo_requests').selectAll().orderBy('created_at', 'desc').limit(1000).execute();
     });
 
     app.patch('/admin/demo-requests/:id', async (req) => {

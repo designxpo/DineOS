@@ -5,7 +5,7 @@ import type { Tx } from '../../context';
 import { json } from '../../db';
 import { shownBrand } from '../../lib/branding';
 import type { GuestAuth } from '../../lib/auth';
-import { badRequest, gone, notFound, tooMany } from '../../lib/errors';
+import { badRequest, conflict, gone, notFound, tooMany } from '../../lib/errors';
 import { loadOrders, toGuestOrder } from '../orders/serialize';
 import { createOrder, prepareLines, type OrderLineInput } from '../orders/service';
 import { upsertCustomer } from '../customers/service';
@@ -47,6 +47,7 @@ export async function guestContext(tx: Tx, outletId: string, tableId: string): P
       'outlets.service_charge_tax_rate_bp',
       'outlets.upi_vpa',
       'outlets.upi_payee_name',
+      'outlets.billing_elsewhere',
       'tenants.name as tenant_name',
       'tenants.slug',
     ])
@@ -65,6 +66,7 @@ export async function guestContext(tx: Tx, outletId: string, tableId: string): P
       service_charge_tax_rate_bp: row.service_charge_tax_rate_bp,
       upi_vpa: row.upi_vpa,
       upi_payee_name: row.upi_payee_name,
+      ordering: !row.billing_elsewhere,
     },
     table: { id: row.table_id, label: row.label },
   };
@@ -210,7 +212,8 @@ function sameChoice(a: StoredLine, b: { item_id: string; modifier_ids: string[];
 export async function addCartLine(tx: Tx, auth: GuestAuth, input: OrderLineInput): Promise<CartDTO> {
   const { lines, version } = await lockCart(tx, auth);
   // Validate now so the guest learns about a missing size choice or sold-out dish immediately.
-  const outlet = await tx.db.selectFrom('outlets').select(['id', 'timezone']).where('id', '=', auth.outletId).executeTakeFirstOrThrow();
+  const outlet = await tx.db.selectFrom('outlets').select(['id', 'timezone', 'billing_elsewhere']).where('id', '=', auth.outletId).executeTakeFirstOrThrow();
+  if (outlet.billing_elsewhere) throw conflict('menu_only', 'This menu is for browsing. Please order with the staff.');
   await prepareLines(tx, outlet, [input]);
   const note = input.note?.trim() || null;
   const existing = lines.find((l) => sameChoice(l, { ...input, note }));

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { HEADING_STYLES, whiteLabelOn } from '@mezmitra/shared/branding';
+import { ACTIVE_ORDER_STATUSES } from '@mezmitra/shared/enums';
 import type { OutletDTO, TenantBrandDTO } from '@mezmitra/shared/dto';
 import type { AppContext, Tx } from '../../context';
 import { audit } from '../../lib/audit';
@@ -47,6 +48,7 @@ const outletFields = {
   auto_clean_minutes: z.number().int().min(0).max(240),
   comp_alert_paise: z.number().int().min(0).max(100_000_000).nullable(),
   table_water_item_id: z.uuid().nullable(),
+  billing_elsewhere: z.string().trim().min(1).max(40).nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
 const createOutlet = z.object(outletFields).partial().required({ name: true });
@@ -57,7 +59,7 @@ export const OUTLET_COLUMNS = [
   'prices_include_tax', 'kitchen_stations', 'upi_vpa', 'upi_payee_name', 'status',
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
   'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled', 'delivery_commission_bp',
-  'auto_clean_minutes', 'table_water_item_id', 'comp_alert_paise',
+  'auto_clean_minutes', 'table_water_item_id', 'comp_alert_paise', 'billing_elsewhere',
 ] as const;
 
 export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
@@ -78,6 +80,7 @@ const EXPORT_TABLES = [
   'tables', 'table_sessions', 'orders', 'order_items', 'kots', 'bills', 'bill_lines', 'payments', 'service_requests',
   'devices', 'audit_log', 'subscriptions', 'platform_invoices', 'customers', 'loyalty_ledger', 'reservations',
   'waitlist_entries', 'ingredients', 'recipes', 'modifier_recipes', 'stock_movements', 'cameras', 'table_state_events', 'bank_statements', 'bank_credits',
+  'sales_imports', 'outside_bills',
 ] as const;
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
@@ -144,6 +147,12 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
             .where('deleted_at', 'is', null)
             .executeTakeFirst();
           if (!item) throw badRequest('invalid_item', 'Pick a dish from this outlet\'s menu');
+        }
+        // Moving billing to another system: nothing may be left half-billed here.
+        if (body.billing_elsewhere && !before.billing_elsewhere) {
+          const open = await tx.db.selectFrom('orders').select('id').where('outlet_id', '=', id).where('status', 'in', [...ACTIVE_ORDER_STATUSES, 'served']).executeTakeFirst();
+          const draft = await tx.db.selectFrom('bills').select('id').where('outlet_id', '=', id).where('status', 'in', ['draft', 'finalised']).executeTakeFirst();
+          if (open || draft) throw conflict('open_orders', 'Bill or cancel the open orders and bills first');
         }
         if (body.timezone && !Intl.supportedValuesOf('timeZone').includes(body.timezone)) {
           throw badRequest('invalid_timezone', 'Unknown timezone');

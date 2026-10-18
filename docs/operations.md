@@ -160,6 +160,10 @@ See `edge/vision-worker/README.md` for hardware, installing the model and runnin
 
 Managers download the account statement from net banking (CSV or Excel) and import it in **UPI check**, weekly or at month end. Act on two lists: UPI payments the bank never received (ask the cashier for the guest's UTR or payment screen), and UPI credits with no bill (match them, or set aside money that is not a sale). Re-importing an overlapping statement is safe.
 
+### Outlets still billing on other software (money check)
+
+For a restaurant that paid a year ahead for other billing software: **Settings → Billing & UPI → Where this outlet bills**, type the system's name and press **Bill there for now** (open orders and bills must be finished first). Mezmitra then takes no orders or bills at that outlet, its QR menu is for reading and calling a waiter, and **Money check** (the UPI check's place in the menu) takes two uploads: the other system's bill-wise sales export (Excel or CSV, one row per bill with the payment type) and the bank statement. Uploads that overlap are safe; a wrong one can be removed. If the columns are not recognised, the screen asks which is which. Before the year ends, set the outlet up (menu, printers, staff, rehearsal); on the day, press **Move billing to Mezmitra**. Leads record each restaurant's current system and renewal month; the admin console's **Leads → Renewing soon** lists who to call, 45 days before.
+
 ## Charge to room (hotel outlets)
 
 Turn on **Settings → Billing & UPI → Charge bills to hotel rooms**. Cashiers then get a **Room** payment method that asks for the room number (and optionally the guest's name); a bill can be split between cash and a room. The front desk opens **Reports → Room charges**, posts the per-room totals to the guests' folios (or imports the CSV into the hotel system), ticks the charges and presses **Mark posted**; only managers and owners can. Refunds of a room charge show as negative lines for the same room. Do this at least daily, before guests check out.

@@ -111,6 +111,10 @@ back:     hub ──POST /v1/device/hub/sync──> cloud upserts by id, one tra
 
 `modules/reconciliation`: a statement (CSV or .xlsx) is parsed (`statement.ts`, layout-tolerant), its credits stored once each by fingerprint, and matched over the statement's dates: by UTR (or its last digits typed by the cashier, with the same amount), then UPI credits by amount on the same or previous day. The statement view lists UPI payments with no credit (payments on the last day may still post), UPI credits with no payment, and other credits. Manual matches and set-asides are audited.
 
+### Money check (outlets billing on another system)
+
+`outlets.billing_elsewhere` names the system an outlet bills on while a year it paid for runs (null: it bills on Mezmitra). While set, `createOrder` refuses every order (`bills_elsewhere`), the guest app gets `outlet.ordering: false` and the cart refuses lines (`menu_only`), and the staff nav hides orders, kitchen, POS and bills. `sales-export.ts` reads that system's bill-wise export (CSV or .xlsx): header found by name below report details, one payment-type column or an amount column per method, cancelled and zero rows left out, repeated rows of one bill merged; when the names give nothing away the API answers `unknown_sales_export` with the headers and the upload names its columns. Bills go to `outside_bills` (one row per bill, deduplicated by number and day) and their money to `payments` with `outside_bill_id` set, so `autoMatch`, the statement view and the UPI check treat them like Mezmitra's own. Deleting an upload unmatches its credits first. The month-end pack lists them on their own sheet; sales reports leave them out (the other system holds that record).
+
 ## Adding a feature
 
 1. Schema change: add `apps/api/migrations/NNNN_name.sql`, run `npm run db:migrate`, then `npm run db:codegen -w @mezmitra/api`. New tenant tables need `tenant_id`, RLS, a grant to `dineos_app`, and composite foreign keys; copy the patterns in `0001_init.sql` and `0006_tenant_scoped_foreign_keys.sql`.

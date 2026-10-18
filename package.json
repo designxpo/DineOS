@@ -1,7 +1,7 @@
 {
   "name": "mezmitra",
   "private": true,
-  "description": "DineOS: multi-tenant restaurant and cafe platform (QR ordering, POS, KDS, owner portal)",
+  "description": "Mezmitra: multi-tenant restaurant and cafe platform (QR ordering, POS, KDS, owner portal)",
   "workspaces": [
     "packages/*",
     "apps/*"

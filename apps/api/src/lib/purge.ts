@@ -14,6 +14,8 @@ export const PURGE_ORDER = [
   'waitlist_entries',
   'bill_lines',
   'payments',
+  'outside_bills',
+  'sales_imports',
   'bills',
   'kots',
   'print_jobs',

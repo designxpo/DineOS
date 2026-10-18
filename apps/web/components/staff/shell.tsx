@@ -73,6 +73,9 @@ export const NAV: NavItem[] = [
   { href: '/app/settings', label: 'nav.settings', icon: Settings, action: 'outlet.settings' },
 ];
 
+/** Screens that take orders or make bills: not shown while the outlet bills on another system. */
+const BILLING_SCREENS = ['/app/inbox', '/app/kds', '/app/pos', '/app/bills'];
+
 /** Tells the kitchen and managers when an ingredient reaches its reorder level. */
 function useLowStockAlerts(enabled: boolean) {
   const toast = useToast();
@@ -172,6 +175,26 @@ function Banners() {
       <HubModeBanner />
       <HubSwitchBanner />
       <PrintProblems />
+      <BillsElsewhereBanner />
+    </div>
+  );
+}
+
+/** Someone opened an ordering or billing screen by its address: say where that happens for now. */
+function BillsElsewhereBanner() {
+  const { outlet, can } = useStaff();
+  const { t } = useI18n();
+  const pathname = usePathname();
+  const system = outlet?.billing_elsewhere;
+  if (!system || !BILLING_SCREENS.some((h) => pathname.startsWith(h))) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-sky-50 px-4 py-2 text-sm text-sky-950">
+      <span>{t('elsewhere.banner', { system })}</span>
+      {can('payment.reconcile') && (
+        <Link href="/app/reconcile" className="font-semibold underline">
+          {t('elsewhere.check')}
+        </Link>
+      )}
     </div>
   );
 }
@@ -199,7 +222,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useBrandTheme(me.tenant.branding, me.tenant.white_label ? me.tenant.name : null);
   const { signOut, dialog: unsyncedDialog } = useSignOut();
 
-  const items = NAV.filter((n) => can(n.action));
+  // Billing on another system: no ordering or billing screens, and the UPI check is the money check.
+  const items = NAV.filter((n) => can(n.action) && !(outlet?.billing_elsewhere && BILLING_SCREENS.includes(n.href))).map((n) =>
+    outlet?.billing_elsewhere && n.href === '/app/reconcile' ? { ...n, label: 'nav.money_check' as const } : n,
+  );
   // Kitchen display is a full-screen tool.
   const bare = pathname.startsWith('/app/kds');
 

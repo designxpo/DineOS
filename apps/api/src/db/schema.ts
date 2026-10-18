@@ -295,12 +295,14 @@ export interface DemoRequests {
   city: string | null;
   contacted_at: Timestamp | null;
   created_at: Generated<Timestamp>;
+  current_system: string | null;
   id: Generated<string>;
   name: string;
   note: string | null;
   pains: Generated<string[]>;
   phone: string;
   plan: string | null;
+  renews_on: string | null;
   restaurant: string;
   status: Generated<string>;
   tables: string | null;
@@ -577,6 +579,7 @@ export interface Outlets {
   approve_flagged_orders: Generated<boolean>;
   auto_accept: Generated<boolean>;
   auto_clean_minutes: Generated<number>;
+  billing_elsewhere: string | null;
   city: string | null;
   comp_alert_paise: Generated<number | null>;
   config_version: Generated<Int8>;
@@ -617,6 +620,21 @@ export interface Outlets {
   upi_vpa: string | null;
 }
 
+export interface OutsideBills {
+  bill_no: string | null;
+  billed_at: Timestamp;
+  business_date: string;
+  created_at: Generated<Timestamp>;
+  fingerprint: string;
+  id: Generated<string>;
+  import_id: string;
+  outlet_id: string;
+  tenant_id: string;
+  time_known: Generated<boolean>;
+  total_paise: number;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Payments {
   amount_paise: number;
   approved_by: string | null;
@@ -628,6 +646,7 @@ export interface Payments {
   kind: Generated<string>;
   method: string;
   outlet_id: string;
+  outside_bill_id: string | null;
   reason: string | null;
   reference: string | null;
   room_guest: string | null;
@@ -752,6 +771,22 @@ export interface Reservations {
   table_session_id: string | null;
   tenant_id: string;
   updated_at: Generated<Timestamp>;
+}
+
+export interface SalesImports {
+  bills: Generated<number>;
+  created_at: Generated<Timestamp>;
+  duplicates: Generated<number>;
+  file_name: string;
+  id: Generated<string>;
+  outlet_id: string;
+  period_from: string;
+  period_to: string;
+  skipped: Generated<number>;
+  system: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+  uploaded_by: string | null;
 }
 
 export interface Screens {
@@ -1050,6 +1085,7 @@ export interface DB {
   otp_codes: OtpCodes;
   outlet_events: OutletEvents;
   outlets: Outlets;
+  outside_bills: OutsideBills;
   payments: Payments;
   plans: Plans;
   platform_admins: PlatformAdmins;
@@ -1060,6 +1096,7 @@ export interface DB {
   push_subscriptions: PushSubscriptions;
   recipes: Recipes;
   reservations: Reservations;
+  sales_imports: SalesImports;
   screens: Screens;
   service_requests: ServiceRequests;
   stock_movements: StockMovements;

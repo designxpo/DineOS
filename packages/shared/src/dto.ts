@@ -108,6 +108,12 @@ export interface OutletDTO {
   table_water_item_id: string | null;
   /** The owner's phone hears about free items worth at least this much; null: never. */
   comp_alert_paise: number | null;
+  /**
+   * The billing system this outlet uses instead of Mezmitra (e.g. Petpooja), while its paid year
+   * runs. Null: it bills on Mezmitra. While set, nothing is ordered or billed here; the outlet uses
+   * the money check (its sales export against the bank) and the QR menu for reading.
+   */
+  billing_elsewhere: string | null;
 }
 
 // ---------- Menu ----------
@@ -437,6 +443,8 @@ export interface GuestContextDTO {
     service_charge_tax_rate_bp: number;
     upi_vpa: string | null;
     upi_payee_name: string | null;
+    /** False while the outlet bills on another system: the menu is for reading, guests order with staff. */
+    ordering: boolean;
   };
   table: { id: string; label: string };
 }
@@ -956,12 +964,41 @@ export interface BankStatementDTO {
   summary: ReconSummaryDTO;
 }
 
+/** One sales export from the billing system the outlet uses instead of Mezmitra. */
+export interface SalesImportDTO {
+  id: string;
+  outlet_id: string;
+  file_name: string;
+  system: string;
+  period_from: string;
+  period_to: string;
+  bills: number;
+  duplicates: number;
+  skipped: number;
+  uploaded_by_name: string | null;
+  created_at: string;
+  /** What the bills in the export's dates say was taken, by method (all uploads, not just this one). */
+  by_method: { method: PaymentMethod; count: number; amount_paise: number }[];
+  /** UPI on those bills: found in the bank, missing from it, or not checked against a statement yet. */
+  upi: { matched: number; matched_paise: number; missing: number; missing_paise: number; unchecked: number; unchecked_paise: number };
+}
+
+export interface SalesImportResultDTO {
+  import: SalesImportDTO;
+  /** Which header was read for what. */
+  columns: Partial<Record<'date' | 'total' | 'method' | 'bill_no' | 'time' | 'reference' | 'status', string>>;
+  /** Bills marked as paid in parts without amounts per method: counted as "other". */
+  unsplit: number;
+}
+
 export interface ReconPaymentDTO {
   id: string;
   /** Null for a wallet top-up, which has a receipt instead of an invoice. */
   bill_id: string | null;
   receipt_no: string | null;
   invoice_no: string | null;
+  /** A bill from the outlet's other billing system, by the number that system gave it. */
+  outside_bill_no: string | null;
   table_label: string | null;
   amount_paise: number;
   reference: string | null;
