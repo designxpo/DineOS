@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   LifeBuoy,
   LogOut,
+  MoonStar,
   MoreHorizontal,
   Package,
   QrCode,
@@ -37,6 +38,7 @@ import { BrandMark } from '@/components/brand-mark';
 import { IconButton } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Sheet } from '@/components/ui/overlay';
+import { NavigationMenu } from './navigation-menu';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { HelpButton } from './help';
@@ -68,6 +70,7 @@ export const NAV: NavItem[] = [
   { href: '/app/inventory', label: 'nav.inventory', icon: Package, action: 'inventory.record' },
   { href: '/app/tables', label: 'nav.tables', icon: QrCode, action: 'table.manage' },
   { href: '/app/reports', label: 'nav.reports', icon: BarChart3, action: 'report.view' },
+  { href: '/app/close', label: 'nav.close', icon: MoonStar, action: 'report.view' },
   { href: '/app/reconcile', label: 'nav.reconcile', icon: Landmark, action: 'payment.reconcile' },
   { href: '/app/staff', label: 'nav.staff', icon: Users, action: 'staff.manage' },
   { href: '/app/settings', label: 'nav.settings', icon: Settings, action: 'outlet.settings' },
@@ -214,6 +217,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [news, setNews] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !pathname.startsWith('/app/kds')) {
+        event.preventDefault();
+        setOpen((value) => !value);
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [pathname]);
   useLowStockAlerts(can('inventory.record'));
   useSecurityAlerts(can('staff.manage'));
   useScreenCheckIn();
@@ -228,28 +243,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Kitchen display is a full-screen tool.
   const bare = pathname.startsWith('/app/kds');
 
-  const nav = (
-    <nav className="flex flex-col gap-0.5 p-3" aria-label="Main">
-      {items.map((item) => {
-        const active = isActive(item.href, pathname);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition',
-              active ? 'bg-brand-50 text-brand-700' : 'text-ink-soft hover:bg-stone-100 hover:text-ink',
-            )}
-            aria-current={active ? 'page' : undefined}
-          >
-            <Icon className="size-[18px]" />
-            {t(item.label)}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  const navigationItems = items.map((item) => ({ ...item, label: t(item.label) }));
+  const nav = <NavigationMenu key={outletId} items={navigationItems} pathname={pathname} />;
 
   const status = <SyncStatus />;
 
@@ -274,6 +269,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">{nav}</div>
+        <button type="button" onClick={() => setOpen(true)} aria-keyshortcuts="Control+k Meta+k" className="mx-3 mb-3 flex min-h-11 cursor-pointer items-center justify-between rounded-xl border border-line px-3 text-sm text-ink-soft hover:bg-stone-50">
+          {lang === 'hi' ? 'स्क्रीन पर जाएँ' : 'Jump to a screen'}<span className="text-xs">Ctrl / ⌘ K</span>
+        </button>
         <div className="border-t border-line p-3">
           <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
             <Link href="/app/account" className="flex min-w-0 flex-1 items-center gap-2 rounded-lg hover:bg-stone-50" title="My account">
@@ -324,26 +322,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* "More" on phones: every screen, rising from the tab bar it was opened from. */}
       <Sheet open={open} onClose={() => setOpen(false)} title={me.tenant.name}>
-        <nav className="grid grid-cols-3 gap-2" aria-label="Main">
-          {items.map((item) => {
-            const active = isActive(item.href, pathname);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center text-xs font-medium transition active:scale-95 active:duration-75',
-                  active ? 'bg-brand-50 text-brand-700' : 'bg-stone-50 text-ink-soft',
-                )}
-              >
-                <Icon className="size-5" />
-                {t(item.label)}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavigationMenu key={`${pathname}:${outletId}:${open}`} items={navigationItems} pathname={pathname} compact onNavigate={() => setOpen(false)} />
         <div className="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line">
           <Link href="/app/account" className="flex h-12 items-center gap-3 px-4 text-sm text-ink">
             <span className="grid size-7 place-items-center rounded-full bg-stone-200 text-xs font-semibold text-ink-soft">{me.user.name.slice(0, 1)}</span>

@@ -291,6 +291,22 @@ export interface Customers {
   wallet_paid_paise: Generated<number>;
 }
 
+export interface DayCloses {
+  business_date: string;
+  counted_cash_paise: number | null;
+  created_at: Generated<Timestamp>;
+  expected_cash_paise: number;
+  id: Generated<string>;
+  items: Json;
+  net_sales_paise: number;
+  note: string | null;
+  outlet_id: string;
+  signed_at: Generated<Timestamp>;
+  signed_by: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface DemoRequests {
   city: string | null;
   contacted_at: Timestamp | null;
@@ -1094,6 +1110,7 @@ export interface DB {
   customer_memberships: CustomerMemberships;
   customer_rewards: CustomerRewards;
   customers: Customers;
+  day_closes: DayCloses;
   demo_requests: DemoRequests;
   devices: Devices;
   golive_checks: GoliveChecks;

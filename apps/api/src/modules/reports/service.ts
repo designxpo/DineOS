@@ -379,6 +379,10 @@ export async function dayEnd(tx: Tx, r: Range) {
     .where('orders.business_date', '<=', r.to)
     .where('orders.status', 'in', ['accepted', 'preparing', 'ready', 'served'])
     .where('order_items.status', '<>', 'cancelled')
+    // On a bill already (a draft, or billed before the kitchen marked it served): not forgotten.
+    .where(({ not, exists, selectFrom }) =>
+      not(exists(selectFrom('bill_lines').innerJoin('bills', 'bills.id', 'bill_lines.bill_id').select('bill_lines.id').whereRef('bill_lines.order_item_id', '=', 'order_items.id').where('bills.status', '<>', 'void'))),
+    )
     .groupBy(['orders.id', 'orders.type', 'orders.placed_at', 'tables.label', 'table_sessions.status'])
     .orderBy('orders.placed_at')
     .execute();

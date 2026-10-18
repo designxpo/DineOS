@@ -41,7 +41,7 @@ export default function DashboardPage() {
     if (!allowed) router.replace(homeFor(can));
   }, [allowed, can, router]);
 
-  const { data: d } = useQuery({
+  const { data: d, isError, isFetching, refetch } = useQuery({
     queryKey: ['dashboard', outletId],
     enabled: allowed,
     queryFn: () => api<Dashboard>(`/reports/dashboard?outlet_id=${outletId}`),
@@ -49,6 +49,17 @@ export default function DashboardPage() {
   });
 
   if (!allowed) return null;
+  if (!d && isError) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-16 text-center" role="alert">
+        <h1 className="text-xl font-semibold">We couldn’t load today’s overview</h1>
+        <p className="mt-2 text-sm text-ink-soft">Check your connection and try again. Your orders and bills have not been changed.</p>
+        <button type="button" disabled={isFetching} onClick={() => void refetch()} className="mt-5 min-h-11 cursor-pointer rounded-xl bg-[var(--brand)] px-5 font-semibold text-white disabled:opacity-60">
+          {isFetching ? 'Trying again…' : 'Try again'}
+        </button>
+      </div>
+    );
+  }
   if (!d) {
     return (
       <div className="grid place-items-center py-24">
@@ -67,6 +78,7 @@ export default function DashboardPage() {
     <div className="pb-12">
       <PageHeader title="Today" subtitle={`${outlet?.name ?? ''} · ${new Date(d.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}`} />
       <div className="space-y-4 px-4 lg:px-8">
+        {isError && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">Showing the last loaded overview. We couldn’t refresh it. <button type="button" disabled={isFetching} onClick={() => void refetch()} className="ml-1 min-h-11 cursor-pointer font-semibold underline disabled:opacity-60">{isFetching ? 'Refreshing…' : 'Retry'}</button></p>}
         {outlet?.billing_elsewhere ? (
           <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
             <div className="max-w-xl">

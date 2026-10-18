@@ -150,7 +150,7 @@ export function Segmented<T extends string>({
     const el = box.current!;
     if (el.scrollWidth > el.clientWidth) {
       const target = picked.offsetLeft - (el.clientWidth - picked.offsetWidth) / 2;
-      el.scrollTo({ left: Math.max(0, target), behavior: placed.current ? 'smooth' : 'auto' });
+      el.scrollTo({ left: Math.max(0, target), behavior: placed.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
     }
     placed.current = true;
     measure();
@@ -193,6 +193,21 @@ export function Segmented<T extends string>({
           role="tab"
           type="button"
           aria-selected={value === o.value}
+          tabIndex={value === o.value || (!options.some((option) => option.value === value) && o === options[0]) ? 0 : -1}
+          onKeyDown={(event) => {
+            const index = options.findIndex((option) => option.value === o.value);
+            let next: number;
+            if (event.key === 'ArrowRight') next = (index + 1) % options.length;
+            else if (event.key === 'ArrowLeft') next = (index - 1 + options.length) % options.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = options.length - 1;
+            else return;
+            event.preventDefault();
+            const option = options[next];
+            if (!option) return;
+            onChange(option.value);
+            box.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus({ preventScroll: true });
+          }}
           onClick={() => onChange(o.value)}
           className={cn(
             'relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 font-medium whitespace-nowrap transition active:scale-[0.97]',

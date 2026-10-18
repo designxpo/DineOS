@@ -6,6 +6,7 @@ import auth from './auth/routes';
 import billing from './billing/routes';
 import comps from './comps/routes';
 import customers from './customers/routes';
+import dayclose from './dayclose/routes';
 import devices from './devices/routes';
 import events from './events/routes';
 import golive from './golive/routes';
@@ -60,5 +61,6 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   screens,
   support,
   golive,
+  dayclose,
   leads,
 };

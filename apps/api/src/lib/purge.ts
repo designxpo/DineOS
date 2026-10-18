@@ -3,6 +3,7 @@ import type { Database } from '../db';
 
 /** Children before parents so foreign keys never block. */
 export const PURGE_ORDER = [
+  'day_closes',
   'golive_checks',
   'golive_rehearsals',
   'bank_credits',

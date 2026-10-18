@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Bookmark, Download, FileSpreadsheet, Printer, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CameraDTO, CompReportDTO } from '@mezmitra/shared/dto';
 import type { CompReason } from '@mezmitra/shared/enums';
 import { REPORT_TERMS, type ReportTermKey } from '@mezmitra/shared/report-terms';
@@ -18,7 +18,8 @@ import { useToast } from '@/components/ui/toast';
 import { ColumnChart } from '@/components/staff/column-chart';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 
-type Tab = 'sales' | 'insights' | 'gst' | 'items' | 'comps' | 'day-end' | 'delivery' | 'vision' | 'room-charges';
+const TABS = ['sales', 'insights', 'gst', 'items', 'comps', 'day-end', 'delivery', 'vision', 'room-charges'] as const;
+type Tab = (typeof TABS)[number];
 type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'custom';
 
 function shift(date: string, days: number): string {
@@ -45,6 +46,11 @@ export default function ReportsPage() {
   const toast = useToast();
   const today = todayIst();
   const [tab, setTab] = useState<Tab>('sales');
+  // Links from elsewhere (closing the day) open a given tab: /app/reports?tab=comps
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab');
+    if (wanted && (TABS as readonly string[]).includes(wanted)) setTab(wanted as Tab);
+  }, []);
   const [preset, setPreset] = useState<Preset>('today');
   const [custom, setCustom] = useState({ from: today, to: today });
   const [pack, setPack] = useState(false);

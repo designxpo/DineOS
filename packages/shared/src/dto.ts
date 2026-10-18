@@ -1095,3 +1095,34 @@ export interface GoliveRehearsalDTO {
   /** Every scenario marked, none failed: the owner can sign. */
   ready: boolean;
 }
+
+// ---------- Day-end sign-off ----------
+
+export type DayCloseItemKind = 'unpaid_bill' | 'draft_bill' | 'unbilled_order' | 'upi_missing' | 'upi_unchecked' | 'free_item' | 'large_discount' | 'void' | 'refund' | 'stock_difference';
+
+/** One loose end at close: `must` needs settling or a reason; `check` is for the owner's eyes. */
+export interface DayCloseItemDTO {
+  kind: DayCloseItemKind;
+  severity: 'must' | 'check';
+  title: string;
+  detail: string | null;
+  amount_paise: number | null;
+  /** Where to act on it in the portal. */
+  href: string;
+}
+
+export interface DayCloseDTO {
+  outlet_id: string;
+  date: string;
+  net_sales_paise: number;
+  bills: number;
+  expected_cash_paise: number;
+  /** Live while the day is open; as signed once closed. */
+  items: DayCloseItemDTO[];
+  signed: null | {
+    signed_at: string;
+    signed_by_name: string | null;
+    note: string | null;
+    counted_cash_paise: number | null;
+  };
+}
