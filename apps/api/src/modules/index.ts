@@ -8,6 +8,7 @@ import comps from './comps/routes';
 import customers from './customers/routes';
 import devices from './devices/routes';
 import events from './events/routes';
+import golive from './golive/routes';
 import guest from './guest/routes';
 import hub from './hub/routes';
 import inventory from './inventory/routes';
@@ -58,5 +59,6 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   pickup,
   screens,
   support,
+  golive,
   leads,
 };

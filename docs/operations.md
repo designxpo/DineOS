@@ -103,8 +103,9 @@ Menu photos and logos must be readable by guest phones; nothing else in the buck
 4. **Tables & QR**: add tables (or "Add many"), then print the QR sheet (PDF) and place the cards.
 5. **Staff**: add managers, cashiers, waiters and kitchen staff. Managers set an approval PIN in **Settings → My PIN**.
 6. Optional printers: **Settings → Printers → Add print computer**, then paste the install line on the billing PC (below).
-7. Subscription: create a monthly invoice in the admin console; mark it paid when the UPI or bank transfer arrives.
-8. Optional, any time: **Settings → Loyalty & stock** (points, booking length, automatic sold-out), **Inventory** (ingredients and recipes), **Settings → Printers → Offline mode** (outlet hub), **Settings → Cameras**.
+7. **Settings → Go-live**: rehearse with the owner and cashier on the outlet's own devices (menu, a ticket at every printer, a mixed bar and kitchen order, a split, a free dish, a cooked cancellation, a printer out of paper, the internet off, day end and the month-end pack). Mezmitra shows what it saw for each; staff mark passed, failed (with what went wrong) or out of scope (with why). The owner signs once nothing is failed or unmarked; the signed sheet is kept as signed and opens as a printable A4 page. The admin console's **Go-live** column shows who has signed.
+8. Subscription: full price starts from the signed date. Create a monthly invoice in the admin console; mark it paid when the UPI or bank transfer arrives.
+9. Optional, any time: **Settings → Loyalty & stock** (points, booking length, automatic sold-out), **Inventory** (ingredients and recipes), **Settings → Printers → Offline mode** (outlet hub), **Settings → Cameras**.
 
 ## Printers: kitchen tickets (KOT), bills and the cash drawer
 

@@ -7,20 +7,13 @@ import { z } from 'zod';
 import type { PrintComputerStateDTO, ScreenDTO, ScreenKind, ScreensDTO } from '@mezmitra/shared/dto';
 import type { AppContext } from '../../context';
 import { assertCan, assertOutletAccess, requireStaff } from '../../lib/auth';
+import { deviceName } from '../../lib/device-name';
 import { notFound } from '../../lib/errors';
 import { idParams, parse } from '../../lib/validate';
 
 /** A screen counts as on while it checked in within this long (it checks in every 30 s). */
 const ONLINE_MS = 90_000;
 const KINDS = ['kitchen', 'till', 'floor', 'orders', 'bills', 'other'] as const;
-
-/** "Chrome on Android", from the browser's user agent: enough to tell two screens apart. */
-function deviceName(ua: string | null): string | null {
-  if (!ua) return null;
-  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : null;
-  const os = /iPad/.test(ua) ? 'iPad' : /iPhone/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : null;
-  return [browser, os].filter(Boolean).join(' on ') || null;
-}
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
   return async (app) => {

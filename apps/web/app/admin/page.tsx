@@ -98,7 +98,7 @@ function Tenants({ api }: { api: Api }) {
         <table className="w-full text-sm">
           <thead className="bg-stone-50 text-left text-xs text-ink-faint">
             <tr>
-              {['Restaurant', 'Code', 'Plan', 'Status', 'Outlets', 'Orders (30d)', 'Unpaid invoices', 'Since'].map((h) => (
+              {['Restaurant', 'Code', 'Plan', 'Status', 'Go-live', 'Outlets', 'Orders (30d)', 'Unpaid invoices', 'Since'].map((h) => (
                 <th key={h} className="px-4 py-2 font-medium">
                   {h}
                 </th>
@@ -113,6 +113,13 @@ function Tenants({ api }: { api: Api }) {
                 <td className="px-4 py-2.5">{t.plan_name}</td>
                 <td className="px-4 py-2.5">
                   <Badge tone={t.status === 'active' ? 'green' : t.status === 'suspended' ? 'amber' : 'neutral'}>{t.status}</Badge>
+                </td>
+                <td className="px-4 py-2.5">
+                  {t.golive_signed_at ? (
+                    <Badge tone="green" title="The owner signed the acceptance sheet: full payment can start">Signed {date(t.golive_signed_at)}</Badge>
+                  ) : t.golive_open ? (
+                    <Badge tone="amber">Rehearsing</Badge>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2.5 tabular">{t.outlets}</td>
                 <td className="px-4 py-2.5 tabular">{t.orders_30d}</td>

@@ -325,6 +325,34 @@ export interface Devices {
   updated_at: Generated<Timestamp>;
 }
 
+export interface GoliveChecks {
+  checked_at: Generated<Timestamp>;
+  checked_by: string | null;
+  created_at: Generated<Timestamp>;
+  failures: Generated<number>;
+  id: Generated<string>;
+  note: string | null;
+  rehearsal_id: string;
+  result: string;
+  scenario: string;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface GoliveRehearsals {
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  outlet_id: string;
+  sheet: Json | null;
+  signed_at: Timestamp | null;
+  signed_by: string | null;
+  signer_name: string | null;
+  started_at: Generated<Timestamp>;
+  started_by: string | null;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface IdempotencyKeys {
   actor: string;
   created_at: Generated<Timestamp>;
@@ -1068,6 +1096,8 @@ export interface DB {
   customers: Customers;
   demo_requests: DemoRequests;
   devices: Devices;
+  golive_checks: GoliveChecks;
+  golive_rehearsals: GoliveRehearsals;
   idempotency_keys: IdempotencyKeys;
   ingredients: Ingredients;
   item_modifier_groups: ItemModifierGroups;

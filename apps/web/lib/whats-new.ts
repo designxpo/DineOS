@@ -14,6 +14,10 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
     date: '18 Oct 2026',
     items: [
       {
+        en: 'Go-live rehearsal (Settings → Go-live): run the nine hardest moments of a service on your own devices. Mezmitra shows what it saw for each, and the owner signs the acceptance sheet at the end.',
+        hi: 'गो-लाइव रिहर्सल (सेटिंग्स → Go-live): सर्विस के नौ सबसे कठिन पल अपने ही डिवाइस पर चलाएँ। Mezmitra हर एक के लिए दिखाता है कि उसने क्या देखा, और आख़िर में मालिक स्वीकृति पत्र पर हस्ताक्षर करते हैं।',
+      },
+      {
         en: 'Still billing on other software for a while? Name it in Settings → Billing & UPI. Mezmitra then takes no orders or bills for the outlet, the QR menu is for reading and calling a waiter, and Reconcile becomes the money check: upload its sales export and your bank statement to see every UPI payment that never arrived.',
         hi: 'कुछ समय और दूसरे सॉफ़्टवेयर पर बिल बना रहे हैं? उसका नाम सेटिंग्स → Billing & UPI में लिखें। तब Mezmitra इस आउटलेट के ऑर्डर या बिल नहीं लेता, QR मेन्यू देखने और वेटर बुलाने के लिए रहता है, और Reconcile पैसों की जाँच बन जाता है: उसकी सेल्स एक्सपोर्ट फ़ाइल और बैंक स्टेटमेंट अपलोड करें और हर वह UPI पेमेंट देखें जो कभी नहीं आया।',
       },

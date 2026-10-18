@@ -104,11 +104,19 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
             .whereRef('platform_invoices.tenant_id', '=', 'tenants.id')
             .where('platform_invoices.status', '=', 'unpaid')
             .as('unpaid_invoices'),
+          // Full payment starts after the owner signs the go-live acceptance sheet.
+          eb.selectFrom('golive_rehearsals').select((e) => e.fn.max('signed_at').as('d')).whereRef('golive_rehearsals.tenant_id', '=', 'tenants.id').as('golive_signed_at'),
+          eb
+            .selectFrom('golive_rehearsals')
+            .select((e) => e.fn.countAll<number>().as('n'))
+            .whereRef('golive_rehearsals.tenant_id', '=', 'tenants.id')
+            .where('golive_rehearsals.signed_at', 'is', null)
+            .as('golive_open'),
         ]);
       if (q.status) query = query.where('tenants.status', '=', q.status);
       if (q.q) query = query.where((eb) => eb.or([eb('tenants.name', 'ilike', `%${q.q}%`), eb('tenants.slug', 'ilike', `%${q.q}%`)]));
       const rows = await query.orderBy('tenants.created_at', 'desc').limit(500).execute();
-      return rows.map((r) => ({ ...r, outlets: Number(r.outlets ?? 0), orders_30d: Number(r.orders_30d ?? 0), unpaid_invoices: Number(r.unpaid_invoices ?? 0) }));
+      return rows.map((r) => ({ ...r, outlets: Number(r.outlets ?? 0), orders_30d: Number(r.orders_30d ?? 0), unpaid_invoices: Number(r.unpaid_invoices ?? 0), golive_open: Number(r.golive_open ?? 0) > 0 }));
     });
 
     app.post('/admin/tenants', async (req, reply) => {

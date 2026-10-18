@@ -2,6 +2,7 @@
 // timestamps are ISO strings. The API and every web surface code against these types.
 
 import type { HeadingStyle } from './branding';
+import type { GoliveResult, GoliveScenario } from './golive';
 import type {
   BillStatus,
   CompReason,
@@ -1049,4 +1050,48 @@ export interface UpiCheckDTO {
   not_received: { count: number; amount_paise: number; payments: (ReconPaymentDTO & MissingHints)[] };
   /** No statement covers the day yet, or only as its last day (late payments post the next morning). */
   unchecked: { count: number; amount_paise: number; oldest_day: string | null };
+}
+
+// ---------- Go-live rehearsal ----------
+
+/** What Mezmitra saw that shows a scenario was run (or why it cannot tell). */
+export interface GoliveEvidenceDTO {
+  seen: boolean;
+  lines: string[];
+}
+
+export interface GoliveCheckDTO {
+  scenario: GoliveScenario;
+  /** Null until someone marks it. */
+  result: GoliveResult | null;
+  note: string | null;
+  /** Times it was marked failed before passing. */
+  failures: number;
+  checked_by_name: string | null;
+  checked_at: string | null;
+  evidence: GoliveEvidenceDTO;
+}
+
+/** A screen or print computer used during the rehearsal. */
+export interface GoliveDeviceDTO {
+  kind: 'screen' | 'print_computer';
+  name: string;
+  detail: string | null;
+}
+
+export interface GoliveRehearsalDTO {
+  id: string;
+  outlet_id: string;
+  outlet_name: string;
+  tenant_name: string;
+  /** When the outlet was created in Mezmitra: hours from setup to sign-off is a measure. */
+  outlet_created_at: string;
+  started_at: string;
+  started_by_name: string | null;
+  signed_at: string | null;
+  signer_name: string | null;
+  checks: GoliveCheckDTO[];
+  devices: GoliveDeviceDTO[];
+  /** Every scenario marked, none failed: the owner can sign. */
+  ready: boolean;
 }

@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { businessDate } from '@mezmitra/shared/dates';
 import type { AppContext } from '../../context';
+import { audit } from '../../lib/audit';
 import { assertCan, requireStaff } from '../../lib/auth';
 import { badRequest } from '../../lib/errors';
 import { parse } from '../../lib/validate';
@@ -188,6 +189,8 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         const [y, m] = q.month.split('-').map(Number) as [number, number];
         const last = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
         const toDate = last > today;
+        // Downloads of the whole month are recorded: they are exports of the outlet's money.
+        await audit(tx, auth, { outletId: q.outlet_id, action: 'report.month_pack', entity: 'report', after: { month: q.month } });
         return monthPack(tx, { outletId: q.outlet_id, from: `${q.month}-01`, to: toDate ? today : last, timezone: outlet.timezone }, { month: q.month, toDate });
       });
       reply.header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

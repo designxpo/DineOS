@@ -19,8 +19,9 @@ import { useSaveOutlet } from '@/components/staff/use-save-outlet';
 import { Forbidden, PageHeader } from '@/components/staff/shell';
 import { ScreensPanel, ScreensStatus } from '@/components/staff/screens-status';
 import { BrandKit } from '@/components/staff/brand-kit';
+import { GoliveRehearsal } from '@/components/staff/golive';
 
-type Tab = 'outlet' | 'orders' | 'billing' | 'guests' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
+type Tab = 'outlet' | 'golive' | 'orders' | 'billing' | 'guests' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -29,6 +30,7 @@ export default function SettingsPage() {
   if (!can('outlet.settings')) return <Forbidden />;
   const tabs: { value: Tab; label: string }[] = [
     { value: 'outlet', label: 'Outlet & GST' },
+    { value: 'golive', label: 'Go-live' },
     { value: 'orders', label: 'Ordering' },
     { value: 'billing', label: 'Billing & UPI' },
     { value: 'guests', label: 'Loyalty & stock' },
@@ -55,6 +57,7 @@ export default function SettingsPage() {
       <div className="max-w-3xl px-4 lg:px-8">
         {tab !== 'screens' && <ScreensStatus className="mb-4" />}
         {tab === 'outlet' && <OutletForm fields={['name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix']} />}
+        {tab === 'golive' && <GoliveRehearsal />}
         {tab === 'orders' && <OrderingForm />}
         {tab === 'billing' && <BillingForm />}
         {tab === 'guests' && <GuestsForm />}

@@ -93,6 +93,10 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 
 Many restaurants have paid a year ahead for other billing software. An outlet can name that system: Mezmitra then takes no orders or bills there (nothing is billed twice), the QR menu is for reading and calling a waiter, and the outlet uploads that system's sales export beside its bank statement to see every UPI payment the bills claim that never arrived. Billing moves to Mezmitra when the year ends. Demo requests record what a restaurant bills on and the month it renews; admins see who to call under Leads → Renewing soon. Tests: `money-check.test.ts`, the sales export parser tests, `leads.test.ts`.
 
+### Go-live rehearsal and acceptance sheet
+
+Before full payment, the owner and cashier run nine scenarios on their own devices in Settings → Go-live. For each, Mezmitra shows what it saw since the rehearsal began (the mixed bar and kitchen order, the split, the free dish, the cooked cancellation, a ticket that failed and printed, orders through the outlet hub, the month-end pack download). Failing or leaving a scenario out needs a note; only the owner signs, and only when nothing is failed or unmarked. The signed sheet is frozen with the devices used and prints on A4, saying plainly which passes Mezmitra did not see. Tests: `golive.test.ts`.
+
 ### Since the pilot review: safety, money and less manual work
 
 | Feature | What it does | Tests |
