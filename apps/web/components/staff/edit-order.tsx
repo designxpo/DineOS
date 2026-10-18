@@ -42,6 +42,8 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
   const [cancel, setCancel] = useState<Record<string, string>>({});
   // Whether the kitchen had made a cancelled dish (its ingredients are wasted); defaults from its status.
   const [made, setMade] = useState<Record<string, boolean>>({});
+  // What became of a dish that was made: thrown away, remade, or eaten by staff.
+  const [fate, setFate] = useState<Record<string, 'discarded' | 'remake' | 'staff_meal'>>({});
   const [adds, setAdds] = useState<NewLine[]>([]);
   const [search, setSearch] = useState('');
   const [picking, setPicking] = useState<MenuItemDTO | null>(null);
@@ -90,7 +92,7 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
           ? {
               cancel: Object.entries(cancel).map(([order_item_id, reason]) => {
                 const item = order.items.find((i) => i.id === order_item_id)!;
-                return { order_item_id, reason: reason.trim(), ...(item.status === 'placed' ? {} : { made: madeOf(item) }) };
+                return { order_item_id, reason: reason.trim(), ...(item.status === 'placed' ? {} : { made: madeOf(item), ...(madeOf(item) ? { disposition: fate[item.id] ?? 'discarded' } : {}) }) };
               }),
             }
           : {}),
@@ -185,6 +187,22 @@ export function EditOrderSheet({ order, open, onClose }: { order: OrderDTO; open
                         className={cn('h-8 cursor-pointer rounded-full border px-2.5 text-xs', madeOf(i) === m ? 'border-stone-500 bg-stone-100 font-medium text-ink' : 'border-line text-ink-soft')}
                       >
                         {m ? 'Already made (wasted)' : 'Not made yet'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cancelled && i.status !== 'placed' && madeOf(i) && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 pl-6" role="radiogroup" aria-label={`What happened to ${i.name}?`}>
+                    {([['discarded', 'Thrown away'], ['remake', 'Being remade'], ['staff_meal', 'Staff meal']] as const).map(([v, label]) => (
+                      <button
+                        key={v}
+                        type="button"
+                        role="radio"
+                        aria-checked={(fate[i.id] ?? 'discarded') === v}
+                        onClick={() => setFate({ ...fate, [i.id]: v })}
+                        className={cn('h-8 cursor-pointer rounded-full border px-2.5 text-xs', (fate[i.id] ?? 'discarded') === v ? 'border-stone-500 bg-stone-100 font-medium text-ink' : 'border-line text-ink-soft')}
+                      >
+                        {label}
                       </button>
                     ))}
                   </div>

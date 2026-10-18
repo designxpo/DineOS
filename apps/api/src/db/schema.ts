@@ -534,6 +534,7 @@ export interface Modifiers {
 }
 
 export interface OrderItems {
+  cancelled_disposition: string | null;
   cancelled_made: boolean | null;
   cancelled_reason: string | null;
   created_at: Generated<Timestamp>;

@@ -13,7 +13,7 @@ import { announceOrder, createKots, insertOrderItems, loadOutlet, prepareLines, 
 export interface EditItemsInput {
   add?: OrderLineInput[];
   /** `made`: the kitchen had made it, so its ingredients are wasted (defaults from its status). */
-  cancel?: { order_item_id: string; reason: string; made?: boolean }[];
+  cancel?: { order_item_id: string; reason: string; made?: boolean; disposition?: 'discarded' | 'remake' | 'staff_meal' }[];
   set_qty?: { order_item_id: string; qty: number }[];
 }
 
@@ -54,7 +54,7 @@ export async function editOrderItems(
   if (input.cancel?.length) {
     let approvedBy: string | null = null;
     if (accepted) approvedBy = await requireApproval(tx, auth, order.outlet_id, 'order.cancel_after_accept', approvalToken);
-    for (const { order_item_id, reason, made } of input.cancel) {
+    for (const { order_item_id, reason, made, disposition } of input.cancel) {
       const item = byId.get(order_item_id);
       if (!item) throw badRequest('invalid_item', 'Item is not part of this order');
       if (item.status === 'cancelled') continue;
@@ -62,7 +62,7 @@ export async function editOrderItems(
       const wasMade = item.status !== 'placed' && (made ?? itemWasMade(item.status as ItemStatus));
       await tx.db
         .updateTable('order_items')
-        .set({ status: 'cancelled', cancelled_reason: reason.trim(), cancelled_made: wasMade })
+        .set({ status: 'cancelled', cancelled_reason: reason.trim(), cancelled_made: wasMade, cancelled_disposition: wasMade ? (disposition ?? 'discarded') : null })
         .where('id', '=', order_item_id)
         .execute();
       if (item.status !== 'placed') cancelledAfterAccept.push(order_item_id);
@@ -73,7 +73,7 @@ export async function editOrderItems(
           entity: 'order_item',
           entityId: order_item_id,
           before: { status: item.status, name: item.name_snapshot, qty: item.qty },
-          after: { status: 'cancelled', made: wasMade },
+          after: { status: 'cancelled', made: wasMade, ...(wasMade ? { disposition: disposition ?? 'discarded' } : {}) },
           reason,
           approvedBy,
         });

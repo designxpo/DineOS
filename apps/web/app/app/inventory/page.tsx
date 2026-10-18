@@ -675,6 +675,7 @@ function HistoryTab() {
 
 interface UsageReport {
   totals: { purchased_paise: number; cost_of_sales_paise: number; wastage_paise: number; stock_value_paise: number; net_sales_paise: number; food_cost_bp: number | null; low_count: number };
+  waste_by_cause: { cause: 'discarded' | 'remake' | 'staff_meal' | 'written_off'; paise: number }[];
   ingredients: { ingredient_id: string; name: string; unit: string; purchased_qty: number; used_qty: number; used_paise: number; wasted_qty: number; wasted_paise: number; stock_qty: number; low: boolean }[];
   dishes: { item_id: string; name: string; price_paise: number; cost_paise: number; cost_bp: number | null }[];
 }
@@ -717,6 +718,12 @@ function UsageTab() {
             <Stat label="Received" value={formatPaise(data.totals.purchased_paise)} />
             <Stat label="Stock value now" value={formatPaise(data.totals.stock_value_paise)} sub={data.totals.low_count ? `${data.totals.low_count} to reorder` : undefined} />
           </div>
+          {data.waste_by_cause.length > 0 && (
+            <p className="text-sm text-ink-soft">
+              Waste by cause:{' '}
+              {data.waste_by_cause.map((c) => `${{ discarded: 'thrown away', remake: 'remade', staff_meal: 'staff meals', written_off: 'written off by hand' }[c.cause]} ${formatPaise(c.paise)}`).join(' · ')}
+            </p>
+          )}
           <p className="text-xs text-ink-faint">Food cost counts only dishes that have a recipe. Usage is valued at the average price paid when it was used.</p>
           <Card className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">

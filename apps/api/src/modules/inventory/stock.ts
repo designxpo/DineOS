@@ -152,6 +152,9 @@ async function recipeUse(tx: Tx, items: { id: string; item_id: string; qty: numb
   return out;
 }
 
+/** How a dish cancelled after it was made is worded in the stock log (thrown away is the plain default). */
+export const WASTE_CAUSE: Record<string, string> = { remake: 'remade', staff_meal: 'staff meal' };
+
 /**
  * Brings an order's stock in line with its items. Every item the kitchen has accepted consumes its
  * recipe once, and keeps what it took. When an accepted item is cancelled, exactly that goes back
@@ -162,7 +165,7 @@ async function recipeUse(tx: Tx, items: { id: string; item_id: string; qty: numb
 export async function syncStock(tx: Tx, orderId: string, userId: string | null): Promise<void> {
   const items = await tx.db
     .selectFrom('order_items')
-    .select(['id', 'item_id', 'qty', 'status', 'modifiers_snapshot', 'stock_used', 'cancelled_made'])
+    .select(['id', 'item_id', 'qty', 'status', 'modifiers_snapshot', 'stock_used', 'cancelled_made', 'cancelled_disposition'])
     .where('order_id', '=', orderId)
     .where((eb) =>
       eb.or([
@@ -179,7 +182,7 @@ export async function syncStock(tx: Tx, orderId: string, userId: string | null):
   const byRecipe = await recipeUse(tx, [...taking, ...undoing.filter((i) => !i.stock_used)]);
   const sale = new Map<string, number>();
   const back = new Map<string, number>();
-  const wasted = new Map<string, number>();
+  const wasteOf: { itemId: string; used: StockUsed; cause: string | null }[] = [];
   const add = (totals: Map<string, number>, used: StockUsed) => {
     for (const [ingredientId, qty] of Object.entries(used)) totals.set(ingredientId, (totals.get(ingredientId) ?? 0) + qty);
   };
@@ -190,20 +193,27 @@ export async function syncStock(tx: Tx, orderId: string, userId: string | null):
   }
   for (const item of undoing) {
     await tx.db.updateTable('order_items').set({ stock_applied: false }).where('id', '=', item.id).execute();
-    add(item.cancelled_made ? wasted : back, (item.stock_used as StockUsed | null) ?? byRecipe.get(item.id)!);
+    const used = (item.stock_used as StockUsed | null) ?? byRecipe.get(item.id)!;
+    if (item.cancelled_made) wasteOf.push({ itemId: item.id, used, cause: WASTE_CAUSE[item.cancelled_disposition ?? 'discarded'] ?? null });
+    else add(back, used);
   }
 
   const order = await tx.db.selectFrom('orders').select('order_no').where('id', '=', orderId).executeTakeFirstOrThrow();
   const note = `Order #${order.order_no}`;
   const single = items.length === 1 ? (items[0]?.id ?? null) : null;
   // Fixed lock order across concurrent orders avoids deadlocks on shared ingredients.
-  for (const ingredientId of [...new Set([...sale.keys(), ...back.keys(), ...wasted.keys()])].sort()) {
+  for (const ingredientId of [...new Set([...sale.keys(), ...back.keys()])].sort()) {
     const taken = round3(sale.get(ingredientId) ?? 0);
     const returned = round3(back.get(ingredientId) ?? 0);
-    const lost = round3(wasted.get(ingredientId) ?? 0);
     if (taken) await applyMovement(tx, { ingredientId, type: 'sale', qty: -taken, note, orderItemId: single, userId });
     if (returned) await applyMovement(tx, { ingredientId, type: 'return', qty: returned, note, orderItemId: single, userId });
-    if (lost) await saleToWastage(tx, ingredientId, lost, `${note}, cancelled after it was made`, single, userId);
+  }
+  // Each dish made and then cancelled is logged on its own, so the waste report can name what became of it.
+  for (const w of wasteOf) {
+    for (const ingredientId of Object.keys(w.used).sort()) {
+      const lost = round3(w.used[ingredientId] ?? 0);
+      if (lost) await saleToWastage(tx, ingredientId, lost, `${note}, cancelled after it was made${w.cause ? `: ${w.cause}` : ''}`, w.itemId, userId);
+    }
   }
 }
 

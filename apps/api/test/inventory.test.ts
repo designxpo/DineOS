@@ -210,6 +210,24 @@ describe('cancelled dishes', () => {
     expect((await coffeeMoves('wastage'))[0]!.qty).toBe(-10);
   });
 
+  it('says what became of a dish that was made: remade or eaten by staff, and the waste report splits it', async () => {
+    const remake = await order([{ item_id: menu.coldCoffee, qty: 1, modifier_ids: [menu.large] }]);
+    await cancel(remake, { made: true, disposition: 'remake' });
+    const meal = await order([{ item_id: menu.coldCoffee, qty: 1, modifier_ids: [menu.large] }]);
+    await cancel(meal, { made: true, disposition: 'staff_meal' });
+    const notes = (await coffeeMoves('wastage')).map((m) => m.note);
+    expect(notes.some((x) => /cancelled after it was made: remade$/.test(x ?? ''))).toBe(true);
+    expect(notes.some((x) => /cancelled after it was made: staff meal$/.test(x ?? ''))).toBe(true);
+    const stored = await t.ctx.adminDb.selectFrom('order_items').select('cancelled_disposition').where('id', '=', remake.items[0]!.id).executeTakeFirstOrThrow();
+    expect(stored.cancelled_disposition).toBe('remake');
+
+    const report = (await owner({ method: 'GET', url: `/v1/reports/inventory?outlet_id=${outlet()}` })).json();
+    const causes = Object.fromEntries(report.waste_by_cause.map((c: { cause: string; paise: number }) => [c.cause, c.paise]));
+    expect(causes.remake).toBeGreaterThan(0);
+    expect(causes.staff_meal).toBeGreaterThan(0);
+    expect(causes.written_off).toBeGreaterThan(0); // the 2 kg written off by hand earlier
+  });
+
   it('puts back exactly what the dish took, even if its recipe changed since', async () => {
     const start = await shelf();
     const o = await order([{ item_id: menu.coldCoffee, qty: 2, modifier_ids: [menu.large] }]);

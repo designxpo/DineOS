@@ -83,6 +83,22 @@ export async function inventoryReport(tx: Tx, r: Range) {
     .execute();
 
   const total = (k: 'purchased_paise' | 'used_paise' | 'wasted_paise' | 'stock_value_paise') => rows.reduce((a, x) => a + x[k], 0);
+  // Wastage by what became of it: dishes cancelled after they were made carry their disposition,
+  // the rest was written off by hand on the stock screen.
+  const causes = await tx.db
+    .selectFrom('stock_movements')
+    .leftJoin('order_items', 'order_items.id', 'stock_movements.order_item_id')
+    .select([
+      sql<string>`coalesce(order_items.cancelled_disposition, case when stock_movements.order_item_id is null then 'written_off' else 'discarded' end)`.as('cause'),
+      (eb) => eb.fn.sum<number>(sql`-stock_movements.qty * coalesce(stock_movements.unit_cost_paise, 0)`).as('value'),
+    ])
+    .where('stock_movements.outlet_id', '=', r.outletId)
+    .where('stock_movements.type', '=', 'wastage')
+    .where(local, '>=', r.from)
+    .where(local, '<=', r.to)
+    .groupBy('cause')
+    .execute();
+  const waste_by_cause = (['discarded', 'remake', 'staff_meal', 'written_off'] as const).map((cause) => ({ cause, paise: paise(n(causes.find((c) => c.cause === cause)?.value)) })).filter((c) => c.paise !== 0);
   const netSales = n(sales.net);
   const costOfSales = total('used_paise');
   return {
@@ -98,6 +114,7 @@ export async function inventoryReport(tx: Tx, r: Range) {
       food_cost_bp: netSales ? Math.round((costOfSales / netSales) * 10_000) : null,
       low_count: rows.filter((x) => x.low && x.is_active).length,
     },
+    waste_by_cause,
     ingredients: rows.map(({ is_active: _a, ...x }) => x),
     dishes: dishes.map((d) => {
       const cost = paise(n(d.cost));
