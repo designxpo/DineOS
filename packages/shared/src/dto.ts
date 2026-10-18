@@ -551,6 +551,9 @@ export interface PaymentDTO {
   room_no: string | null;
   room_guest: string | null;
   room_posted_at: string | null;
+  /** The front desk could not post it (wrong room, guest gone): not settled with the hotel. */
+  room_rejected_at?: string | null;
+  room_reject_reason?: string | null;
 }
 
 export interface BillDTO {

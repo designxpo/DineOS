@@ -697,6 +697,9 @@ export interface Payments {
   room_no: string | null;
   room_posted_at: Timestamp | null;
   room_posted_by: string | null;
+  room_reject_reason: string | null;
+  room_rejected_at: Timestamp | null;
+  room_rejected_by: string | null;
   tenant_id: string;
   tendered_paise: number | null;
   updated_at: Generated<Timestamp>;

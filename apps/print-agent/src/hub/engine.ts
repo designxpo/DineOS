@@ -965,6 +965,8 @@ export class HubEngine {
       room_no: p.room_no,
       room_guest: p.room_guest,
       room_posted_at: null,
+      room_rejected_at: null,
+      room_reject_reason: null,
     }));
     return {
       id: b.id,

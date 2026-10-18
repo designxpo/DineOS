@@ -162,7 +162,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       return ctx.tx(auth.tenantId, async (tx) => {
         const rows = await tx.db
           .updateTable('payments')
-          .set(body.posted ? { room_posted_at: new Date(), room_posted_by: auth.userId } : { room_posted_at: null, room_posted_by: null })
+          .set(body.posted ? { room_posted_at: new Date(), room_posted_by: auth.userId, room_rejected_at: null, room_rejected_by: null, room_reject_reason: null } : { room_posted_at: null, room_posted_by: null })
           .where('outlet_id', '=', body.outlet_id)
           .where('method', '=', 'room')
           .where('id', 'in', body.payment_ids)
@@ -173,6 +173,39 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           action: body.posted ? 'payment.room_posted' : 'payment.room_unposted',
           entity: 'payment',
           after: { payments: rows.map((r) => r.id) },
+        });
+        return { updated: rows.length };
+      });
+    });
+
+    /**
+     * The hotel would not take these charges (wrong room, guest already checked out): they stay on
+     * the exception list with the reason until posted after all, or undone with `rejected: false`.
+     */
+    app.post('/payments/room-rejected', async (req) => {
+      const auth = requireStaff(req);
+      const body = parse(
+        z.discriminatedUnion('rejected', [
+          z.object({ outlet_id: z.uuid(), payment_ids: z.array(z.uuid()).min(1).max(500), rejected: z.literal(true), reason: z.string().trim().min(1).max(300) }),
+          z.object({ outlet_id: z.uuid(), payment_ids: z.array(z.uuid()).min(1).max(500), rejected: z.literal(false) }),
+        ]),
+        req.body,
+      );
+      assertCan(auth, body.outlet_id, 'payment.reconcile');
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const rows = await tx.db
+          .updateTable('payments')
+          .set(body.rejected ? { room_rejected_at: new Date(), room_rejected_by: auth.userId, room_reject_reason: body.reason, room_posted_at: null, room_posted_by: null } : { room_rejected_at: null, room_rejected_by: null, room_reject_reason: null })
+          .where('outlet_id', '=', body.outlet_id)
+          .where('method', '=', 'room')
+          .where('id', 'in', body.payment_ids)
+          .returning('id')
+          .execute();
+        await audit(tx, auth, {
+          outletId: body.outlet_id,
+          action: body.rejected ? 'payment.room_rejected' : 'payment.room_reject_undone',
+          entity: 'payment',
+          after: { payments: rows.map((r) => r.id), ...(body.rejected ? { reason: body.reason } : {}) },
         });
         return { updated: rows.length };
       });

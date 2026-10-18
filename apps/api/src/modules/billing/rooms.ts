@@ -19,6 +19,9 @@ export interface RoomChargeRow {
   confirmed_by_name: string | null;
   posted_at: string | null;
   posted_by_name: string | null;
+  status: 'pending' | 'posted' | 'rejected';
+  rejected_at: string | null;
+  reject_reason: string | null;
 }
 
 export async function roomCharges(tx: Tx, r: Range, opts: { unpostedOnly?: boolean } = {}) {
@@ -39,6 +42,8 @@ export async function roomCharges(tx: Tx, r: Range, opts: { unpostedOnly?: boole
       'payments.room_guest',
       'payments.amount_paise',
       'payments.room_posted_at',
+      'payments.room_rejected_at',
+      'payments.room_reject_reason',
       'bills.invoice_no',
       'tables.label as table_label',
       'cashier.name as cashier_name',
@@ -65,16 +70,20 @@ export async function roomCharges(tx: Tx, r: Range, opts: { unpostedOnly?: boole
     confirmed_by_name: p.cashier_name,
     posted_at: p.room_posted_at?.toISOString() ?? null,
     posted_by_name: p.poster_name,
+    status: p.room_posted_at ? 'posted' : p.room_rejected_at ? 'rejected' : 'pending',
+    rejected_at: p.room_rejected_at?.toISOString() ?? null,
+    reject_reason: p.room_reject_reason,
   }));
   const sum = (xs: RoomChargeRow[]) => xs.reduce((a, x) => a + x.amount_paise, 0);
   const unposted = out.filter((x) => !x.posted_at);
+  const rejected = out.filter((x) => x.status === 'rejected');
   const byRoom = new Map<string, number>();
-  for (const x of unposted) byRoom.set(x.room_no, (byRoom.get(x.room_no) ?? 0) + x.amount_paise);
+  for (const x of unposted.filter((u) => u.status === 'pending')) byRoom.set(x.room_no, (byRoom.get(x.room_no) ?? 0) + x.amount_paise);
   return {
     from: r.from,
     to: r.to,
-    totals: { charges: out.length, amount_paise: sum(out), unposted: unposted.length, unposted_paise: sum(unposted) },
-    /** What to post per room, from unposted lines (refunds already netted). */
+    totals: { charges: out.length, amount_paise: sum(out), unposted: unposted.length, unposted_paise: sum(unposted), rejected: rejected.length, rejected_paise: sum(rejected) },
+    /** What to post per room, from lines still waiting (refunds already netted); rejected ones are listed apart. */
     by_room: [...byRoom.entries()].map(([room_no, amount_paise]) => ({ room_no, amount_paise })).sort((a, b) => a.room_no.localeCompare(b.room_no, 'en', { numeric: true })),
     rows: out,
   };

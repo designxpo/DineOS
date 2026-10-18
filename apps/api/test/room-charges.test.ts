@@ -86,4 +86,23 @@ describe('charge to room', () => {
     const audit = await t.ctx.adminDb.selectFrom('audit_log').select('action').where('tenant_id', '=', tenant.tenantId).where('action', '=', 'payment.room_posted').execute();
     expect(audit).toHaveLength(1);
   });
+  it('charges the hotel rejects stay on an exception list with the reason, until posted after all', async () => {
+    const r = await report();
+    const row = r.rows.find((x: { status: string }) => x.status === 'pending');
+    const body = { outlet_id: tenant.outletId, payment_ids: [row.payment_id] };
+    expect((await cashier({ method: 'POST', url: '/v1/payments/room-rejected', payload: { ...body, rejected: true, reason: 'Guest checked out' } })).statusCode).toBe(403);
+    expect((await owner({ method: 'POST', url: '/v1/payments/room-rejected', payload: { ...body, rejected: true } })).statusCode).toBe(400);
+    expect((await owner({ method: 'POST', url: '/v1/payments/room-rejected', payload: { ...body, rejected: true, reason: 'Guest checked out' } })).json().updated).toBe(1);
+
+    const after = await report();
+    const rejected = after.rows.find((x: { payment_id: string }) => x.payment_id === row.payment_id);
+    expect([rejected.status, rejected.reject_reason]).toEqual(['rejected', 'Guest checked out']);
+    expect([after.totals.rejected, after.totals.rejected_paise]).toEqual([1, row.amount_paise]);
+    expect(after.by_room.map((x: { room_no: string }) => x.room_no)).not.toContain(row.room_no);
+
+    // Posting it after all clears the rejection.
+    await owner({ method: 'POST', url: '/v1/payments/room-posted', payload: { ...body, posted: true } });
+    const fixed = (await report()).rows.find((x: { payment_id: string }) => x.payment_id === row.payment_id);
+    expect([fixed.status, fixed.reject_reason]).toEqual(['posted', null]);
+  });
 });

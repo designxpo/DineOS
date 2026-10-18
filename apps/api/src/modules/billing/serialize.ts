@@ -168,6 +168,8 @@ export async function loadBills(tx: Tx, ids: readonly string[]): Promise<BillDTO
               room_no: p.room_no,
               room_guest: p.room_guest,
               room_posted_at: iso(p.room_posted_at),
+              room_rejected_at: iso(p.room_rejected_at),
+              room_reject_reason: p.room_reject_reason,
             }),
           ),
         finalised_at: iso(b.finalised_at),

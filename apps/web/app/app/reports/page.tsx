@@ -472,6 +472,21 @@ function RoomCharges({ data, onChanged }: { data: any; onChanged: () => void }) 
       setBusy(false);
     }
   };
+  const reject = async () => {
+    const reason = window.prompt('Why could the hotel not take these charges? (wrong room, guest checked out…)')?.trim();
+    if (!reason) return;
+    setBusy(true);
+    try {
+      await api('/payments/room-rejected', { method: 'POST', body: { outlet_id: outletId, payment_ids: [...picked], rejected: true, reason } });
+      toast('Marked as rejected by the hotel');
+      setPicked(new Set());
+      onChanged();
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
   const toggle = (id: string) =>
     setPicked((s) => {
       const next = new Set(s);
@@ -484,6 +499,7 @@ function RoomCharges({ data, onChanged }: { data: any; onChanged: () => void }) 
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="To post" value={formatPaise(data.totals.unposted_paise)} sub={`${data.totals.unposted} charge${data.totals.unposted === 1 ? '' : 's'}`} />
+        {data.totals.rejected > 0 && <Stat label="Rejected by the hotel" value={<span className="text-rose-700">{formatPaise(data.totals.rejected_paise)}</span>} sub={`${data.totals.rejected} to sort out`} />}
         <Stat label="All room charges" value={formatPaise(data.totals.amount_paise)} sub={`${data.totals.charges} in this period`} />
       </div>
       {data.by_room.length > 0 && (
@@ -499,6 +515,9 @@ function RoomCharges({ data, onChanged }: { data: any; onChanged: () => void }) 
               </Button>
               <Button size="sm" onClick={() => void mark(true)} disabled={!picked.size} loading={busy}>
                 Mark posted ({picked.size})
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void reject()} disabled={!picked.size} loading={busy}>
+                Hotel rejected
               </Button>
             </>
           )}
@@ -520,10 +539,11 @@ function RoomCharges({ data, onChanged }: { data: any; onChanged: () => void }) 
                     {new Date(r.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                     {r.confirmed_by_name ? ` · ${r.confirmed_by_name}` : ''}
                   </span>
+                  {r.status === 'rejected' && <span className="block text-xs text-rose-700">Rejected: {r.reject_reason}</span>}
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   <span className={cn('font-semibold tabular', r.amount_paise < 0 && 'text-rose-700')}>{formatPaise(r.amount_paise)}</span>
-                  {r.posted_at ? <Badge tone="green">Posted</Badge> : <Badge tone="amber">Not posted</Badge>}
+                  {r.posted_at ? <Badge tone="green">Posted</Badge> : r.status === 'rejected' ? <Badge tone="rose">Rejected</Badge> : <Badge tone="amber">Not posted</Badge>}
                 </span>
               </li>
             ))}
