@@ -65,10 +65,46 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
+/**
+ * The names other billing systems give these columns (Petpooja, Rista, Posist, hand-made sheets),
+ * so an export can be uploaded as it is. Compared after lower-casing and turning spaces into _.
+ */
+const HEADER_ALIASES: Record<(typeof IMPORT_COLUMNS)[number], string[]> = {
+  category: ['item_category', 'category_name', 'menu_category', 'group', 'item_group', 'section', 'menu_section'],
+  name: ['item_name', 'item', 'dish', 'dish_name', 'product', 'product_name', 'menu_item'],
+  price: ['rate', 'item_price', 'selling_price', 'sale_price', 'mrp', 'price_(inr)', 'price_(₹)', 'unit_price', 'dine_in_price'],
+  veg: ['food_type', 'item_type', 'veg/non-veg', 'veg_nonveg', 'veg_/_non_veg', 'veg/nonveg', 'is_veg', 'type'],
+  description: ['item_description', 'details', 'desc'],
+  tax_rate: ['tax', 'tax_%', 'tax_percentage', 'gst', 'gst_%', 'gst_rate', 'gst_percent', 'gst_percentage', 'tax_percent'],
+  hsn_sac: ['hsn', 'hsn_code', 'sac', 'sac_code', 'hsn/sac', 'hsn_/_sac'],
+  station: ['kitchen', 'kitchen_station', 'printer', 'prepared_at'],
+  tags: ['tag', 'labels', 'item_tags'],
+  in_stock: ['available', 'availability', 'stock', 'is_available', 'status', 'active'],
+  name_hi: ['hindi_name', 'name_(hindi)', 'name_in_hindi', 'item_name_hindi'],
+};
+const ALIAS_TO_FIELD = new Map<string, (typeof IMPORT_COLUMNS)[number]>(
+  (Object.entries(HEADER_ALIASES) as [(typeof IMPORT_COLUMNS)[number], string[]][]).flatMap(([field, names]) => names.map((n) => [n, field] as const)),
+);
+
+/** Which of our columns each header in the file stands for (null: not used). The first match per field wins. */
+export function mapHeader(header: string[]): { source: string; field: (typeof IMPORT_COLUMNS)[number] | null }[] {
+  const taken = new Set<string>();
+  const exact = new Set(header.map((h) => h.trim().toLowerCase().replace(/\s+/g, '_')));
+  return header.map((source) => {
+    const key = source.trim().toLowerCase().replace(/\s+/g, '_');
+    let field: (typeof IMPORT_COLUMNS)[number] | null = (IMPORT_COLUMNS as readonly string[]).includes(key) ? (key as (typeof IMPORT_COLUMNS)[number]) : (ALIAS_TO_FIELD.get(key) ?? null);
+    // An alias never displaces a column that is already named properly.
+    if (field && key !== field && exact.has(field)) field = null;
+    if (field && taken.has(field)) field = null;
+    if (field) taken.add(field);
+    return { source: source.trim(), field };
+  });
+}
+
 function toRecords(grid: string[][]): Record<string, string>[] {
   const [header, ...body] = grid;
   if (!header) throw badRequest('empty_file', 'The file has no rows');
-  const keys = header.map((h) => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  const keys = mapHeader(header).map((m) => m.field ?? `_unused_${m.source}`);
   if (!keys.includes('name') || !keys.includes('price') || !keys.includes('category')) {
     throw badRequest('missing_columns', 'The first row must include category, name and price columns');
   }
@@ -108,11 +144,18 @@ export async function readSpreadsheet(filename: string, buffer: Buffer): Promise
   return toRecords(await readGrid(filename, buffer));
 }
 
+/** A menu sheet with the columns it was read as, so the owner can check what was understood. */
+export async function readMenuSheet(filename: string, buffer: Buffer): Promise<{ records: Record<string, string>[]; columns: { source: string; field: string | null }[] }> {
+  const grid = await readGrid(filename, buffer);
+  const records = toRecords(grid);
+  return { records, columns: mapHeader(grid[0] ?? []) };
+}
+
 function parseBool(value: string, fallback: boolean): boolean | null {
   const v = value.trim().toLowerCase();
   if (v === '') return fallback;
-  if (['yes', 'y', 'true', '1', 'veg'].includes(v)) return true;
-  if (['no', 'n', 'false', '0', 'non-veg', 'nonveg', 'non veg'].includes(v)) return false;
+  if (['yes', 'y', 'true', '1', 'veg', 'vegetarian', 'available', 'in stock', 'in_stock', 'active'].includes(v)) return true;
+  if (['no', 'n', 'false', '0', 'non-veg', 'nonveg', 'non veg', 'non-vegetarian', 'nonvegetarian', 'egg', 'eggetarian', 'unavailable', 'out of stock', 'out_of_stock', 'sold out', 'inactive'].includes(v)) return false;
   return null;
 }
 
@@ -122,6 +165,10 @@ export interface ImportResult {
   items_created: number;
   items_updated: number;
   errors: { row: number; message: string }[];
+  /** Things fixed or defaulted along the way: the import goes ahead, but the owner should look. */
+  warnings: { row: number; message: string }[];
+  /** How each column in the file was read. */
+  columns: { source: string; field: string | null }[];
 }
 
 interface ParsedRow {
@@ -143,15 +190,18 @@ export async function importMenu(
   tx: Tx,
   outlet: { id: string; kitchen_stations: string[]; default_tax_rate_bp: number },
   records: Record<string, string>[],
-  opts: { dryRun: boolean },
+  opts: { dryRun: boolean; columns?: ImportResult['columns'] },
 ): Promise<ImportResult> {
   const errors: ImportResult['errors'] = [];
+  const warnings: ImportResult['warnings'] = [];
   const parsed: ParsedRow[] = [];
   const seen = new Set<string>();
+  let taxless = 0;
 
   records.forEach((r, i) => {
     const line = i + 2; // header is row 1
     const fail = (message: string) => errors.push({ row: line, message });
+    const warn = (message: string) => warnings.push({ row: line, message });
     const category = r.category ?? '';
     const name = r.name ?? '';
     if (!category) return fail('category is required');
@@ -159,24 +209,32 @@ export async function importMenu(
     if (name.length > 120) return fail('name is longer than 120 characters');
     let price: number;
     try {
-      price = rupeesToPaise((r.price ?? '').replace(/[₹,\s]/g, ''));
+      price = rupeesToPaise((r.price ?? '').replace(/₹|Rs\.?|INR|[,\s]/gi, ''));
     } catch {
       return fail(`price "${r.price}" is not a rupee amount`);
     }
     if (price < 0) return fail('price cannot be negative');
+    if (price === 0) warn(`"${name}" has no price: it will be listed at ₹0`);
     const veg = parseBool(r.veg ?? '', true);
     if (veg === null) return fail(`veg must be yes or no, got "${r.veg}"`);
     const inStock = parseBool(r.in_stock ?? '', true);
     if (inStock === null) return fail(`in_stock must be yes or no, got "${r.in_stock}"`);
     let taxBp = outlet.default_tax_rate_bp;
+    if (!r.tax_rate) taxless++;
     if (r.tax_rate) {
       const pct = Number(r.tax_rate.replace('%', ''));
       if (!Number.isFinite(pct) || pct < 0 || pct > 28) return fail(`tax_rate "${r.tax_rate}" must be a percentage from 0 to 28`);
       taxBp = Math.round(pct * 100);
     }
-    const station = r.station || outlet.kitchen_stations[0] || 'kitchen';
+    let station = r.station || outlet.kitchen_stations[0] || 'kitchen';
     if (!outlet.kitchen_stations.includes(station)) {
-      return fail(`station "${station}" is not one of ${outlet.kitchen_stations.join(', ')}`);
+      // A station from the old system (a printer name, say) is not ours: file the dish under the first one.
+      const match = outlet.kitchen_stations.find((s) => s.toLowerCase() === station.toLowerCase());
+      if (match) station = match;
+      else {
+        warn(`station "${station}" is not one of ${outlet.kitchen_stations.join(', ')}: "${name}" goes to ${outlet.kitchen_stations[0] ?? 'kitchen'}`);
+        station = outlet.kitchen_stations[0] ?? 'kitchen';
+      }
     }
     const key = `${category.toLowerCase()}::${name.toLowerCase()}`;
     if (seen.has(key)) return fail(`"${name}" appears twice in "${category}"`);
@@ -201,7 +259,9 @@ export async function importMenu(
     });
   });
 
-  const result: ImportResult = { dry_run: opts.dryRun, categories_created: 0, items_created: 0, items_updated: 0, errors };
+  if (taxless && !errors.length) warnings.push({ row: 0, message: `${taxless} dish${taxless === 1 ? ' has' : 'es have'} no tax rate: the outlet's default ${outlet.default_tax_rate_bp / 100}% is used` });
+  const columns = opts.columns ?? [];
+  const result: ImportResult = { dry_run: opts.dryRun, categories_created: 0, items_created: 0, items_updated: 0, errors, warnings, columns };
   if (errors.length) return result;
 
   const categories = await tx.db

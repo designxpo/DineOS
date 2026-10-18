@@ -8,7 +8,7 @@ import { assertCan, assertOutletAccess, requireAction, requireStaff } from '../.
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { detectImage } from '../../lib/images';
 import { idParams, outletQuery, parse } from '../../lib/validate';
-import { IMPORT_TEMPLATE_CSV, importMenu, readSpreadsheet } from './import';
+import { IMPORT_TEMPLATE_CSV, importMenu, readMenuSheet } from './import';
 import { bumpMenu, loadMenu } from './service';
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM');
@@ -510,11 +510,11 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const auth = requireAction(req, q.outlet_id, 'menu.manage');
       const file = await req.file();
       if (!file) throw badRequest('file_required', 'Attach a CSV or Excel file');
-      const rows = await readSpreadsheet(file.filename, await file.toBuffer());
+      const { records: rows, columns } = await readMenuSheet(file.filename, await file.toBuffer());
       const dryRun = q.dry_run === '1' || q.dry_run === 'true';
       return ctx.tx(auth.tenantId, async (tx) => {
         const outlet = await outletRow(tx, q.outlet_id);
-        const result = await importMenu(tx, outlet, rows, { dryRun });
+        const result = await importMenu(tx, outlet, rows, { dryRun, columns });
         if (!dryRun && result.errors.length === 0) await bumpMenu(tx, q.outlet_id);
         return result;
       });

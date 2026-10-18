@@ -508,6 +508,8 @@ interface ImportResult {
   items_created: number;
   items_updated: number;
   errors: { row: number; message: string }[];
+  warnings: { row: number; message: string }[];
+  columns: { source: string; field: string | null }[];
 }
 
 function ImportTab() {
@@ -557,7 +559,7 @@ function ImportTab() {
       <Card className="space-y-4 p-5">
         <div>
           <h2 className="font-semibold">Import from a spreadsheet</h2>
-          <p className="mt-1 text-sm text-ink-soft">CSV or Excel. One row per dish. Matching dishes (same category and name) are updated, so you can re-import to change prices.</p>
+          <p className="mt-1 text-sm text-ink-soft">CSV or Excel. One row per dish. Matching dishes (same category and name) are updated, so you can re-import to change prices. An export from your old billing software works as it is: we read its column names and tell you what we understood.</p>
           <p className="mt-2 text-xs text-ink-faint">Columns: {columns.join(', ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -587,6 +589,22 @@ function ImportTab() {
               </>
             ) : (
               <>
+                {preview.columns.length > 0 && (
+                  <p className="mb-2 text-xs text-ink-soft">
+                    Read as: {preview.columns.filter((c) => c.field).map((c) => (c.source === c.field ? c.source : `${c.source} → ${c.field}`)).join(', ')}
+                    {preview.columns.some((c) => !c.field) && <> · Ignored: {preview.columns.filter((c) => !c.field).map((c) => c.source).join(', ')}</>}
+                  </p>
+                )}
+                {preview.warnings.length > 0 && (
+                  <div className="mb-3 rounded-xl bg-amber-50 p-3 text-amber-950">
+                    <p className="font-semibold">Check these before you import ({preview.warnings.length})</p>
+                    <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto">
+                      {preview.warnings.map((w, i) => (
+                        <li key={i}>{w.row ? `Row ${w.row}: ` : ''}{w.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p>
                   Ready: <b>{preview.items_created}</b> new dishes, <b>{preview.items_updated}</b> updated, <b>{preview.categories_created}</b> new categories.
                 </p>

@@ -187,6 +187,27 @@ describe('spreadsheet import', () => {
     expect(menu.json().categories.some((c: { name: string }) => c.name === 'Soups')).toBe(false);
   });
 
+  it('reads an export from another billing system as it is, and says what it understood and what it fixed', async () => {
+    const other = [
+      'Item Name,Item Category,Rate,Food Type,GST %,Printer,Status,Item Code,Outlet',
+      'Kolhapuri Misal,Breakfast,Rs. 120,Veg,5,Counter Printer 2,Active,K12,Main',
+      'Egg Bhurji,Breakfast,"1,40",Egg,5,Kitchen,Active,K13,Main',
+      'Staff Tea,Breakfast,0,Veg,,kitchen,Inactive,K14,Main',
+    ].join('\n');
+    const res = await owner({ method: 'POST', url: `/v1/menu/import?outlet_id=${tenant.outletId}&dry_run=1`, ...multipart('petpooja.csv', 'text/csv', other) });
+    expect(res.statusCode).toBe(200);
+    const r = res.json();
+    expect(r).toMatchObject({ items_created: 3, errors: [] });
+    expect(r.columns.filter((c: { field: string | null }) => c.field).map((c: { source: string; field: string }) => `${c.source}>${c.field}`)).toEqual([
+      'Item Name>name', 'Item Category>category', 'Rate>price', 'Food Type>veg', 'GST %>tax_rate', 'Printer>station', 'Status>in_stock',
+    ]);
+    expect(r.columns.filter((c: { field: string | null }) => !c.field).map((c: { source: string }) => c.source)).toEqual(['Item Code', 'Outlet']);
+    const said = r.warnings.map((w: { message: string }) => w.message).join(' | ');
+    expect(said).toMatch(/Counter Printer 2.*goes to/);
+    expect(said).toMatch(/Staff Tea.*no price/);
+    expect(said).toMatch(/1 dish has no tax rate/);
+  });
+
   it('imports quoted fields and rupee decimals, then updates on re-import', async () => {
     const first = await owner({ method: 'POST', url: `/v1/menu/import?outlet_id=${tenant.outletId}`, ...multipart('menu.csv', 'text/csv', csv) });
     expect(first.json()).toMatchObject({ categories_created: 2, items_created: 3, items_updated: 0, errors: [] });
