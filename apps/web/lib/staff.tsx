@@ -118,6 +118,24 @@ export function StaffProvider({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  // Any failure other than being signed out (the server erroring, no connection) must say so,
+  // not leave the loader spinning for ever.
+  if (token && !me.data && me.isError) {
+    return (
+      <div className="grid min-h-dvh place-items-center p-6 text-center" role="alert">
+        <div className="max-w-sm">
+          <p className="font-medium">We couldn’t load your account.</p>
+          <p className="mt-1 text-sm text-ink-soft">{me.error instanceof ApiError ? `The server said: ${me.error.message}` : 'Check your connection and try again.'} Your orders and bills have not been changed.</p>
+          <button type="button" className="mt-4 min-h-11 cursor-pointer rounded-xl bg-[var(--brand)] px-5 font-semibold text-white" onClick={() => void me.refetch()}>
+            Try again
+          </button>
+          <button type="button" className="mt-2 block w-full text-sm text-brand-700 underline" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!value) return <FullScreenLoader />;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
