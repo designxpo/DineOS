@@ -163,3 +163,82 @@ body {
     background: white;
   }
 }
+
+/* Marketing-only feedback: staff workflows keep their existing motion rules. */
+.marketing-skip {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 60;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--color-ink);
+  color: white;
+  transform: translateY(-160%);
+}
+.marketing-skip:focus {
+  transform: translateY(0);
+}
+.marketing a[href^='#'],
+.marketing button {
+  scroll-margin-top: 5rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-marketing]) {
+    scroll-behavior: smooth;
+  }
+  .marketing a svg {
+    transition: transform 180ms ease-out;
+  }
+  .marketing a:hover svg,
+  .marketing a:focus-visible svg {
+    transform: translateX(3px);
+  }
+  .marketing details[open] > nav,
+  .marketing details[open] > p {
+    animation: marketing-disclose 180ms ease-out;
+  }
+  @keyframes marketing-disclose {
+    from { opacity: 0.4; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+@media print {
+  .marketing [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Low-amplitude ambient motion stays on illustration layers, never on controls or page copy. */
+@media (prefers-reduced-motion: no-preference) {
+  .marketing .marketing-float {
+    animation: marketing-float 7s ease-in-out infinite;
+  }
+  .marketing .marketing-float-late {
+    animation-duration: 9s;
+    animation-delay: -3s;
+  }
+  .marketing .marketing-glow {
+    animation: marketing-glow 12s ease-in-out infinite;
+  }
+  .marketing[data-ambient-paused='true'] .marketing-float,
+  .marketing[data-ambient-paused='true'] .marketing-glow {
+    animation-play-state: paused;
+  }
+  @keyframes marketing-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  @keyframes marketing-glow {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.65; }
+    50% { transform: translate3d(-12px, 8px, 0) scale(1.04); opacity: 0.9; }
+  }
+}
+@media print {
+  .marketing .marketing-float,
+  .marketing .marketing-glow {
+    animation: none !important;
+    transform: none !important;
+  }
+}

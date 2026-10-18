@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import {
   ArrowRight,
+  ArrowRightLeft,
   BellRing,
   BookOpenCheck,
   CalendarCheck,
   ChefHat,
   ClipboardCheck,
   Gift,
+  Landmark,
   Languages,
   LifeBuoy,
   Palette,
@@ -20,6 +22,8 @@ import {
 } from 'lucide-react';
 import { DemoForm } from '@/components/landing/demo-form';
 import { LeakCalculator } from '@/components/landing/leak-calculator';
+import { AmbientMotionToggle, LandingMotion } from '@/components/landing/motion';
+import { MobileNav } from '@/components/landing/mobile-nav';
 import { Pricing } from '@/components/landing/pricing';
 import { DayEnd, FreeItem, HelpCase, Outage, ServiceAlerts, UpiMissing } from '@/components/landing/vignettes';
 
@@ -124,7 +128,46 @@ const STEPS = [
   { icon: BellRing, title: 'Your first full service', body: 'We are there for it. Then help is one tap away on every screen.' },
 ];
 
+/** For owners who paid a year ahead for other billing software: start beside it, move at renewal. */
+const SWITCH = [
+  {
+    icon: Landmark,
+    when: 'Now',
+    title: 'Keep your billing. Add the money check.',
+    points: [
+      'Upload your billing software’s bill-wise sales export and your bank statement, as Excel or CSV.',
+      'See every UPI payment the bills say was taken that never reached your bank, bill by bill.',
+      'Your menu with photos on a QR card in your colours: guests read it and call a waiter. Nothing is billed twice.',
+    ],
+    price: '₹499 per outlet a month, or ₹4,990 a year',
+  },
+  {
+    icon: ClipboardCheck,
+    when: 'A month before it renews',
+    title: 'We set Mezmitra up beside it.',
+    points: [
+      'Your menu, printers, kitchen stations and staff, set up while you keep billing as you do today.',
+      'A rehearsal of your busiest order on your own devices, signed off by you.',
+      'Nothing changes at the counter until you say so.',
+    ],
+  },
+  {
+    icon: ArrowRightLeft,
+    when: 'Renewal day',
+    title: 'Move billing. Pay for nothing twice.',
+    points: [
+      'What you paid for the money check comes off your first year.',
+      'Go-live is free, monthly or annual.',
+      'Your menu, QR cards and every money check carry over.',
+    ],
+  },
+];
+
 const FAQ = [
+  {
+    q: 'We already paid a year ahead for other billing software. Is this for us?',
+    a: 'Yes. Keep it until the year ends and start with the money check: upload its sales export and your bank statement, and see every UPI payment that never arrived. A month before it renews we set Mezmitra up beside it; on renewal day you move billing, and what you paid for the money check comes off your first year.',
+  },
   {
     q: 'Do I need to buy new hardware?',
     a: 'Usually not. Mezmitra runs in the browser on Android phones, iPhones, tablets and PCs. Your thermal printers connect through a small free app on a Windows or Mac computer or a Raspberry Pi, by USB or over your network.',
@@ -173,13 +216,15 @@ function Kicker({ children, dark }: { children: React.ReactNode; dark?: boolean 
 
 export default function Landing() {
   return (
-    <div className="min-h-dvh bg-paper text-ink">
+    <div data-marketing className="marketing min-h-dvh bg-paper text-ink">
+      <LandingMotion />
+      <a href="#top" className="marketing-skip">Skip to content</a>
       <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6" aria-label="Main">
+        <nav className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:gap-6 sm:px-6" aria-label="Main">
           <a href="#top" className="flex shrink-0 items-center" aria-label="Mezmitra, home">
-            <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-9 w-auto" width={166} height={44} />
+            <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-7 w-auto sm:h-9" width={166} height={44} />
           </a>
-          <div className="hidden items-center gap-6 text-sm font-medium text-ink-soft md:flex">
+          <div className="hidden items-center gap-6 text-sm font-medium whitespace-nowrap text-ink-soft lg:flex">
             <a href="#night" className="hover:text-ink">
               The problem
             </a>
@@ -189,6 +234,9 @@ export default function Landing() {
             <a href="#pricing" className="hover:text-ink">
               Pricing
             </a>
+            <a href="#switch" className="hover:text-ink">
+              Already on software?
+            </a>
             <a href="#faq" className="hover:text-ink">
               Questions
             </a>
@@ -197,19 +245,20 @@ export default function Landing() {
             <a href="/login" className="hidden h-10 items-center rounded-xl px-3 text-sm font-medium text-ink-soft hover:text-ink sm:inline-flex">
               Sign in
             </a>
-            <a href="#demo" className="inline-flex h-10 items-center rounded-xl bg-[var(--brand)] px-4 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98]">
+            <a href="#demo" className="inline-flex h-10 items-center rounded-xl bg-[var(--brand)] px-3 text-xs font-semibold text-white transition hover:brightness-110 sm:px-4 sm:text-sm active:scale-[0.98]">
               Book a demo
             </a>
+            <MobileNav />
           </div>
         </nav>
       </header>
 
-      <main id="top">
+      <main id="top" tabIndex={-1}>
         {/* ------------------------------------------------------------ hero */}
         <section className="relative overflow-hidden px-4 pt-14 pb-20 sm:px-6 sm:pt-20 lg:pb-28">
-          <div className="pointer-events-none absolute -top-40 -right-40 size-[36rem] rounded-full bg-brand-100/70 blur-3xl" />
+          <div className="marketing-glow pointer-events-none absolute -top-40 -right-40 size-[36rem] rounded-full bg-brand-100/70 blur-3xl" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-            <div>
+            <div data-reveal>
               <p className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-sm text-ink-soft">
                 <span className="size-2 rounded-full bg-emerald-500" /> For restaurants and cafés with 10 to 40 tables
               </p>
@@ -240,11 +289,11 @@ export default function Landing() {
               </ul>
             </div>
 
-            <div className="relative mx-auto w-full max-w-md">
+            <div data-reveal data-reveal-delay="120" className="relative mx-auto w-full max-w-md">
               <div className="mx-auto w-[17rem] overflow-hidden rounded-[2.6rem] border-[10px] border-ink bg-surface shadow-[0_40px_80px_-30px_rgb(28_25_23/0.6)] sm:w-[19rem]">
                 <img src="/landing/qr-menu.webp" alt="The QR menu a guest sees: dishes with photos, prices and an add button" className="block w-full" width={585} height={1266} />
               </div>
-              <div className="absolute top-16 -left-2 w-60 sm:-left-10">
+              <div className="marketing-float absolute top-16 -left-2 w-60 sm:-left-10">
                 <div className="flex gap-2.5 rounded-xl border border-line bg-surface p-3 shadow-[0_18px_40px_-18px_rgb(28_25_23/0.45)]">
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-800">
                     <BellRing className="size-4" />
@@ -254,7 +303,7 @@ export default function Landing() {
                   </p>
                 </div>
               </div>
-              <div className="absolute -right-2 bottom-20 w-60 sm:-right-8">
+              <div className="marketing-float marketing-float-late absolute -right-2 bottom-20 w-60 sm:-right-8">
                 <div className="flex gap-2.5 rounded-xl border border-rose-200 bg-surface p-3 shadow-[0_18px_40px_-18px_rgb(28_25_23/0.45)]">
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-rose-100 text-rose-800">
                     <ReceiptIndianRupee className="size-4" />
@@ -264,6 +313,7 @@ export default function Landing() {
                   </p>
                 </div>
               </div>
+              <AmbientMotionToggle />
             </div>
           </div>
         </section>
@@ -271,7 +321,7 @@ export default function Landing() {
         {/* ------------------------------------------------------------ the night */}
         <section id="night" className="scroll-mt-16 bg-ink px-4 py-20 text-white sm:px-6 sm:py-28">
           <div className="mx-auto max-w-6xl">
-            <div className="max-w-3xl">
+            <div data-reveal className="max-w-3xl">
               <Kicker dark>The real picture</Kicker>
               <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Saturday, 8 pm. Every table is full.</h2>
               <p className="mt-5 text-lg text-white/70">
@@ -279,11 +329,11 @@ export default function Landing() {
               </p>
             </div>
             <ol className="mt-14 grid gap-px overflow-hidden rounded-3xl bg-white/10 sm:grid-cols-2">
-              {NIGHT.map((n) => (
-                <li key={n.time} className="bg-ink p-6 sm:p-7">
+              {NIGHT.map((n, i) => (
+                <li data-reveal data-reveal-delay={(i % 2) * 70} key={n.time} className="bg-ink p-6 sm:p-7">
                   <p className="font-mono text-sm font-semibold text-accent">{n.time}</p>
                   <p className="mt-2 text-lg leading-snug font-medium">{n.what}</p>
-                  <p className="mt-2 text-sm text-white/55">{n.cost}</p>
+                  <p className="mt-2 text-sm text-white/75">{n.cost}</p>
                 </li>
               ))}
             </ol>
@@ -295,7 +345,7 @@ export default function Landing() {
 
         {/* ------------------------------------------------------------ the cost */}
         <Section id="cost">
-          <div className="max-w-3xl">
+          <div data-reveal className="max-w-3xl">
             <Kicker>Count it</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">What slips through your month?</h2>
             <p className="mt-5 text-lg text-ink-soft">Put in your own numbers. Most owners have never added these up: they rarely show up in any report.</p>
@@ -307,7 +357,7 @@ export default function Landing() {
 
         {/* ------------------------------------------------------------ the promises */}
         <Section id="how" className="bg-surface">
-          <div className="max-w-3xl">
+          <div data-reveal className="max-w-3xl">
             <Kicker>How Mezmitra fixes it</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Four promises, each one you can test.</h2>
             <p className="mt-5 text-lg text-ink-soft">Not a list of features: the moments from Saturday night, handled. In your demo and your rehearsal, you watch each one happen on your own phone.</p>
@@ -315,7 +365,7 @@ export default function Landing() {
           <div className="mt-16 space-y-24">
             {PROMISES.map((p, i) => (
               <article key={p.id} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-                <div className={i % 2 ? 'lg:order-2' : ''}>
+                <div data-reveal className={i % 2 ? 'lg:order-2' : ''}>
                   <Kicker>{p.kicker}</Kicker>
                   <h3 className="mt-2 font-display text-3xl leading-tight font-semibold sm:text-4xl">{p.title}</h3>
                   <p className="mt-4 border-l-2 border-rose-300 pl-4 text-ink-soft">
@@ -335,7 +385,7 @@ export default function Landing() {
                     {p.measure}
                   </p>
                 </div>
-                <div className={i % 2 ? 'lg:order-1' : ''}>{p.visual}</div>
+                <div data-reveal data-reveal-delay="100" className={i % 2 ? 'lg:order-1' : ''}>{p.visual}</div>
               </article>
             ))}
           </div>
@@ -343,14 +393,14 @@ export default function Landing() {
 
         {/* ------------------------------------------------------------ included */}
         <Section id="included">
-          <div className="max-w-3xl">
+          <div data-reveal className="max-w-3xl">
             <Kicker>One system, every role</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Every role, one system. No extra apps to stitch together.</h2>
             <p className="mt-5 text-lg text-ink-soft">With Table service, QR and waiter ordering, kitchen screens, loyalty, stock and every report are included, not sold as extras. Each person sees only what their job needs.</p>
           </div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {INCLUDED.map((c) => (
-              <div key={c.title} className="rounded-2xl border border-line bg-surface p-5">
+            {INCLUDED.map((c, i) => (
+              <div data-reveal data-reveal-delay={(i % 4) * 60} key={c.title} className="rounded-2xl border border-line bg-surface p-5">
                 <c.icon className="size-6 text-[var(--brand)]" />
                 <h3 className="mt-3 font-semibold">{c.title}</h3>
                 <ul className="mt-2 space-y-1.5 text-sm text-ink-soft">
@@ -365,13 +415,13 @@ export default function Landing() {
 
         {/* ------------------------------------------------------------ go live */}
         <Section id="golive" className="bg-surface">
-          <div className="max-w-3xl">
+          <div data-reveal className="max-w-3xl">
             <Kicker>Going live</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">You pay in full only after it works in your restaurant.</h2>
           </div>
           <ol className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="relative rounded-2xl border border-line bg-paper p-5">
+              <li data-reveal data-reveal-delay={i * 60} key={s.title} className="relative rounded-2xl border border-line bg-paper p-5">
                 <span className="font-mono text-sm font-semibold text-[var(--brand)]">0{i + 1}</span>
                 <s.icon className="mt-3 size-6 text-ink-soft" />
                 <h3 className="mt-3 font-semibold">{s.title}</h3>
@@ -383,13 +433,52 @@ export default function Landing() {
 
         {/* ------------------------------------------------------------ pricing */}
         <Section id="pricing">
-          <div className="mx-auto max-w-3xl text-center">
+          <div data-reveal className="mx-auto max-w-3xl text-center">
             <Kicker>Pricing</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">About ₹50 a day for the whole restaurant.</h2>
             <p className="mt-5 text-lg text-ink-soft">Simple plans per outlet, with no charge per user. Annual plans cost ten months and include go-live.</p>
           </div>
           <div className="mt-12">
             <Pricing />
+          </div>
+        </Section>
+
+        {/* ------------------------------------------------------------ switch */}
+        <Section id="switch" className="bg-surface">
+          <div data-reveal className="max-w-3xl">
+            <Kicker>Already paying for billing software?</Kicker>
+            <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Keep the year you paid for. Start checking the money now.</h2>
+            <p className="mt-5 text-lg text-ink-soft">
+              Most owners we meet paid for their billing a year ahead. You do not have to throw that away. Start with an independent check: did the money your bills say you took reach your bank?
+            </p>
+          </div>
+          <ol className="mt-12 grid gap-4 lg:grid-cols-3">
+            {SWITCH.map((s, i) => (
+              <li data-reveal data-reveal-delay={i * 60} key={s.when} className="flex flex-col rounded-3xl border border-line bg-paper p-6">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-xl bg-brand-50 text-[var(--brand)]">
+                    <s.icon className="size-5" />
+                  </span>
+                  <span className="text-sm font-semibold tracking-wide text-ink-faint uppercase">{s.when}</span>
+                </div>
+                <h3 className="mt-4 font-display text-xl font-semibold">{s.title}</h3>
+                <ul className="mt-3 flex-1 space-y-2 text-sm text-ink-soft">
+                  {s.points.map((p) => (
+                    <li key={p} className="flex gap-2.5">
+                      <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-[var(--brand)]" />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+                {s.price && <p className="mt-5 rounded-xl bg-surface px-3 py-2 text-sm font-semibold text-ink">{s.price}</p>}
+              </li>
+            ))}
+          </ol>
+          <div data-reveal className="mt-8 flex flex-wrap items-center gap-4">
+            <a href="?plan=check#demo" className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--brand)] px-5 text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.98]">
+              Book a demo for the money check <ArrowRight className="size-4" />
+            </a>
+            <p className="max-w-xl text-sm text-ink-faint">Works with billing software that exports a bill-wise sales report to Excel or CSV. Most do: bring one to the demo and we will check yours.</p>
           </div>
         </Section>
 

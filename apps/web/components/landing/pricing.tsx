@@ -64,6 +64,15 @@ export function Pricing() {
               type="button"
               role="radio"
               aria-checked={annual === value}
+              tabIndex={annual === value ? 0 : -1}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === 'Home' ? false : event.key === 'End' ? true : !annual;
+                setAnnual(next);
+                const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+                buttons?.[next ? 1 : 0]?.focus();
+              }}
               onClick={() => setAnnual(value as boolean)}
               className={cn('h-10 cursor-pointer rounded-full px-5 text-sm font-semibold transition', annual === value ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink')}
             >
@@ -78,7 +87,7 @@ export function Pricing() {
         {PLANS.map((p) => {
           const yearly = p.monthly * 10;
           return (
-            <div key={p.id} className={cn('relative flex flex-col rounded-3xl border bg-surface p-6', p.main ? 'border-[var(--brand)] shadow-[0_24px_60px_-28px_rgb(168_68_26/0.55)]' : 'border-line')}>
+            <div data-reveal key={p.id} className={cn('relative flex flex-col rounded-3xl border bg-surface p-6', p.main ? 'border-[var(--brand)] shadow-[0_24px_60px_-28px_rgb(168_68_26/0.55)]' : 'border-line')}>
               {p.main && <span className="absolute -top-3 left-6 rounded-full bg-[var(--brand)] px-3 py-1 text-xs font-semibold text-white">Best for 10 to 40 tables</span>}
               <h3 className="font-display text-2xl font-semibold">{p.name}</h3>
               <p className="mt-1 text-sm text-ink-soft">{p.main ? p.limits : p.for}</p>

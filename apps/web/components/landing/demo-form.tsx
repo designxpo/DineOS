@@ -1,12 +1,25 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
+import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js/min';
+import { Check, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { DEMO_PAIN_LABELS, DEMO_PAINS, DEMO_TABLES, type DemoPain, type DemoTables } from '@mezmitra/shared/leads';
+import { CURRENT_SYSTEMS, DEMO_PAIN_LABELS, DEMO_PAINS, DEMO_TABLES, noContract, type DemoPain, type DemoTables } from '@mezmitra/shared/leads';
 import { apiFetch, errorMessage } from '@/lib/api';
 import { cn } from '@/components/ui/cn';
 
-const PLAN_NAMES: Record<string, string> = { cafe: 'Café', table: 'Table service', group: 'Group' };
+const countryNames = new Intl.DisplayNames(['en'], { type: 'region' });
+const COUNTRIES = getCountries().sort((a, b) => (countryNames.of(a) ?? a).localeCompare(countryNames.of(b) ?? b, 'en'));
+
+const PLAN_NAMES: Record<string, string> = { cafe: 'Café', table: 'Table service', group: 'Group', check: 'Money check' };
+
+/** This month and the next twelve, for "when does it renew". */
+function nextMonths(): { value: string; label: string }[] {
+  const now = new Date();
+  return Array.from({ length: 13 }, (_, i) => {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() + i, 1));
+    return { value: d.toISOString().slice(0, 7), label: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+  });
+}
 const input = 'h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none';
 
 /** Asks for a demo: who, where, how big, and what hurts most. Mezmitra calls or WhatsApps back. */
@@ -15,9 +28,18 @@ export function DemoForm() {
   const [restaurant, setRestaurant] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState<CountryCode>('IN');
+  // Country names come from the browser: the server's own list words some differently, so the
+  // full list is filled in after the page loads instead of in the server's HTML.
+  const [countries, setCountries] = useState<CountryCode[]>([]);
+  useEffect(() => setCountries(COUNTRIES), []);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [submittedPhone, setSubmittedPhone] = useState('');
   const [tables, setTables] = useState<DemoTables | null>(null);
   const [pains, setPains] = useState<DemoPain[]>([]);
   const [note, setNote] = useState('');
+  const [system, setSystem] = useState('');
+  const [renews, setRenews] = useState('');
   const [website, setWebsite] = useState('');
   const [plan, setPlan] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,13 +54,32 @@ export function DemoForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const parsed = parsePhoneNumberFromString(phone, { defaultCountry: country, extract: false });
+    if (!parsed?.isPossible() || parsed.ext) {
+      setPhoneError('Enter a complete phone number for the selected country, without an extension.');
+      return;
+    }
+    setPhoneError(null);
     setBusy(true);
     setError(null);
     try {
       await apiFetch('/public/demo-requests', {
         method: 'POST',
-        body: { name, restaurant, city: city || undefined, phone, tables: tables ?? undefined, plan: plan ?? undefined, pains, note: note || undefined, website: website || undefined },
+        body: {
+          name,
+          restaurant,
+          city: city || undefined,
+          phone: parsed.number,
+          tables: tables ?? undefined,
+          plan: plan ?? undefined,
+          pains,
+          note: note || undefined,
+          current_system: system || undefined,
+          renews: system && !noContract(system) && renews ? renews : undefined,
+          website: website || undefined,
+        },
       });
+      setSubmittedPhone(parsed.formatInternational());
       setSent(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -49,10 +90,10 @@ export function DemoForm() {
 
   if (sent) {
     return (
-      <div className="rounded-3xl bg-surface p-8 text-center shadow-[0_24px_60px_-30px_rgb(28_25_23/0.4)]" role="status">
+      <div className="rounded-3xl bg-surface p-8 text-ink text-center shadow-[0_24px_60px_-30px_rgb(28_25_23/0.4)]" role="status">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
         <p className="mt-4 font-display text-2xl font-semibold">Thank you, {name.split(' ')[0]}.</p>
-        <p className="mt-2 text-ink-soft">We will call or WhatsApp you on {phone} to set up a 20-minute demo with your own dishes.</p>
+        <p className="mt-2 text-ink-soft">We will call or WhatsApp you on {submittedPhone} to set up a 20-minute demo with your own dishes.</p>
       </div>
     );
   }
@@ -68,31 +109,105 @@ export function DemoForm() {
           <span className="text-sm font-medium">Restaurant or café</span>
           <input className={input} value={restaurant} onChange={(e) => setRestaurant(e.target.value)} required maxLength={120} autoComplete="organization" />
         </label>
-        <label className="space-y-1.5">
-          <span className="text-sm font-medium">Phone (WhatsApp)</span>
-          <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} required inputMode="tel" autoComplete="tel" placeholder="98450 12345" maxLength={20} />
-        </label>
+        <fieldset className="min-w-0 space-y-1.5">
+          <legend className="text-sm font-medium">Phone (WhatsApp)</legend>
+          <div className="flex gap-2">
+            <select
+              aria-label="Country calling code"
+              autoComplete="tel-country-code"
+              value={country}
+              onChange={(e) => { setCountry(e.target.value as CountryCode); setPhoneError(null); }}
+              className={cn(input, 'w-20 shrink-0 px-2')}
+            >
+              {(countries.length ? countries : [country]).map((code) => (
+                <option key={code} value={code} aria-label={`${countryNames.of(code)} +${getCountryCallingCode(code)}`}>
+                  {country === code ? `+${getCountryCallingCode(code)}` : `${countryNames.of(code)} (+${getCountryCallingCode(code)})`}
+                </option>
+              ))}
+            </select>
+            <input
+              className={cn(input, 'min-w-0 flex-1')}
+              aria-label="Phone (WhatsApp)"
+              aria-invalid={!!phoneError}
+              aria-describedby={phoneError ? 'demo-phone-error' : undefined}
+              value={phone}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Pasted international numbers select their country instead of adding a second prefix.
+                const international = value.trim().startsWith('+') ? parsePhoneNumberFromString(value, { extract: false }) : undefined;
+                if (international?.country) {
+                  setCountry(international.country);
+                  setPhone(international.nationalNumber);
+                } else setPhone(value);
+                setPhoneError(null);
+              }}
+              required type="tel" inputMode="tel" autoComplete="tel-national"
+              placeholder={country === 'IN' ? '98450 12345' : 'Phone number'} maxLength={30}
+            />
+          </div>
+          {phoneError && <p id="demo-phone-error" className="text-sm text-rose-800" role="alert">{phoneError}</p>}
+        </fieldset>
         <label className="space-y-1.5">
           <span className="text-sm font-medium">City</span>
           <input className={input} value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} autoComplete="address-level2" />
         </label>
+        <label className="space-y-1.5">
+          <span className="text-sm font-medium">What do you bill on today? (optional)</span>
+          <select className={input} value={system} onChange={(e) => setSystem(e.target.value)}>
+            <option value="">Choose…</option>
+            {CURRENT_SYSTEMS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+        {system && !noContract(system) && (
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium">When does it renew?</span>
+            <select className={input} value={renews} onChange={(e) => setRenews(e.target.value)}>
+              <option value="">Not sure</option>
+              {nextMonths().map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
+      {system && !noContract(system) && (
+        <p className="-mt-1 rounded-xl bg-stone-50 px-3 py-2 text-sm text-ink-soft">
+          Keep it until then. Start with the money check on top of it, and move billing to Mezmitra when your year ends.
+        </p>
+      )}
 
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">How many tables?</legend>
+        <legend className="mb-2 text-sm font-medium">How many tables? (optional)</legend>
         <div className="flex flex-wrap gap-2">
           {DEMO_TABLES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTables(tables === t ? null : t)}
-              aria-pressed={tables === t}
-              className={cn('h-10 cursor-pointer rounded-full border px-4 text-sm font-medium transition', tables === t ? 'border-[var(--brand)] bg-brand-50 text-brand-700' : 'border-line hover:bg-stone-50')}
-            >
-              {t}
-            </button>
+            <label key={t} className="relative cursor-pointer">
+              <input
+                type="radio"
+                name="tables"
+                value={t}
+                checked={tables === t}
+                onChange={() => setTables(t)}
+                className="peer sr-only"
+              />
+              <span className={cn(
+                'inline-flex min-h-11 min-w-24 items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--brand)]',
+                tables === t ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-line bg-surface text-ink',
+              )}>
+                {tables === t && <Check aria-hidden="true" className="size-4" />}
+                {t}
+              </span>
+            </label>
           ))}
         </div>
+        <p className="mt-2 text-sm text-ink-soft" aria-live="polite" aria-atomic="true">
+          {tables ? `Selected: ${tables} tables` : 'Choose the range that fits your restaurant.'}
+        </p>
       </fieldset>
 
       <fieldset>
