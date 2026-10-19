@@ -1,5 +1,6 @@
 'use client';
 
+import { CustomerReceipts } from '@/components/print/customer-receipts';
 import { BellRing, Check, ChefHat, CircleX, Clock, Gift, HandPlatter, Plus, ReceiptIndianRupee } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
@@ -57,6 +58,7 @@ export function StatusView({ g, onAddMore }: { g: GuestApi; onAddMore: () => voi
         />
       </div>
 
+      {g.receiptToken && <CustomerReceipts path="/guest/receipts" token={g.receiptToken} />}
       {bill && <BillCard g={g} total={bill.total_paise} paid={bill.paid_paise} />}
 
       {g.session?.loyalty.enabled && <LoyaltyCard g={g} />}

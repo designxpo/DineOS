@@ -1,3 +1,4 @@
+import { serveCustomerReceipts } from '../billing/customer-receipts';
 import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
@@ -61,6 +62,19 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
   }
 
   return async (app) => {
+    // A visit token remains read-only for its own receipts after the table is closed.
+    app.get('/guest/receipts', async (req, reply) => {
+      const auth = requireGuest(req);
+      const query = parse(z.object({ format: z.literal('pdf').optional(), bill_id: z.uuid().optional() }), req.query);
+      return ctx.tx(auth.tenantId, async (tx) => {
+        const session = await tx.db.selectFrom('table_sessions').select('id').where('id', '=', auth.sessionId).where('table_id', '=', auth.tableId).executeTakeFirst();
+        if (!session) throw notFound('Receipt');
+        const bills = await tx.db.selectFrom('bills').select('id').where('table_session_id', '=', auth.sessionId).where('outlet_id', '=', auth.outletId).where('status', 'in', ['finalised', 'paid']).orderBy('created_at').execute();
+        return serveCustomerReceipts(tx, bills.map((bill) => bill.id), query, reply);
+      });
+    });
+
+
     /** Landing page data before joining: who and where. No session is created. */
     app.get('/guest/resolve', async (req) => {
       const { qr } = parse(z.object({ qr: z.string().min(10).max(200) }), req.query);

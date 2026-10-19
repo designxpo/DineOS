@@ -173,6 +173,16 @@ describe('counter orders', () => {
     await owner({ method: 'POST', url: `/v1/bills/${draft.id}/finalise` });
     const job = await t.ctx.adminDb.selectFrom('print_jobs').select('doc').where('ref_id', '=', draft.id).executeTakeFirstOrThrow();
     expect(job.doc as unknown as BillDoc).toMatchObject({ pickup_no: order.order_no, track_code: order.track_code });
+    const receiptsPath = `/v1/public/track/${order.track_code}/receipts`;
+    const receipts = await t.app.inject({ method: 'GET', url: receiptsPath });
+    expect(receipts.statusCode).toBe(200);
+    expect(receipts.json()[0].bill.id).toBe(draft.id);
+    const pdf = await t.app.inject({ method: 'GET', url: `${receiptsPath}?format=pdf&bill_id=${draft.id}` });
+    expect(pdf.statusCode).toBe(200);
+    expect(pdf.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
+    expect((await t.app.inject({ method: 'GET', url: `${receiptsPath}?format=pdf&bill_id=00000000-0000-4000-8000-000000000001` })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/public/track/not-a-real-code-at-all/receipts' })).statusCode).toBe(404);
+
   });
 
   it('shows counter orders being made and ready on the pickup screen, until the link is replaced', async () => {

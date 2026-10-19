@@ -6,6 +6,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CartDTO, GuestJoinResponseDTO, GuestSessionDTO, OrderDTO } from '@mezmitra/shared/dto';
+import { receiptPdf, customerInvoice } from '../src/modules/billing/customer-receipts';
 import { closeSession } from '../src/modules/tables/sessions';
 import {
   addStaff,
@@ -285,5 +286,39 @@ describe('guest ordering', () => {
     const other = await createTenant(t);
     const cross = await t.app.inject({ method: 'GET', url: `/v1/public/menu/${other.tenantId}/${tenant.outletId}` });
     expect(cross.statusCode).toBe(404);
+  });
+});
+
+describe('customer receipts', () => {
+  it('scopes invoices and PDFs to this visit, including after closing', async () => {
+    const tableId = await createTable(t, tenant, 'Receipt');
+    const joined = await join(await qrFor(tableId));
+    const guest = api(t, joined.guest_token);
+    const order = (await fillCartAndOrder(guest)).json().order;
+    await owner({ method: 'PATCH', url: `/v1/orders/${order.id}/status`, payload: { status: 'accepted' } });
+    const created = await owner({ method: 'POST', url: '/v1/bills', payload: { table_session_id: joined.session_id } });
+    expect(created.statusCode).toBe(201);
+    const bill = created.json();
+    expect((await guest({ method: 'GET', url: '/v1/guest/receipts' })).json()).toEqual([]);
+    expect((await owner({ method: 'POST', url: `/v1/bills/${bill.id}/finalise` })).statusCode).toBe(200);
+    const receipts = await guest({ method: 'GET', url: '/v1/guest/receipts' });
+    expect(receipts.statusCode).toBe(200);
+    expect(receipts.headers['cache-control']).toContain('no-store');
+    expect(receipts.json()[0].bill).toMatchObject({ id: bill.id, customer: null, status: 'finalised' });
+    const invoice = receipts.json()[0];
+    const longPdf = await receiptPdf({ ...invoice, bill: { ...invoice.bill, lines: Array.from({ length: 120 }, () => invoice.bill.lines[0]) } });
+    expect((longPdf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThan(1);
+    const safe = customerInvoice({ ...invoice, bill: { ...invoice.bill, customer: { phone: 'private-phone', wallet_paise: 999 }, payments: [{ id: 'p', reference: 'private-reference', confirmed_by_name: 'private-staff', room_guest: 'private-guest' }] } });
+    expect(JSON.stringify(safe)).not.toContain('private-');
+
+    const pdf = await guest({ method: 'GET', url: `/v1/guest/receipts?format=pdf&bill_id=${bill.id}` });
+    expect(pdf.statusCode).toBe(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
+    expect(pdf.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
+    const other = await join(await qrFor(await createTable(t, tenant, 'Other receipt')));
+    expect((await api(t, other.guest_token)({ method: 'GET', url: `/v1/guest/receipts?format=pdf&bill_id=${bill.id}` })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/v1/guest/receipts' })).statusCode).toBe(401);
+    await t.ctx.tx(tenant.tenantId, (tx) => closeSession(tx, joined.session_id, 'staff'));
+    expect((await guest({ method: 'GET', url: '/v1/guest/receipts' })).json()[0].bill.id).toBe(bill.id);
   });
 });

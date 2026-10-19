@@ -1,6 +1,8 @@
+import { serveCustomerReceipts } from '../billing/customer-receipts';
 // Counter-service cafés: a screen by the counter with the order numbers being made and ready to
 // collect, and a link on the receipt that lets the guest follow their order on their phone. Both
-// are public and read-only: order numbers and dish names only, no amounts or names.
+// are read-only. The board shows order numbers and dish names; the secret per-order link also
+// allows the guest to retrieve their final receipts without account or staff information.
 
 import { sql } from 'kysely';
 import type { FastifyPluginAsync } from 'fastify';
@@ -31,6 +33,19 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
   }
 
   return async (app) => {
+    app.get('/public/track/:code/receipts', { config: publicLimit }, async (req, reply) => {
+      const { code } = parse(z.object({ code: z.string().min(16).max(40).regex(/^[\w-]+$/) }), req.params);
+      const query = parse(z.object({ format: z.literal('pdf').optional(), bill_id: z.uuid().optional() }), req.query);
+      const { rows } = await sql<{ tenant_id: string; order_id: string }>`select * from mezmitra_track_order(${code})`.execute(ctx.db);
+      const found = rows[0];
+      if (!found || !(await tenantActive(found.tenant_id))) throw notFound('Order');
+      return ctx.tx(found.tenant_id, async (tx) => {
+        const bills = await tx.db.selectFrom('bills').select('id').where('order_id', '=', found.order_id).where('status', 'in', ['finalised', 'paid']).orderBy('created_at').execute();
+        return serveCustomerReceipts(tx, bills.map((bill) => bill.id), query, reply);
+      });
+    });
+
+
     /** The pickup screen: counter, takeaway and delivery orders, being made and ready. */
     app.get('/public/pickup/:token', { config: publicLimit }, async (req, reply): Promise<PickupBoardDTO> => {
       const { token } = parse(z.object({ token: z.string().min(20).max(120) }), req.params);

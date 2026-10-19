@@ -1,5 +1,6 @@
 'use client';
 
+import { CustomerReceipts } from '@/components/print/customer-receipts';
 import { BellRing, QrCode, Utensils, WifiOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { errorMessage } from '@/lib/api';
@@ -43,9 +44,12 @@ function GuestShell({ qr }: { qr: string }) {
         title={t('guest.session_ended')}
         hint={t('guest.session_ended_hint')}
         action={
-          <Button size="lg" onClick={() => void g.startOver().then(() => setTab('menu'))}>
-            {t('guest.scan_again')}
-          </Button>
+          <div className="space-y-4">
+            {g.receiptToken && <CustomerReceipts path="/guest/receipts" token={g.receiptToken} />}
+            <Button size="lg" onClick={() => void g.startOver().then(() => setTab('menu'))}>
+              {t('guest.scan_again')}
+            </Button>
+          </div>
         }
       />
     );

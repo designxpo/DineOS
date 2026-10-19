@@ -1,5 +1,6 @@
 'use client';
 
+import { CustomerReceipts } from '@/components/print/customer-receipts';
 import { Check, ChefHat, PackageCheck, ReceiptText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { TrackedOrderDTO } from '@mezmitra/shared/dto';
@@ -123,6 +124,8 @@ export function TrackOrder({ code }: { code: string }) {
         </button>
       )}
       {sound && !ready && !collected && <p className="mt-6 text-center text-sm text-ink-soft">Keep this page open. Your phone will chime when the order is ready.</p>}
+
+      <CustomerReceipts path={`/public/track/${encodeURIComponent(code)}/receipts`} />
 
       <div className="mt-6 rounded-2xl bg-surface p-4 shadow-[var(--shadow-card)]">
         <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">Your order</p>

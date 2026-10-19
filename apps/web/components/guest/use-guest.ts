@@ -235,6 +235,7 @@ export function useGuest(qr: string) {
   }, [qr, join]);
 
   return {
+    receiptToken: token,
     phase,
     context,
     session: session.data,
