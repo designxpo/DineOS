@@ -95,7 +95,7 @@ export default function DashboardPage() {
             )}
           </Card>
         ) : (
-          <Card className="grid gap-6 p-5 lg:grid-cols-[minmax(240px,1fr)_2fr]">
+          <Card data-help-title="Net sales and sales by hour" data-help="Review today’s sales, bill count and average bill. The chart shows when sales were recorded. Open Reports for a detailed breakdown." className="grid gap-6 p-5 lg:grid-cols-[minmax(240px,1fr)_2fr]">
             <div>
               <p className="text-sm font-medium text-ink-faint">Net sales</p>
               <p className="mt-1 text-5xl font-semibold tracking-tight text-ink">{formatPaise(d.net_sales_paise)}</p>
@@ -125,14 +125,14 @@ export default function DashboardPage() {
         {!outlet?.billing_elsewhere && (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat label="Orders" value={d.orders} sub={`${Math.round(d.qr_order_share * 100)}% from guest phones (goal 60%)`} />
-              <Stat label="In progress" value={active} sub={`${d.active_orders.placed ?? 0} waiting for approval`} />
-              <Stat label="Tables in use" value={`${occupied}/${totalTables}`} sub={`${d.tables.needs_cleaning ?? 0} need cleaning`} />
-              <Stat label="Avg time to serve" value={d.timing.avg_serve_minutes != null ? `${d.timing.avg_serve_minutes} min` : '—'} sub={`${d.open_bills} ${d.open_bills === 1 ? 'bill' : 'bills'} open`} />
+              <Stat label="Orders" info="The number of orders today, including the share placed from guest phones. Open Orders to review individual orders." value={d.orders} sub={`${Math.round(d.qr_order_share * 100)}% from guest phones (goal 60%)`} />
+              <Stat label="In progress" info="Orders still being handled, with the count waiting for approval below. Open Orders to review their status." value={active} sub={`${d.active_orders.placed ?? 0} waiting for approval`} />
+              <Stat label="Tables in use" info="Occupied tables compared with all tables in this outlet. Open Floor to seat guests and manage table service." value={`${occupied}/${totalTables}`} sub={`${d.tables.needs_cleaning ?? 0} need cleaning`} />
+              <Stat label="Avg time to serve" info="Average time taken to serve orders. A dash means no timing is available yet. The count below shows bills still open." value={d.timing.avg_serve_minutes != null ? `${d.timing.avg_serve_minutes} min` : '—'} sub={`${d.open_bills} ${d.open_bills === 1 ? 'bill' : 'bills'} open`} />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="p-5">
+              <Card data-help-title="Payments" data-help="Today’s payments grouped by payment method. Compare the amounts and counts; use Bills to inspect individual payments." className="p-5">
                 <h2 className="mb-3 text-sm font-semibold">Payments</h2>
                 {d.payments.length === 0 ? (
                   <p className="text-sm text-ink-faint">No payments yet today.</p>
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                   </ul>
                 )}
               </Card>
-              <Card className="p-5">
+              <Card data-help-title="Top dishes" data-help="Today’s most popular dishes with quantities sold and revenue. Use Reports for a broader sales breakdown." className="p-5">
                 <h2 className="mb-3 text-sm font-semibold">Top dishes</h2>
                 {d.top_items.length === 0 ? (
                   <p className="text-sm text-ink-faint">No orders yet today.</p>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
           </>
         )}
 
-        <Card className="p-5">
+        <Card data-help-title="Floor right now" data-help="A live summary of tables by service status. Open Floor to view and manage individual tables." className="p-5">
           <h2 className="mb-3 text-sm font-semibold">Floor right now</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {(Object.keys(TABLE_STATE) as TableState[]).map((s) => (

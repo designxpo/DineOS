@@ -88,8 +88,8 @@ export function OnboardingTour({ dark = false }: { dark?: boolean }) {
         'अपना काम छोड़े बिना सहायता माँगें या जवाब देखें।',
       ));
       add('[data-tour="replay"]', copy('You are ready', 'आप तैयार हैं'), copy(
-        'Use this compass button to take the tour again at any time.',
-        'कभी भी परिचय दोबारा देखने के लिए इस कंपास बटन का उपयोग करें।',
+        'Use the Take a tour button at the top to restart this walkthrough anytime. Hover over controls for four seconds to see help while you work.',
+        'ऊपर परिचय देखें बटन से परिचय दोबारा शुरू करें। काम करते समय मदद के लिए किसी नियंत्रण पर चार सेकंड रुकें।',
       ));
       if (!steps.length) return;
       tour.setSteps(steps);
@@ -127,8 +127,10 @@ export function OnboardingTour({ dark = false }: { dark?: boolean }) {
   return (
     <button type="button" data-tour="replay" disabled={!ready} onClick={() => start.current()}
       aria-label={label} title={label}
-      className={cn('grid size-10 shrink-0 cursor-pointer place-items-center rounded-xl disabled:opacity-50', dark ? 'text-stone-300 hover:bg-stone-800' : 'text-ink-soft hover:bg-stone-100')}>
-      <Compass className="size-5" aria-hidden="true" />
+      className={cn('flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-current/20 px-2 text-xs font-semibold disabled:opacity-50 sm:px-3 sm:text-sm', dark ? 'text-stone-300 hover:bg-stone-800' : 'text-ink-soft hover:bg-stone-100')}>
+      <Compass className="hidden size-4 sm:block" aria-hidden="true" />
+      <span className="hidden sm:inline">{label}</span>
+      <span className="sm:hidden">{lang === 'hi' ? 'परिचय' : 'Tour'}</span>
     </button>
   );
 }

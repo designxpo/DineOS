@@ -43,6 +43,8 @@ export function NavigationMenu({ items, pathname, compact = false, onNavigate }:
         <Search aria-hidden="true" className="pointer-events-none absolute top-3.5 left-3 size-4 text-ink-faint" />
         <input
           type="search"
+          data-help="Type a screen name to filter this navigation menu. Clear the search to see all screens available to your role."
+          data-help-hi="स्क्रीन खोजने के लिए उसका नाम लिखें। सभी उपलब्ध स्क्रीन देखने के लिए खोज साफ़ करें।"
           aria-label={hindi ? 'स्क्रीन खोजें' : 'Find a screen'}
           placeholder={hindi ? 'स्क्रीन खोजें…' : 'Find a screen…'}
           value={query}

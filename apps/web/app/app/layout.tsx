@@ -3,6 +3,7 @@
 import 'driver.js/dist/driver.css';
 import './onboarding.css';
 
+import { HoverHelp } from '@/components/staff/hover-help';
 import { AppShell } from '@/components/staff/shell';
 import { ApprovalProvider } from '@/components/staff/approval';
 import { I18nProvider } from '@/lib/i18n';
@@ -25,6 +26,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
         <Realtime>
           <ApprovalProvider>
             <AppShell>{children}</AppShell>
+            <HoverHelp />
           </ApprovalProvider>
         </Realtime>
       </I18nProvider>

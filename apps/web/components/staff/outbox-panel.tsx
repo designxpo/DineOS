@@ -64,7 +64,7 @@ export function SyncStatus() {
   return (
     <div className="flex items-center gap-2 text-xs">
       <OutboxBadge />
-      <button type="button" onClick={() => setOpen(true)} className="flex cursor-pointer items-center gap-1.5 rounded-full px-1.5 py-1 text-ink-faint hover:bg-stone-100" aria-label={t('sync.aria')} role="status">
+      <button type="button" data-help="Check your connection and any changes waiting to sync. Open this panel to review pending or rejected changes." data-help-hi="कनेक्शन और सिंक होने वाले बदलाव देखें। लंबित या अस्वीकृत बदलाव देखने के लिए पैनल खोलें।" onClick={() => setOpen(true)} className="flex cursor-pointer items-center gap-1.5 rounded-full px-1.5 py-1 text-ink-faint hover:bg-stone-100" aria-label={t('sync.aria')} role="status">
         <span className={cn('size-2 rounded-full', hub ? 'bg-sky-500' : connection === 'online' ? 'bg-emerald-500' : connection === 'connecting' ? 'bg-amber-400' : 'bg-rose-500')} />
         {hub ? 'Hub' : connection === 'online' ? 'Live' : connection === 'connecting' ? 'Connecting' : 'Offline'}
       </button>

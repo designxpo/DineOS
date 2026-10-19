@@ -246,7 +246,7 @@ export function InfoToggle({ label, open, onToggle, className }: { label: string
 export function Stat({ label, value, sub, className, info }: { label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string; info?: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <Card className={cn('p-4', className)}>
+    <Card data-help-title={label} data-help={info} className={cn('p-4', className)}>
       <div className="flex items-start gap-1">
         <p className="min-w-0 flex-1 text-xs font-medium tracking-wide text-ink-faint uppercase">{label}</p>
         {info && <InfoToggle label={label} open={open} onToggle={() => setOpen(!open)} />}

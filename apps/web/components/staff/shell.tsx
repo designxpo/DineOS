@@ -305,7 +305,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
           <div className="ml-auto flex items-center gap-1">
-            <WhatsNewPill />
+            <span className="hidden sm:inline-flex"><WhatsNewPill /></span>
             <OnboardingTour />
             <HelpButton />
             <SoundButton />
