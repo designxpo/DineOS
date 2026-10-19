@@ -1,18 +1,6 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  max-width: none;
-  height: 100dvh;
-  max-height: none;
-  margin: 0;
-  padding: 24px 20px;
-  border: 0;
-  background: transparent;
-  color: #292524;
-  overflow: hidden;
-}
-.overlay::backdrop { background: rgb(245 243 239 / 94%); backdrop-filter: blur(8px); }
+.panel { width: 100%; min-width: 0; padding: 24px 0; border: 1px solid var(--line, #e7e5e4); border-radius: 16px; background: #f5f3ef; color: #292524; overflow: hidden; }
+.actions { display: flex; gap: 8px; }
+.complete .feed, .complete .paper { animation: none; transform: none; will-change: auto; }
 .experience { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; animation: arrive 220ms ease-out both; }
 .caption { font-size: 13px; font-weight: 500; letter-spacing: .025em; color: #57534e; }
 .scene { position: relative; width: 340px; transform-origin: top left; }
@@ -31,4 +19,4 @@
 @keyframes feed { 0%, 8% { transform: translateY(-100%); } 83% { transform: translateY(0); } 88% { transform: translateY(2px); } 93%, 100% { transform: translateY(0); } }
 @keyframes paper { 0%, 8% { transform: translateY(100%); } 83%, 100% { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .experience, .feed, .paper { animation: none; transform: none; will-change: auto; } }
-@media print { .overlay { display: none !important; } .overlay::backdrop { display: none; background: transparent; } }
+@media print { .panel { display: none !important; } }

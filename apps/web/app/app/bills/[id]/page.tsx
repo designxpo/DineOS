@@ -51,6 +51,8 @@ export default function BillPage() {
   const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void' | 'comp'>(null);
   const [lineDiscount, setLineDiscount] = useState<BillLineDTO | null>(null);
   const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
+  const [previewSequence, setPreviewSequence] = useState(0);
+  const [browserPrintSequence, setBrowserPrintSequence] = useState(0);
   const printInFlight = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -80,7 +82,7 @@ export default function BillPage() {
       if (printing && mounted.current) {
         const current = qc.getQueryData<Invoice>(['bill', id]);
         // The refreshed server invoice includes the assigned invoice number and final totals.
-        if (current) setPrintingInvoice((active) => active ?? current);
+        if (current) { setPrintingInvoice(current); setPreviewSequence((value) => value + 1); }
       }
       if (done) toast(done);
       return true;
@@ -130,7 +132,7 @@ export default function BillPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 lg:px-8">
-      {printingInvoice && <AnimatedReceiptPrinter onDismiss={() => setPrintingInvoice(null)}><BillReceipt data={printingInvoice} /></AnimatedReceiptPrinter>}
+      {browserPrintSequence > 0 && <iframe key={browserPrintSequence} src={`/print/bill/${id}`} title="Browser print receipt" className="fixed bottom-0 left-0 h-px w-px border-0 opacity-0" tabIndex={-1} aria-hidden="true" />}
       <div className="mb-5 flex items-start gap-2 sm:items-center sm:gap-3">
         <Link href="/app/bills" className="grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-stone-100" aria-label={t('bill.back')}>
           <ArrowLeft className="size-5" />
@@ -154,7 +156,7 @@ export default function BillPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-        <Card className="overflow-hidden">
+        {printingInvoice ? <AnimatedReceiptPrinter key={previewSequence} onDismiss={() => setPrintingInvoice(null)}><BillReceipt data={printingInvoice} /></AnimatedReceiptPrinter> : <Card className="overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-left text-xs text-ink-faint uppercase">
               <tr>
@@ -234,9 +236,14 @@ export default function BillPage() {
               <dd className="font-display text-3xl font-semibold tabular">{formatPaise(bill.total_paise)}</dd>
             </div>
           </dl>
-        </Card>
+        </Card>}
 
         <div className="space-y-4">
+          <Card className="p-4">
+            <Button variant="outline" onClick={() => { setPrintingInvoice(inv); setPreviewSequence((value) => value + 1); }}>
+              <FileText className="size-4" /> On-screen receipt
+            </Button>
+          </Card>
           {draft && can('bill.manage') && (
             <Card className="space-y-3 p-4">
               <div className="grid grid-cols-2 gap-2">
@@ -341,7 +348,7 @@ export default function BillPage() {
               <Button variant="outline" onClick={() => void act('print', () => api(`/bills/${id}/print`, { method: 'POST' }), t('bill.sent_printer'))}>
                 <Printer className="size-4" /> {t('bill.print_again')}
               </Button>
-              <Button variant="ghost" onClick={() => window.open(`/print/bill/${id}`, '_blank')}>
+              <Button variant="ghost" onClick={() => { setPrintingInvoice(inv); setPreviewSequence((value) => value + 1); setBrowserPrintSequence((value) => value + 1); }}>
                 <FileText className="size-4" /> {t('bill.browser_print')}
               </Button>
               {!hub && bill.status === 'finalised' && bill.paid_paise === 0 && (

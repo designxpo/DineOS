@@ -32,29 +32,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
   reduced = false;
 });
-it('renders supplied receipt data and dismisses after the configured duration', () => {
+it('keeps supplied receipt data visible after the animation finishes', () => {
   const dismiss = vi.fn();
   act(() => root.render(<AnimatedReceiptPrinter onDismiss={dismiss}>Invoice 42 · Rs. 409.50</AnimatedReceiptPrinter>));
-  expect(document.querySelector('dialog')?.textContent).toContain('Invoice 42 · Rs. 409.50');
+  expect(document.querySelector('section')?.textContent).toContain('Invoice 42 · Rs. 409.50');
   act(() => vi.advanceTimersByTime(RECEIPT_ANIMATION_DURATION_MS - 1));
   expect(dismiss).not.toHaveBeenCalled();
   act(() => vi.advanceTimersByTime(1));
-  expect(dismiss).toHaveBeenCalledTimes(1);
+  expect(dismiss).not.toHaveBeenCalled();
 });
 it('handles native printing and removes listeners, timers and observers on unmount', () => {
   const dismiss = vi.fn();
   act(() => root.render(<AnimatedReceiptPrinter onDismiss={dismiss}>Receipt</AnimatedReceiptPrinter>));
   act(() => window.dispatchEvent(new Event('afterprint')));
-  expect(dismiss).toHaveBeenCalledTimes(1);
+  expect(dismiss).not.toHaveBeenCalled();
   act(() => root.render(null));
   act(() => { vi.runAllTimers(); window.dispatchEvent(new Event('afterprint')); });
-  expect(dismiss).toHaveBeenCalledTimes(1);
+  expect(dismiss).not.toHaveBeenCalled();
   expect(disconnect).toHaveBeenCalled();
 });
-it('briefly shows a static receipt when reduced motion is requested', () => {
+it('keeps a static receipt when reduced motion is requested', () => {
   reduced = true;
   const dismiss = vi.fn();
   act(() => root.render(<AnimatedReceiptPrinter onDismiss={dismiss}>Receipt</AnimatedReceiptPrinter>));
   act(() => vi.advanceTimersByTime(700));
+  expect(dismiss).not.toHaveBeenCalled();
+});
+
+it('dismisses on another portal action but not a click inside the receipt', () => {
+  const dismiss = vi.fn();
+  act(() => root.render(<AnimatedReceiptPrinter onDismiss={dismiss}>Receipt</AnimatedReceiptPrinter>));
+  act(() => document.querySelector('section')?.click());
+  expect(dismiss).not.toHaveBeenCalled();
+  const action = document.createElement('button');
+  document.body.append(action);
+  act(() => action.click());
   expect(dismiss).toHaveBeenCalledTimes(1);
+  action.remove();
 });

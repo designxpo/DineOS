@@ -26,7 +26,8 @@ export function usePrintData<T>(path: string) {
 }
 
 export function Receipt({ children, animate = false }: { children: React.ReactNode; animate?: boolean }) {
-  const [printing, setPrinting] = useState(animate);
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => { if (animate && window.self === window.top) setPrinting(true); }, [animate]);
   return (
     <div className="mx-auto w-[80mm] p-3 font-mono text-[12px] leading-snug">
       {printing && <AnimatedReceiptPrinter onDismiss={() => setPrinting(false)}>{children}</AnimatedReceiptPrinter>}
