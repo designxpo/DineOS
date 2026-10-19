@@ -1,0 +1,34 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 24px 20px;
+  border: 0;
+  background: transparent;
+  color: #292524;
+  overflow: hidden;
+}
+.overlay::backdrop { background: rgb(245 243 239 / 94%); backdrop-filter: blur(8px); }
+.experience { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; animation: arrive 220ms ease-out both; }
+.caption { font-size: 13px; font-weight: 500; letter-spacing: .025em; color: #57534e; }
+.scene { position: relative; width: 340px; transform-origin: top left; }
+.printer { position: relative; z-index: 2; height: 134px; border-radius: 24px 24px 16px 16px; background: linear-gradient(145deg, #555b60, #24282b 58%, #17191b); box-shadow: inset 0 2px 2px #85898b, inset 0 -4px 5px #0e1012, 0 14px 24px #29252435; }
+.lid { position: absolute; inset: 12px 14px 43px; border: 1px solid #151719; border-radius: 15px 15px 7px 7px; background: linear-gradient(170deg, #555b5f, #34393c); box-shadow: inset 0 1px 1px #777b7c, 0 1px 1px #65696c; }
+.brand { position: absolute; left: 24px; bottom: 27px; color: #9ba4a8; font: 8px monospace; letter-spacing: 2px; }
+.indicator { position: absolute; right: 25px; bottom: 29px; width: 5px; height: 5px; border-radius: 50%; background: #a9e2bc; box-shadow: 0 0 7px #a9e2bc88; }
+.slot { position: absolute; bottom: 8px; left: 13px; right: 13px; height: 10px; border-radius: 6px; background: #080a0b; box-shadow: 0 1px 1px #73787a, inset 0 3px 3px #000; }
+.output { position: relative; margin: -13px auto 0; width: 304px; overflow: hidden; padding: 0 1px 12px; }
+.feed { overflow: hidden; transform: translateY(-100%); animation: feed var(--duration) linear both; will-change: transform; }
+.paper { width: 302px; padding: 18px 12px 22px; color: #171717; font: 12px/1.375 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; background: repeating-linear-gradient(0deg, #00000002 0px, #00000002 1px, transparent 1px, transparent 3px), linear-gradient(90deg, #eeeae0, #fffefa 6%, #fffefa 94%, #eeeae0); box-shadow: inset 0 8px 10px #00000012; transform: translateY(100%); animation: paper var(--duration) linear both; will-change: transform; }
+.paper::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: linear-gradient(135deg, transparent 50%, #f5f3ef 50%) 0 0 / 8px 8px repeat-x; }
+.skip { border: 1px solid #d6d3d1; border-radius: 999px; padding: 8px 16px; background: #ffffffb0; color: #57534e; font-size: 12px; cursor: pointer; }
+.skip:focus-visible { outline: 2px solid var(--brand, #44403c); outline-offset: 3px; }
+@keyframes arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes feed { 0%, 8% { transform: translateY(-100%); } 83% { transform: translateY(0); } 88% { transform: translateY(2px); } 93%, 100% { transform: translateY(0); } }
+@keyframes paper { 0%, 8% { transform: translateY(100%); } 83%, 100% { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .experience, .feed, .paper { animation: none; transform: none; will-change: auto; } }
+@media print { .overlay { display: none !important; } .overlay::backdrop { display: none; background: transparent; } }

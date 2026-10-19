@@ -5,7 +5,7 @@ import { ArrowLeft, Banknote, BedDouble, Bike, CreditCard, Crown, Droplets, File
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { rupeesToPaise } from '@mezmitra/shared/money';
 import type { BillDTO, BillLineDTO, BillLoyaltyDTO, CustomerDTO, InvoiceDTO, PaymentDTO } from '@mezmitra/shared/dto';
 import type { PaymentMethod } from '@mezmitra/shared/enums';
@@ -24,6 +24,9 @@ import { CompForm, type CompRequest } from '@/components/staff/comp-sheet';
 import { NewCustomerSheet } from '@/components/staff/customer-sheet';
 import { SellMembershipSheet, TopUpSheet } from '@/components/staff/loyalty/sell-sheets';
 import { ReasonPicker } from '@/components/staff/orders';
+
+import { AnimatedReceiptPrinter } from '@/components/print/animated-receipt-printer';
+import { BillReceipt } from '@/components/print/bill-receipt';
 
 type Invoice = InvoiceDTO & { upi_uri: string | null };
 
@@ -47,6 +50,10 @@ export default function BillPage() {
   const withApproval = useWithApproval();
   const [sheet, setSheet] = useState<null | 'discount' | 'split' | 'customer' | 'void' | 'comp'>(null);
   const [lineDiscount, setLineDiscount] = useState<BillLineDTO | null>(null);
+  const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
+  const printInFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [busy, setBusy] = useState<string | null>(null);
   // On the outlet hub (offline) only what needs no manager PIN or cloud lookup is offered.
   const [hub, setHub] = useState(false);
@@ -62,17 +69,26 @@ export default function BillPage() {
   };
 
   const act = async (label: string, fn: (approval: string | null) => Promise<unknown>, done?: string) => {
+    const printing = label === 'print' || label === 'finalise';
+    if (printing && printInFlight.current) return false;
+    if (printing) printInFlight.current = true;
     setBusy(label);
     try {
       const res = await withApproval(fn);
       if (res === undefined) return false;
       await refresh();
+      if (printing && mounted.current) {
+        const current = qc.getQueryData<Invoice>(['bill', id]);
+        // The refreshed server invoice includes the assigned invoice number and final totals.
+        if (current) setPrintingInvoice((active) => active ?? current);
+      }
       if (done) toast(done);
       return true;
     } catch (err) {
       toast(errorMessage(err), 'error');
       return false;
     } finally {
+      if (printing) printInFlight.current = false;
       setBusy(null);
     }
   };
@@ -114,6 +130,7 @@ export default function BillPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-16 lg:px-8">
+      {printingInvoice && <AnimatedReceiptPrinter onDismiss={() => setPrintingInvoice(null)}><BillReceipt data={printingInvoice} /></AnimatedReceiptPrinter>}
       <div className="mb-5 flex items-start gap-2 sm:items-center sm:gap-3">
         <Link href="/app/bills" className="grid size-10 place-items-center rounded-xl text-ink-soft hover:bg-stone-100" aria-label={t('bill.back')}>
           <ArrowLeft className="size-5" />

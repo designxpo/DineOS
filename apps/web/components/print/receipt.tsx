@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch, errorMessage } from '@/lib/api';
+import { AnimatedReceiptPrinter } from './animated-receipt-printer';
 import { readStaffToken } from '@/lib/staff';
 
 /** Loads data with the staff token, renders an 80 mm page and opens the print dialog. */
@@ -24,11 +25,13 @@ export function usePrintData<T>(path: string) {
   return { data, error };
 }
 
-export function Receipt({ children }: { children: React.ReactNode }) {
+export function Receipt({ children, animate = false }: { children: React.ReactNode; animate?: boolean }) {
+  const [printing, setPrinting] = useState(animate);
   return (
     <div className="mx-auto w-[80mm] p-3 font-mono text-[12px] leading-snug">
+      {printing && <AnimatedReceiptPrinter onDismiss={() => setPrinting(false)}>{children}</AnimatedReceiptPrinter>}
       {children}
-      <button onClick={() => window.print()} className="no-print mt-6 w-full cursor-pointer rounded-lg bg-black py-2 font-sans text-sm text-white">
+      <button onClick={() => { if (animate) setPrinting(true); window.print(); }} className="no-print mt-6 w-full cursor-pointer rounded-lg bg-black py-2 font-sans text-sm text-white">
         Print
       </button>
     </div>
