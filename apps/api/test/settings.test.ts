@@ -101,6 +101,16 @@ describe('data rights', () => {
   it('purges every row of a tenant and nothing of anyone else', async () => {
     const doomed = await createTenant(t);
     await createMenu(t, doomed);
+    await t.ctx.adminDb
+      .insertInto('screens')
+      .values({
+        id: crypto.randomUUID(),
+        tenant_id: doomed.tenantId,
+        outlet_id: doomed.outletId,
+        user_id: doomed.ownerId,
+        kind: 'floor',
+      })
+      .execute();
     const { purgeTenant } = await import('../src/lib/purge');
     await purgeTenant(t.ctx.adminDb, doomed.tenantId);
     const left = await t.ctx.adminDb.selectFrom('menu_items').select('id').where('tenant_id', '=', doomed.tenantId).execute();
