@@ -64,7 +64,7 @@ export function NavigationMenu({ items, pathname, compact = false, onNavigate }:
                 const active = item.href === '/app' ? pathname === '/app' : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const Icon = item.icon;
                 return (
-                  <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? 'page' : undefined}
+                  <Link key={item.href} data-tour-link={item.href} href={item.href} onClick={onNavigate} aria-current={active ? 'page' : undefined}
                     className={cn('relative rounded-xl font-medium transition-colors', compact ? 'flex min-h-20 flex-col items-center justify-center gap-2 px-2 py-3 text-center text-sm' : 'flex min-h-11 items-center gap-3 px-3 py-2 text-sm', active ? 'bg-brand-100 text-brand-700' : 'text-ink-soft hover:bg-stone-100 hover:text-ink', compact && !active && 'bg-stone-50')}>
                     <Icon className="size-[18px] shrink-0" />
                     <span>{item.label}</span>

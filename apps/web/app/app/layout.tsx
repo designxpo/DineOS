@@ -1,5 +1,8 @@
 'use client';
 
+import 'driver.js/dist/driver.css';
+import './onboarding.css';
+
 import { AppShell } from '@/components/staff/shell';
 import { ApprovalProvider } from '@/components/staff/approval';
 import { I18nProvider } from '@/lib/i18n';

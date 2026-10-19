@@ -1,0 +1,31 @@
+.driver-popover.mezmitra-tour {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  border-radius: 16px;
+  padding: 20px;
+  max-width: min(340px, calc(100vw - 24px));
+}
+
+.mezmitra-tour .driver-popover-title,
+.mezmitra-tour .driver-popover-description,
+.mezmitra-tour .driver-popover-footer button {
+  font-family: inherit;
+}
+
+.mezmitra-tour .driver-popover-footer button {
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 8px 14px;
+  text-shadow: none;
+}
+
+.mezmitra-tour .driver-popover-next-btn {
+  background: var(--brand, #b9381e);
+  border-color: var(--brand, #b9381e);
+  color: white;
+}
+
+.mezmitra-tour button:focus-visible {
+  outline: 2px solid var(--brand, #b9381e);
+  outline-offset: 3px;
+}

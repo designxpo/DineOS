@@ -183,6 +183,7 @@ export function HelpButton({ dark }: { dark?: boolean }) {
     <>
       <button
         type="button"
+        data-tour="help"
         onClick={() => setOpen(true)}
         aria-label={waiting ? t('help.button_waiting', { n: waiting }) : t('help.button')}
         title={t('help.button')}

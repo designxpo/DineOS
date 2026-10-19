@@ -85,6 +85,7 @@ export function SoundButton({ dark }: { dark?: boolean }) {
     <>
       <button
         type="button"
+        data-tour="sound"
         onClick={() => {
           setReady(unlockSound());
           setOpen(true);

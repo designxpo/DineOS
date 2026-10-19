@@ -42,6 +42,7 @@ import { NavigationMenu } from './navigation-menu';
 import { Select } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { HelpButton } from './help';
+import { OnboardingTour } from './onboarding-tour';
 import { HubModeBanner, HubSwitchBanner } from './offline-hub';
 import { SyncStatus } from './outbox-panel';
 import { PrintProblems } from './print-problems';
@@ -115,14 +116,14 @@ function TabBar({ items, onMore, moreOpen }: { items: NavItem[]; onMore: () => v
   const onTab = tabs.some((tab) => isActive(tab.href, pathname));
   const cell = 'flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-90 active:duration-75';
   return (
-    <nav data-tabbar aria-label={t('nav.more')} className="chrome fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden no-print">
+    <nav data-tabbar data-tour="navigation" aria-label={t('nav.more')} className="chrome fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden no-print">
       <div className="mx-auto grid h-14 max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
         {tabs.map((tab) => {
           const active = isActive(tab.href, pathname);
           const Icon = tab.icon;
           const badge = tab.href === '/app/inbox' && waiting > 0 ? waiting : 0;
           return (
-            <Link key={tab.href} href={tab.href} aria-current={active ? 'page' : undefined} className={cn(cell, active ? 'text-brand-700' : 'text-ink-faint')}>
+            <Link key={tab.href} data-tour-link={tab.href} href={tab.href} aria-current={active ? 'page' : undefined} className={cn(cell, active ? 'text-brand-700' : 'text-ink-faint')}>
               <span className="relative">
                 <Icon className="size-[22px]" />
                 {badge > 0 && (
@@ -260,7 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
+      <aside data-tour="navigation" className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-line px-5">
           <BrandMark branding={me.tenant.branding} className={cn('size-9 rounded-xl', me.tenant.branding.logo_url && 'border border-line')} />
           <div className="min-w-0 leading-tight">
@@ -305,10 +306,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {me.impersonated_by && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-800">Support session</span>}
           <div className="ml-auto flex items-center gap-1">
             <WhatsNewPill />
+            <OnboardingTour />
             <HelpButton />
             <SoundButton />
           </div>
-          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
+          <button data-tour="language" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-9 cursor-pointer rounded-full border border-line px-3 text-sm font-medium text-ink-soft hover:bg-stone-50" aria-label="Change language">
             {t('common.language')}
           </button>
           <div>{status}</div>

@@ -25,6 +25,7 @@ import { useSignOut } from '@/components/staff/sign-out';
 import { ConfirmDialog } from '@/components/ui/overlay';
 import { useToast } from '@/components/ui/toast';
 import { HelpButton } from '@/components/staff/help';
+import { OnboardingTour } from '@/components/staff/onboarding-tour';
 import { SoundButton } from '@/components/staff/sound-sheet';
 import { BrandMark } from '@/components/brand-mark';
 
@@ -110,7 +111,7 @@ export default function KdsPage() {
         {me.tenant.branding.logo_url ? <BrandMark branding={me.tenant.branding} className="size-9 rounded-lg" /> : <img src="/brand/symbol-white.svg" alt="" className="size-8 shrink-0" />}
         <h1 className="min-w-0 flex-1 truncate text-lg font-semibold sm:flex-none">{outlet?.name}</h1>
         {/* On a phone the stations get their own row and scroll sideways. */}
-        <div className="no-scrollbar order-last flex w-full gap-1 overflow-x-auto rounded-xl bg-stone-800 p-1 sm:order-none sm:w-auto" role="tablist" aria-label="Station">
+        <div className="no-scrollbar order-last flex w-full gap-1 overflow-x-auto rounded-xl bg-stone-800 p-1 sm:order-none sm:w-auto" data-tour="stations" role="tablist" aria-label="Station">
           {['', ...stations].map((s) => (
             <button
               key={s || 'all'}
@@ -132,9 +133,10 @@ export default function KdsPage() {
             <span className={cn('size-2.5 rounded-full', connection === 'online' ? 'bg-emerald-400' : 'bg-rose-500')} />
             {orders.length}
           </span>
-          <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-10 cursor-pointer rounded-xl px-3 text-sm font-semibold text-stone-300 hover:bg-stone-800">
+          <button data-tour="language" onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className="h-10 cursor-pointer rounded-xl px-3 text-sm font-semibold text-stone-300 hover:bg-stone-800">
             {t('common.language')}
           </button>
+          <OnboardingTour dark />
           <HelpButton dark />
           <SoundButton dark />
           <button onClick={() => void document.documentElement.requestFullscreen?.()} aria-label="Full screen" className="hidden size-10 cursor-pointer place-items-center rounded-xl text-stone-300 hover:bg-stone-800 sm:grid">
