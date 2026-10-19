@@ -16,7 +16,9 @@ import { createStaffSession } from '../modules/auth/service';
 import { purgeTenant } from '../lib/purge';
 import { attachDemoPhotos } from './demo-photos';
 
-const SLUG = 'aurum-courtyard';
+// A separate tenant keeps recording rehearsals away from the regular demo.
+const VIDEO = process.argv.includes('--video');
+const SLUG = VIDEO ? 'aurum-video' : 'aurum-courtyard';
 const PASSWORD = 'demo1234';
 const ADMIN_EMAIL = 'admin@mezmitra.local';
 const ADMIN_PASSWORD = 'admin-demo-1234';
@@ -174,7 +176,7 @@ async function main() {
   if (existing) await purgeTenant(db, existing.id);
 
   const ids = await provisionTenant(db, {
-    name: 'Aurum Grand Hotel',
+    name: VIDEO ? 'Aurum Grand Hotel (Demo)' : 'Aurum Grand Hotel',
     slug: SLUG,
     plan_code: 'standard',
     owner: { name: 'Meera Rao', email: 'owner@courtyard.demo', phone: '9800000000', password: PASSWORD },
@@ -196,7 +198,7 @@ async function main() {
       legal_name: 'Aurum Hospitality Pvt Ltd',
       phone: '+91 80 4000 1234',
       kitchen_stations: ['kitchen', 'tandoor', 'bar'],
-      upi_vpa: 'aurumcourtyard@okaxis',
+      upi_vpa: VIDEO ? null : 'aurumcourtyard@okaxis',
       upi_payee_name: 'Aurum Hospitality',
       auto_accept: false,
       approve_flagged_orders: true,
@@ -354,13 +356,17 @@ async function main() {
       .execute();
     return picks.map((p) => rows.find((r) => r.name === p)!.id);
   };
-  const scenarios: { table: string; lines: [string, number, string[]][]; settle?: 'cash' | 'upi'; serve?: boolean; customer?: string }[] = [
+  const scenarios: { table: string; lines: [string, number, string[]][]; settle?: 'cash' | 'upi'; serve?: boolean; stage?: 'preparing' | 'ready'; customer?: string }[] = [
     { table: 'C2', lines: [['Paneer Tikka', 1, ['Medium']], ['Dal Makhani', 1, ['Butter naan']], ['Masala Chai', 2, []]], settle: 'upi', customer: 'Ananya Rao' },
     { table: 'C5', lines: [['Butter Chicken', 1, ['Garlic naan']], ['Fresh Lime Soda', 2, []]], settle: 'cash' },
     { table: 'P3', lines: [['Hyderabadi Chicken Biryani', 2, []], ['Gulab Jamun', 2, []]], settle: 'upi' },
     { table: 'C7', lines: [['Hara Bhara Kebab', 1, []], ['Cold Coffee', 2, ['Large']]], serve: true },
     { table: 'P1', lines: [['Veg Dum Biryani', 1, []], ['Virgin Mojito', 1, []]] },
   ];
+  if (VIDEO) scenarios.push(
+    { table: 'C3', lines: [['Paneer Tikka', 2, ['Medium']], ['Fresh Lime Soda', 2, []]], stage: 'preparing' },
+    { table: 'P2', lines: [['Dal Makhani', 1, ['Garlic naan']], ['Virgin Mojito', 2, []]], stage: 'ready' },
+  );
   for (const s of scenarios) {
     await ctx.tx(t, async (tx) => {
       const sess = await getOrCreateSession(tx, tableIds[s.table]!);
@@ -368,6 +374,7 @@ async function main() {
       const lines = [];
       for (const [name, qty, picks] of s.lines) lines.push({ item_id: itemIds[name]!, qty, modifier_ids: await modsOf(name, picks) });
       const order = await createOrder(tx, { outletId, type: 'dine_in', source: 'waiter', sessionId: sess.id, lines, createdBy: owner.userId });
+      if (s.stage) await transitionOrder(tx, owner, order.id, s.stage);
       if (s.serve || s.settle) await transitionOrder(tx, owner, order.id, 'served');
       if (s.settle) {
         const bill = await createBill(tx, owner, { table_session_id: sess.id });
@@ -432,7 +439,7 @@ async function main() {
 
   // Platform admin
   const admin = await db.selectFrom('platform_admins').select('id').where('email', '=', ADMIN_EMAIL).executeTakeFirst();
-  if (!admin) await db.insertInto('platform_admins').values({ name: 'Platform Admin', email: ADMIN_EMAIL, password_hash: await hashSecret(ADMIN_PASSWORD) }).execute();
+  if (!VIDEO && !admin) await db.insertInto('platform_admins').values({ name: 'Platform Admin', email: ADMIN_EMAIL, password_hash: await hashSecret(ADMIN_PASSWORD) }).execute();
 
   console.log(`
 Seeded "${SLUG}" (Aurum Grand Hotel, The Courtyard): ${Object.keys(itemIds).length} dishes, ${Object.keys(tableIds).length} tables.
@@ -443,7 +450,7 @@ Seeded "${SLUG}" (Aurum Grand Hotel, The Courtyard): ${Object.keys(itemIds).leng
   Cashier:  priya@courtyard.demo / ${PASSWORD}
   Waiter:   ravi@courtyard.demo  / ${PASSWORD}
   Kitchen:  imran@courtyard.demo / ${PASSWORD}
-  Platform admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}
+${VIDEO ? '  Recording guide: docs/product-video.md' : `  Platform admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`}
 
 Print a table QR from Tables in the portal, or open the guest menu for C1 via the portal's "Open guest view".
 `);

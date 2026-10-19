@@ -36,6 +36,10 @@ Open <http://localhost:3000/login> and sign in with restaurant code `aurum-court
 
 To act as a guest, open **Floor**, tap a table and choose **Guest menu**, or print the QR sheet from **Tables & QR**. Phones on your network can scan it if you set `GUEST_URL_TEMPLATE` and `NEXT_PUBLIC_API_URL` to your machine's LAN address.
 
+## Recording a product video
+
+Run `npm run demo:video` to create a separate `aurum-video` recording restaurant with staged kitchen orders and realistic trade. See [the recording playbook](docs/product-video.md) for login details, repeat-take instructions and a timed shot list.
+
 ## Commands
 
 | Command | What it does |

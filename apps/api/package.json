@@ -15,7 +15,8 @@
     "db:seed": "tsx src/scripts/seed.ts",
     "demo:photos": "tsx src/scripts/demo-photos.ts",
     "admin:create": "tsx src/scripts/create-admin.ts",
-    "tenant:purge": "tsx src/scripts/purge-tenant.ts"
+    "tenant:purge": "tsx src/scripts/purge-tenant.ts",
+    "demo:video": "node --import tsx src/scripts/seed.ts --video"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",

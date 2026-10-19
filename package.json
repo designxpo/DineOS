@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "demo:video": "npm run demo:video -w @mezmitra/api --"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
