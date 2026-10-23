@@ -27,8 +27,12 @@ const config: NextConfig = {
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
       "font-src 'self'",
-      "frame-ancestors 'none'",
+      // 'self', not 'none': the bill page prints through a hidden iframe of /print/bill/:id, and
+      // 'none' refuses even our own pages. Other sites still cannot frame us.
+      "frame-ancestors 'self'",
       "base-uri 'self'",
+      "object-src 'none'",
+      "form-action 'self'",
     ].join('; ');
     return [
       {
@@ -38,6 +42,16 @@ const config: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // The rest of what helmet() sets (this is Next.js, so there is no app.use to give it to).
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+          { key: 'Origin-Agent-Cluster', value: '?1' },
+          { key: 'X-DNS-Prefetch-Control', value: 'off' },
+          { key: 'X-Download-Options', value: 'noopen' },
+          { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
+          { key: 'X-XSS-Protection', value: '0' },
         ],
       },
       {

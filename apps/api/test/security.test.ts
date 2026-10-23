@@ -145,6 +145,11 @@ describe('security headers', () => {
         'referrer-policy': 'no-referrer',
         'cross-origin-opener-policy': 'same-origin',
         'cross-origin-resource-policy': 'same-site',
+        'origin-agent-cluster': '?1',
+        'x-dns-prefetch-control': 'off',
+        'x-download-options': 'noopen',
+        'x-permitted-cross-domain-policies': 'none',
+        'x-xss-protection': '0',
       });
       expect(res.headers['content-security-policy']).toContain("default-src 'none'");
       expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");

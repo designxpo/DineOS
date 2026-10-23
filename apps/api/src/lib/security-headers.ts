@@ -17,6 +17,13 @@ export function registerSecurityHeaders(app: FastifyInstance, config: Pick<Confi
     // Same site, not same origin: the web app may live on a sibling subdomain of the API.
     ['cross-origin-resource-policy', 'same-site'],
     ['permissions-policy', 'camera=(), microphone=(), geolocation=()'],
+    // The rest of what helmet() sets. This hook is the API's helmet: everything above is as strict
+    // as helmet's defaults or stricter, so one mechanism stays rather than two fighting over values.
+    ['origin-agent-cluster', '?1'],
+    ['x-dns-prefetch-control', 'off'],
+    ['x-download-options', 'noopen'],
+    ['x-permitted-cross-domain-policies', 'none'],
+    ['x-xss-protection', '0'],
   ];
   if (config.NODE_ENV === 'production') headers.push(['strict-transport-security', 'max-age=31536000; includeSubDomains']);
   app.addHook('onSend', async (_req, reply, payload) => {
