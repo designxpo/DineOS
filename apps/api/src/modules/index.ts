@@ -20,6 +20,7 @@ import maintenance from './maintenance/routes';
 import menu from './menu/routes';
 import orders from './orders/routes';
 import pass from './pass/routes';
+import plan from './plan/routes';
 import outlets from './outlets/routes';
 import pickup from './pickup/routes';
 import print from './print/routes';
@@ -67,4 +68,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   pass,
   leads,
   integrations,
+  plan,
 };

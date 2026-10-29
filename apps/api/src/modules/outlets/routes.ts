@@ -225,7 +225,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .executeTakeFirstOrThrow();
         const max = Number((plan.features as { max_outlets?: number }).max_outlets ?? 1);
         const count = await tx.db.selectFrom('outlets').select((eb) => eb.fn.countAll<number>().as('n')).executeTakeFirstOrThrow();
-        if (Number(count.n) >= max) throw conflict('plan_limit', `Your plan allows ${max} outlet${max === 1 ? '' : 's'}. Upgrade to add more.`);
+        if (Number(count.n) >= max) throw conflict('plan_limit', `Your plan allows ${max} outlet${max === 1 ? '' : 's'}. Upgrade under Settings → Brand & plan → See plans.`);
         const row = await tx.db.insertInto('outlets').values({ ...body, tenant_id: tx.tenantId }).returning('id').executeTakeFirstOrThrow();
         await audit(tx, auth, { outletId: row.id, action: 'outlet.create', entity: 'outlet', entityId: row.id, after: { name: body.name } });
         return loadOutlet(tx, row.id);

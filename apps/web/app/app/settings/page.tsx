@@ -371,7 +371,12 @@ function Brand() {
     <div className="space-y-4">
       <BrandKit />
       <Card className="p-5">
-        <h2 className="font-semibold">Plan</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Plan</h2>
+          <Link href="/app/plan" className="inline-flex h-10 items-center rounded-xl border border-line px-4 text-sm font-medium hover:bg-stone-50">
+            See plans and upgrade
+          </Link>
+        </div>
         {sub.data ? (
           <>
             <p className="mt-1 text-sm">

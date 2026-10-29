@@ -784,6 +784,25 @@ export interface Payments {
   wallet_topup_id: string | null;
 }
 
+export interface PlanOrders {
+  amount_paise: number;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  credit_paise: Generated<number>;
+  currency: Generated<string>;
+  from_plan_code: string;
+  id: Generated<string>;
+  invoice_id: string | null;
+  last_error: string | null;
+  paid_at: Timestamp | null;
+  plan_code: string;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  status: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Plans {
   billing_period: Generated<string>;
   code: string;
@@ -1222,6 +1241,7 @@ export interface DB {
   outlets: Outlets;
   outside_bills: OutsideBills;
   payments: Payments;
+  plan_orders: PlanOrders;
   plans: Plans;
   platform_admins: PlatformAdmins;
   platform_audit_log: PlatformAuditLog;

@@ -5,11 +5,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { sql, type Transaction } from 'kysely';
 import { z } from 'zod';
-import { financialYear } from '@mezmitra/shared/dates';
 import type { AppContext } from '../../context';
 import { json, type DB } from '../../db';
 import { clearAuthCache, requireAdmin } from '../../lib/auth';
 import { randomToken, sha256, verifySecret } from '../../lib/crypto';
+import { nextPlatformInvoiceNumber } from '../../lib/platform-invoices';
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors';
 import { parse } from '../../lib/validate';
 import { provisionTenant } from './provision';
@@ -348,13 +348,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('tenants.id', '=', body.tenant_id)
           .executeTakeFirst();
         if (!tenant) throw notFound('Tenant');
-        const fy = financialYear(new Date().toISOString().slice(0, 10)).code;
-        const { value } = await trx
-          .insertInto('platform_counters')
-          .values({ name: 'invoice', period: fy, value: 1 })
-          .onConflict((oc) => oc.columns(['name', 'period']).doUpdateSet({ value: sql`platform_counters.value + 1` }))
-          .returning('value')
-          .executeTakeFirstOrThrow();
+        const number = await nextPlatformInvoiceNumber(trx);
         const subscription = await trx
           .insertInto('subscriptions')
           .values({ tenant_id: tenant.id, plan_code: tenant.plan_code, period_start: body.period_start, period_end: body.period_end })
@@ -365,7 +359,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .values({
             tenant_id: tenant.id,
             subscription_id: subscription.id,
-            number: `DOS/${fy}/${String(value).padStart(5, '0')}`,
+            number,
             amount_paise: body.amount_paise ?? tenant.price_paise,
             period_start: body.period_start,
             period_end: body.period_end,

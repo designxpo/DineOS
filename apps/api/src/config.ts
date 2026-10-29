@@ -62,6 +62,17 @@ const schema = z.object({
   INTEGRATION_ENC_KEY: z.string().min(32, 'INTEGRATION_ENC_KEY must be at least 32 characters').optional(),
   /** Talko AI's API, which receives bill, booking and order events, e.g. https://app.talkoai.com. */
   TALKO_API_URL: z.url().optional(),
+  /**
+   * Razorpay, for restaurants paying for a plan upgrade online (our own account, not the outlets').
+   * Key id and secret from Dashboard → API keys; the webhook secret from the webhook pointed at
+   * /v1/plan/razorpay/webhook with payment.captured and order.paid. Without the key, upgrades ask
+   * the owner to contact support.
+   */
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  /** Tests point this at a fake. */
+  RAZORPAY_API_URL: z.url().default('https://api.razorpay.com/v1'),
 });
 
 export type Config = z.infer<typeof schema> & { corsOrigins: string[]; storageDir: string };

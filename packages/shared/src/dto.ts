@@ -3,6 +3,7 @@
 
 import type { OnlineBooking, OpeningHours, ReservationSource } from './booking';
 import type { HeadingStyle } from './branding';
+import type { PlanFeatures, UpgradeQuote } from './plans';
 import type { GoliveResult, GoliveScenario } from './golive';
 import type {
   BillStatus,
@@ -1220,4 +1221,46 @@ export interface TalkoLinkDTO {
   last_error: string | null;
   counts: { pending: number; dead: number; sent_today: number };
   recent: TalkoDeliveryDTO[];
+}
+
+// ---------- Plans and upgrades ----------
+
+export interface PlanOfferDTO {
+  code: string;
+  name: string;
+  price_paise: number;
+  billing_period: 'monthly' | 'yearly';
+  features: PlanFeatures;
+  current: boolean;
+  /** What moving to this plan costs today; null when it is not an upgrade. */
+  upgrade: UpgradeQuote | null;
+}
+
+export interface PlansPageDTO {
+  current: {
+    code: string;
+    name: string;
+    price_paise: number;
+    billing_period: 'monthly' | 'yearly';
+    features: PlanFeatures;
+    period_start: string | null;
+    period_end: string | null;
+    usage: { outlets: number; tables: number };
+  };
+  plans: PlanOfferDTO[];
+  /** Razorpay is set up: upgrades can be paid here. */
+  online_payment: boolean;
+  /** The last attempt that did not go through, to show the owner why. */
+  last_failed: { plan_name: string; error: string; at: string } | null;
+}
+
+/** What the web app needs to open Razorpay Checkout. key_id is public by design. */
+export interface PlanCheckoutDTO {
+  order_id: string;
+  key_id: string;
+  amount_paise: number;
+  currency: 'INR';
+  plan_name: string;
+  business_name: string;
+  prefill: { name: string | null; email: string | null; contact: string | null };
 }

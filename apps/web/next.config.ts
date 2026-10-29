@@ -20,7 +20,7 @@ const config: NextConfig = {
   images: { unoptimized: true },
   async headers() {
     // Everything is served from our own origins; no third-party scripts, fonts or APIs.
-    const csp = [
+    const directives = [
       "default-src 'self'",
       `connect-src 'self' ${apiUrl} ${apiUrl.replace(/^http/, 'ws')}`,
       `img-src 'self' data: blob: ${apiUrl} https:`,
@@ -33,7 +33,19 @@ const config: NextConfig = {
       "base-uri 'self'",
       "object-src 'none'",
       "form-action 'self'",
-    ].join('; ');
+    ];
+    const csp = directives.join('; ');
+    // The plans page alone may load Razorpay Checkout (its script, its payment frame, and its
+    // popups for netbanking and 3-D Secure, which need the opener kept).
+    const razorpay = 'https://checkout.razorpay.com https://api.razorpay.com';
+    const planCsp = directives
+      .map((d) =>
+        d.startsWith('script-src') ? `${d} https://checkout.razorpay.com`
+        : d.startsWith('connect-src') ? `${d} ${razorpay} https://lumberjack.razorpay.com`
+        : d,
+      )
+      .concat(`frame-src ${razorpay}`)
+      .join('; ');
     return [
       {
         source: '/:path*',
@@ -52,6 +64,14 @@ const config: NextConfig = {
           { key: 'X-Download-Options', value: 'noopen' },
           { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
           { key: 'X-XSS-Protection', value: '0' },
+        ],
+      },
+      {
+        // Later entries win for the same header: these replace the two above on this page only.
+        source: '/app/plan',
+        headers: [
+          { key: 'Content-Security-Policy', value: planCsp },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
         ],
       },
       {

@@ -6,6 +6,7 @@ import { assertCan, assertOutletAccess, requireAction, requireStaff, type StaffA
 import { shownBrand } from '../../lib/branding';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { idParams, outletQuery, parse } from '../../lib/validate';
+import { planFeatures } from '@mezmitra/shared/plans';
 import {
   announceTables,
   loadServiceRequests,
@@ -35,6 +36,25 @@ const bulkCreate = z.object({
   seats: z.number().int().min(1).max(50).default(4),
   zone: z.string().trim().max(40).nullable().optional(),
 });
+
+/**
+ * The plan's table limit, across all outlets. Tables made before a smaller limit applied stay;
+ * only adding more is refused.
+ */
+async function assertTableRoom(tx: Tx, adding: number): Promise<void> {
+  const plan = await tx.db
+    .selectFrom('tenants')
+    .innerJoin('plans', 'plans.code', 'tenants.plan_code')
+    .select('plans.features')
+    .where('tenants.id', '=', tx.tenantId)
+    .executeTakeFirstOrThrow();
+  const max = planFeatures(plan.features).max_tables;
+  if (max === undefined) return;
+  const { n } = await tx.db.selectFrom('tables').select((eb) => eb.fn.countAll<string>().as('n')).where('is_active', '=', true).executeTakeFirstOrThrow();
+  if (Number(n) + adding > max) {
+    throw conflict('plan_limit', `Your plan allows ${max} tables. Upgrade under Settings → Brand & plan → See plans.`);
+  }
+}
 
 export default function routes(ctx: AppContext): FastifyPluginAsync {
   /** Loads a table and checks the caller may perform `action` at its outlet. */
@@ -96,6 +116,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const body = parse(createTable, req.body);
       const auth = requireAction(req, body.outlet_id, 'table.manage');
       const table = await ctx.tx(auth.tenantId, async (tx) => {
+        await assertTableRoom(tx, 1);
         const row = await tx.db
           .insertInto('tables')
           .values({
@@ -135,6 +156,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           values.push({ tenant_id: tx.tenantId, outlet_id: body.outlet_id, label, seats: body.seats, zone: body.zone ?? null, sort: n });
         }
         if (values.length === 0) return [];
+        await assertTableRoom(tx, values.length);
         const rows = await tx.db.insertInto('tables').values(values).returning('id').execute();
         await announceTables(tx, body.outlet_id, rows.map((r) => r.id));
         return loadTables(tx, body.outlet_id, rows.map((r) => r.id));

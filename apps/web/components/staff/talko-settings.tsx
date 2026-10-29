@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { clockMinutes, ONLINE_BOOKING_DEFAULTS, WEEKDAYS, type OnlineBooking, type OpeningHours, type Weekday } from '@mezmitra/shared/booking';
 import type { TalkoLinkDTO } from '@mezmitra/shared/dto';
@@ -100,7 +101,13 @@ function TalkoLink() {
       </p>
 
       {!data.plan_allows ? (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">Your plan does not include Talko AI. Upgrade under Brand &amp; plan to connect it.</p>
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Your plan does not include Talko AI.{' '}
+          <Link href="/app/plan" className="font-medium underline">
+            See plans
+          </Link>{' '}
+          to upgrade.
+        </p>
       ) : !data.configured ? (
         <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-ink-soft">Talko AI is not set up on this server yet. Ask Mezmitra support to turn it on.</p>
       ) : null}
