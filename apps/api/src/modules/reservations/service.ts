@@ -28,6 +28,7 @@ export async function loadReservations(tx: Tx, where: { outletId: string; from?:
     slot_end: r.slot_end.toISOString(),
     status: r.status as ReservationStatus,
     source: r.source as ReservationDTO['source'],
+    public_ref: r.public_ref,
     notes: r.notes,
     created_by_name: r.created_by_name,
     created_at: r.created_at.toISOString(),

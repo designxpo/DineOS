@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Armchair, CalendarClock, ChevronLeft, ChevronRight, Hourglass, Pencil, PhoneCall, Plus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { CHAT_CHANNELS } from '@mezmitra/shared/booking';
 import type { ReservationDTO, TableDTO, WaitlistEntryDTO } from '@mezmitra/shared/dto';
 import { errorMessage } from '@/lib/api';
 import { useI18n, type I18nKey, type Lang } from '@/lib/i18n';
@@ -29,7 +30,17 @@ const STATUS_LABEL: Record<ReservationDTO['status'], I18nKey> = {
   cancelled: 'res.status_cancelled',
   no_show: 'res.status_no_show',
 };
-const SOURCE_LABEL: Partial<Record<ReservationDTO['source'], I18nKey>> = { phone: 'res.src_phone', walk_in: 'res.src_walk_in', online: 'res.src_online' };
+const SOURCE_LABEL: Partial<Record<ReservationDTO['source'], I18nKey>> = {
+  phone: 'res.src_phone',
+  walk_in: 'res.src_walk_in',
+  online: 'res.src_online',
+  whatsapp: 'res.src_whatsapp',
+  instagram: 'res.src_instagram',
+  messenger: 'res.src_messenger',
+  webchat: 'res.src_webchat',
+};
+/** Bookings a guest made in a chat (Talko AI). Staff can edit them but not change where they came from. */
+const CHAT_SOURCES: readonly ReservationDTO['source'][] = CHAT_CHANNELS;
 type T = ReturnType<typeof useI18n>['t'];
 
 const shiftDay = (date: string, days: number) => {
@@ -160,7 +171,7 @@ export default function ReservationsPage() {
                           {r.table_label && <Badge>{t('res.table', { label: r.table_label })}</Badge>}
                         </p>
                         <p className="truncate text-xs text-ink-faint">
-                          {[r.guest_phone, SOURCE_LABEL[r.source] ? t(SOURCE_LABEL[r.source]!) : null, r.notes].filter(Boolean).join(' · ')}
+                          {[r.guest_phone, SOURCE_LABEL[r.source] ? t(SOURCE_LABEL[r.source]!) : null, r.public_ref, r.notes].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       {r.status === 'booked' && (
@@ -303,7 +314,8 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
         slot_start: slotStart,
         duration_minutes: duration,
         table_id: tableId || null,
-        source,
+        // A chat booking keeps its source; the API only lets staff set the others.
+        ...(CHAT_SOURCES.includes(source) ? {} : { source }),
         notes: notes.trim() || null,
       };
       if (booking) await api(`/reservations/${booking.id}`, { method: 'PATCH', body });
@@ -395,6 +407,9 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
             </span>
           </label>
         )}
+        {booking?.public_ref && CHAT_SOURCES.includes(source) ? (
+          <p className="text-sm text-ink-soft">{t('res.chat_booking', { ref: booking.public_ref })}</p>
+        ) : (
         <Field label={t('res.booked_by')}>
           {(id) => (
             <Select id={id} value={source} onChange={(e) => setSource(e.target.value as ReservationDTO['source'])}>
@@ -405,6 +420,7 @@ function BookingSheet({ booking, date, onClose, onSaved }: { booking: Reservatio
             </Select>
           )}
         </Field>
+        )}
         <Field label={t('res.notes')}>{(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('res.notes_hint')} maxLength={500} />}</Field>
       </div>
     </Sheet>

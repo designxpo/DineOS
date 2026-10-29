@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { AppContext } from '../../context';
 import { notFound, unauthorized } from '../../lib/errors';
 import { runMaintenance } from '../../lib/maintenance';
+import { runTalkoJobs } from '../integrations/outbox';
 
 /**
  * Housekeeping for hosts without an always-on process: Vercel Cron calls this with
@@ -17,8 +18,9 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       const expected = Buffer.from(`Bearer ${secret}`);
       if (given.length !== expected.length || !timingSafeEqual(given, expected)) throw unauthorized();
       const result = await runMaintenance(ctx.adminDb);
+      const talko = await runTalkoJobs(ctx);
       // null: another instance holds the lock and is doing the same work.
-      return { ran: result !== null, result };
+      return { ran: result !== null, result, talko };
     });
   };
 }

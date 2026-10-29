@@ -29,7 +29,13 @@ export function registerIdempotency(app: FastifyInstance, ctx: AppContext): void
       throw badRequest('invalid_idempotency_key', 'Idempotency-Key must be 8 to 100 characters');
     }
     const actor =
-      auth.kind === 'staff' ? `user:${auth.userId}` : auth.kind === 'guest' ? `guest:${auth.deviceId}` : `device:${auth.deviceId}`;
+      auth.kind === 'staff'
+        ? `user:${auth.userId}`
+        : auth.kind === 'guest'
+          ? `guest:${auth.deviceId}`
+          : auth.kind === 'integration'
+            ? `link:${auth.linkId}`
+            : `device:${auth.deviceId}`;
     const requestHash = sha256(`${req.method} ${req.url} ${JSON.stringify(req.body ?? null)}`);
 
     const existing = await ctx.tx(auth.tenantId, async (tx) => {

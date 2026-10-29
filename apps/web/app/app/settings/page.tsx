@@ -20,8 +20,9 @@ import { Forbidden, PageHeader } from '@/components/staff/shell';
 import { ScreensPanel, ScreensStatus } from '@/components/staff/screens-status';
 import { BrandKit } from '@/components/staff/brand-kit';
 import { GoliveRehearsal } from '@/components/staff/golive';
+import { TalkoSettings } from '@/components/staff/talko-settings';
 
-type Tab = 'outlet' | 'golive' | 'orders' | 'billing' | 'guests' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
+type Tab = 'outlet' | 'golive' | 'orders' | 'billing' | 'guests' | 'talko' | 'printers' | 'screens' | 'cameras' | 'brand' | 'outlets' | 'account' | 'audit';
 
 export default function SettingsPage() {
   const { can, me } = useStaff();
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     { value: 'orders', label: 'Ordering' },
     { value: 'billing', label: 'Billing & UPI' },
     { value: 'guests', label: 'Loyalty & stock' },
+    { value: 'talko', label: 'Talko AI' },
     { value: 'printers', label: 'Printers' },
     { value: 'screens', label: 'Screens' },
     { value: 'cameras', label: 'Cameras' },
@@ -61,6 +63,7 @@ export default function SettingsPage() {
         {tab === 'orders' && <OrderingForm />}
         {tab === 'billing' && <BillingForm />}
         {tab === 'guests' && <GuestsForm />}
+        {tab === 'talko' && <TalkoSettings />}
         {tab === 'printers' && <PrinterSettings />}
         {tab === 'screens' && <ScreensPanel />}
         {tab === 'cameras' && <CamerasSettings />}

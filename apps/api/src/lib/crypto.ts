@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scrypt as scryptCb, scryptSync, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 
 function scrypt(password: string, salt: Buffer, keylen: number, options: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) =>
@@ -28,7 +28,7 @@ export async function verifySecret(secret: string, stored: string): Promise<bool
 }
 
 /** Opaque bearer token. The prefix tells the auth layer what kind of principal it is. */
-export function randomToken(prefix: 'st' | 'gt' | 'dv' | 'ad' | 'ap'): string {
+export function randomToken(prefix: 'st' | 'gt' | 'dv' | 'ad' | 'ap' | 'mzk'): string {
   return `${prefix}_${randomBytes(32).toString('base64url')}`;
 }
 
@@ -42,4 +42,40 @@ export function hmac(secret: string, purpose: string, data: Buffer): Buffer {
 
 export function safeEqual(a: Buffer, b: Buffer): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+const SECRET_VERSION = 'v1';
+const secretKeys = new Map<string, Buffer>();
+
+function secretKey(master: string): Buffer {
+  let key = secretKeys.get(master);
+  if (!key) {
+    // scrypt only maps an already strong secret to 32 bytes; the salt names the purpose.
+    key = scryptSync(master, 'mezmitra:integration-secret:v1', 32);
+    secretKeys.set(master, key);
+  }
+  return key;
+}
+
+/**
+ * Encrypts a secret we must be able to read back (another product's API key), AES-256-GCM.
+ * `context` is bound in as associated data (e.g. "link:<id>:peer_api_key"), so a value copied into
+ * another row or column fails to decrypt. Output: v1:<iv>:<tag>:<ciphertext>, base64url.
+ */
+export function encryptSecret(master: string, plaintext: string, context: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', secretKey(master), iv);
+  cipher.setAAD(Buffer.from(context));
+  const ct = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  return [SECRET_VERSION, iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), ct.toString('base64url')].join(':');
+}
+
+/** Reverses encryptSecret. Throws when the key, the context or the value is wrong. */
+export function decryptSecret(master: string, blob: string, context: string): string {
+  const [version, iv, tag, ct] = blob.split(':');
+  if (version !== SECRET_VERSION || !iv || !tag || ct === undefined) throw new Error('Unrecognised secret format');
+  const decipher = createDecipheriv('aes-256-gcm', secretKey(master), Buffer.from(iv, 'base64url'));
+  decipher.setAAD(Buffer.from(context));
+  decipher.setAuthTag(Buffer.from(tag, 'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(ct, 'base64url')), decipher.final()]).toString('utf8');
 }

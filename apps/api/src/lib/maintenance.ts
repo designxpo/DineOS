@@ -31,6 +31,14 @@ export async function runMaintenance(adminDb: Database): Promise<Record<string, 
         .executeTakeFirst(),
     );
     out.print_jobs_deleted = count(await trx.deleteFrom('print_jobs').where('created_at', '<', sql<Date>`now() - interval '30 days'`).executeTakeFirst());
+    // Messages for Talko AI hold guests' phone numbers: kept a month for the delivery log, then gone.
+    out.talko_outbox = count(
+      await trx
+        .deleteFrom('integration_outbox')
+        .where('status', '<>', 'pending')
+        .where('created_at', '<', sql<Date>`now() - interval '30 days'`)
+        .executeTakeFirst(),
+    );
 
     // Someone scanned and browsed but never ordered: release the table after a few hours so the
     // next party does not inherit an old cart.

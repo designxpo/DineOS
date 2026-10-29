@@ -1,6 +1,7 @@
 // Response shapes of the /v1 API. JSON is snake_case, money is integer paise, rates are basis points,
 // timestamps are ISO strings. The API and every web surface code against these types.
 
+import type { OnlineBooking, OpeningHours, ReservationSource } from './booking';
 import type { HeadingStyle } from './branding';
 import type { GoliveResult, GoliveScenario } from './golive';
 import type {
@@ -115,6 +116,12 @@ export interface OutletDTO {
    * the money check (its sales export against the bank) and the QR menu for reading.
    */
   billing_elsewhere: string | null;
+  /** Open periods per weekday; null until set. Online booking needs it. */
+  opening_hours: OpeningHours | null;
+  /** Whether and how guests may book a table in a chat (Talko AI). */
+  online_booking: OnlineBooking;
+  /** The outlet's Google review page, sent with the thank-you after a paid bill. */
+  google_review_url: string | null;
 }
 
 // ---------- Menu ----------
@@ -643,7 +650,7 @@ export interface CustomerDTO {
   birthday: string | null;
   notes: string | null;
   consent_at: string;
-  consent_source: 'staff' | 'guest';
+  consent_source: 'staff' | 'guest' | 'chat';
   marketing_opt_in: boolean;
   visits: number;
   total_spend_paise: number;
@@ -872,7 +879,9 @@ export interface ReservationDTO {
   slot_start: string;
   slot_end: string;
   status: ReservationStatus;
-  source: 'phone' | 'walk_in' | 'online' | 'other';
+  source: ReservationSource;
+  /** Booking code given to a guest who booked in a chat, e.g. BK7Q4M2X. */
+  public_ref: string | null;
   notes: string | null;
   created_by_name: string | null;
   created_at: string;
@@ -1178,4 +1187,37 @@ export interface ChannelPayoutDTO {
   /** Net payout against what reached the bank (positive: the bank got less than the statement). */
   bank_gap_paise: number | null;
   dispute: null | { status: 'open' | 'recovered' | 'written_off'; note: string | null; recovered_paise: number };
+}
+
+// ---------- Talko AI link ----------
+
+export type IntegrationEventStatus = 'pending' | 'sent' | 'dead' | 'skipped';
+
+export interface TalkoDeliveryDTO {
+  id: string;
+  event: string;
+  status: IntegrationEventStatus;
+  attempts: number;
+  /** Last four digits only. */
+  phone_tail: string;
+  last_error: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface TalkoLinkDTO {
+  /** none: never connected or disconnected. pending: key made, waiting for Talko. */
+  status: 'none' | 'pending' | 'active';
+  /** The plan includes the link. */
+  plan_allows: boolean;
+  /** Mezmitra can send events: the server has TALKO_API_URL and INTEGRATION_ENC_KEY. */
+  configured: boolean;
+  token_prefix: string | null;
+  peer_account: string | null;
+  created_at: string | null;
+  linked_at: string | null;
+  last_used_at: string | null;
+  last_error: string | null;
+  counts: { pending: number; dead: number; sent_today: number };
+  recent: TalkoDeliveryDTO[];
 }

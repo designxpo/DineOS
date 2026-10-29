@@ -13,6 +13,7 @@ import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict } from '../../lib/errors';
 import { announceBill, markFullyBilledOrders, syncDraft } from '../billing/service';
 import { loadBill } from '../billing/serialize';
+import { queueBillPaid } from '../integrations/outbox';
 import { detachRewards } from '../loyalty/bill-hooks';
 import { earnOnPaid } from '../loyalty/engine';
 import { syncStock } from '../inventory/stock';
@@ -323,7 +324,11 @@ async function applyGroup(tx: Tx, outlet: { id: string; prices_include_tax: bool
   for (const o of g.orders) await upsertOrder(tx, outlet.id, o);
   for (const b of g.bills) {
     const { newlyPaid } = await upsertBill(tx, outlet, b);
-    if (newlyPaid) await earnOnPaid(tx, b.id, b.payments.at(-1)?.confirmed_by ?? b.finalised_by ?? userId);
+    if (newlyPaid) {
+      await earnOnPaid(tx, b.id, b.payments.at(-1)?.confirmed_by ?? b.finalised_by ?? userId);
+      // Paid while offline: the thank-you still goes, unless the bill is too old by now (outbox expiry).
+      await queueBillPaid(tx, b.id);
+    }
   }
   // Drafts the cloud had for this visit lose the dishes the hub billed; empty ones go.
   const sessionId = g.session?.id ?? g.bills.find((b) => b.table_session_id)?.table_session_id;

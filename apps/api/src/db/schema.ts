@@ -426,6 +426,46 @@ export interface Ingredients {
   updated_at: Generated<Timestamp>;
 }
 
+export interface IntegrationLinks {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  last_error: string | null;
+  last_used_at: Timestamp | null;
+  linked_at: Timestamp | null;
+  peer_account: string | null;
+  peer_api_key_enc: string | null;
+  peer_webhook_secret_enc: string | null;
+  provider: string;
+  revoked_at: Timestamp | null;
+  scopes: string[];
+  status: Generated<string>;
+  tenant_id: string;
+  token_hash: string;
+  token_prefix: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface IntegrationOutbox {
+  attempts: Generated<number>;
+  created_at: Generated<Timestamp>;
+  dedupe_key: string;
+  event: string;
+  expires_at: Timestamp | null;
+  id: Generated<string>;
+  last_error: string | null;
+  link_id: string;
+  name: string | null;
+  next_attempt_at: Generated<Timestamp>;
+  outlet_id: string | null;
+  payload: Json;
+  phone: string;
+  sent_at: Timestamp | null;
+  status: Generated<string>;
+  tenant_id: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface ItemModifierGroups {
   group_id: string;
   item_id: string;
@@ -668,6 +708,7 @@ export interface Outlets {
   event_seq: Generated<number>;
   fssai_no: string | null;
   gstin: string | null;
+  google_review_url: string | null;
   hub_device_id: string | null;
   hub_url: string | null;
   id: Generated<string>;
@@ -681,6 +722,8 @@ export interface Outlets {
   loyalty_point_value_paise: Generated<number>;
   menu_version: Generated<number>;
   name: string;
+  online_booking: Generated<Json>;
+  opening_hours: Json | null;
   phone: string | null;
   pickup_link_version: Generated<number>;
   prices_include_tax: Generated<boolean>;
@@ -839,12 +882,15 @@ export interface Reservations {
   created_at: Generated<Timestamp>;
   created_by: string | null;
   customer_id: string | null;
+  external_ref: string | null;
   guest_name: string;
   guest_phone: string | null;
   id: Generated<string>;
   notes: string | null;
   outlet_id: string;
   party_size: number;
+  public_ref: string | null;
+  reminder_sent_at: Timestamp | null;
   slot_end: Timestamp;
   slot_start: Timestamp;
   source: Generated<string>;
@@ -1157,6 +1203,8 @@ export interface DB {
   golive_rehearsals: GoliveRehearsals;
   idempotency_keys: IdempotencyKeys;
   ingredients: Ingredients;
+  integration_links: IntegrationLinks;
+  integration_outbox: IntegrationOutbox;
   item_modifier_groups: ItemModifierGroups;
   kots: Kots;
   loyalty_ledger: LoyaltyLedger;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { cleanOpeningHours, onlineBooking } from '@mezmitra/shared/booking';
 import { HEADING_STYLES, whiteLabelOn } from '@mezmitra/shared/branding';
 import { ACTIVE_ORDER_STATUSES } from '@mezmitra/shared/enums';
 import type { OutletDTO, TenantBrandDTO } from '@mezmitra/shared/dto';
@@ -12,6 +13,7 @@ import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
 import { detectImage } from '../../lib/images';
 import { idParams, parse } from '../../lib/validate';
 import { bumpConfig } from '../../lib/config-version';
+import { json } from '../../db';
 
 const station = z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9_-]{0,29}$/, 'Station names use letters, numbers, - and _');
 
@@ -49,9 +51,21 @@ const outletFields = {
   comp_alert_paise: z.number().int().min(0).max(100_000_000).nullable(),
   table_water_item_id: z.uuid().nullable(),
   billing_elsewhere: z.string().trim().min(1).max(40).nullable(),
+  opening_hours: z.record(z.string(), z.unknown()).nullable(),
+  online_booking: z.object({
+    enabled: z.boolean(),
+    max_party: z.number().int().min(1).max(50),
+    lead_minutes: z.number().int().min(0).max(2880),
+    days_ahead: z.number().int().min(1).max(90),
+    last_seating_minutes: z.number().int().min(0).max(240),
+    slot_minutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
+    reminder_minutes: z.number().int().min(0).max(1440),
+  }).partial(),
+  google_review_url: z.string().trim().max(500).regex(/^https:\/\/\S+$/, 'Paste the https:// link to your Google review page').nullable(),
 };
 const updateOutlet = z.object(outletFields).partial();
-const createOutlet = z.object(outletFields).partial().required({ name: true });
+// Opening hours and online booking are checked as a pair on update, so a new outlet starts without them.
+const createOutlet = z.object(outletFields).omit({ opening_hours: true, online_booking: true }).partial().required({ name: true });
 
 export const OUTLET_COLUMNS = [
   'id', 'name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix', 'timezone',
@@ -60,12 +74,18 @@ export const OUTLET_COLUMNS = [
   'loyalty_enabled', 'loyalty_earn_bp', 'loyalty_point_value_paise', 'loyalty_min_redeem_points',
   'reservation_minutes', 'inventory_auto_stockout', 'hub_device_id', 'hub_url', 'room_charge_enabled', 'delivery_commission_bp',
   'auto_clean_minutes', 'table_water_item_id', 'comp_alert_paise', 'billing_elsewhere',
+  'opening_hours', 'online_booking', 'google_review_url',
 ] as const;
 
 export async function loadOutlet(tx: Tx, id: string): Promise<OutletDTO & { legal_name: string | null }> {
   const o = await tx.db.selectFrom('outlets').select(OUTLET_COLUMNS).where('id', '=', id).executeTakeFirst();
   if (!o) throw notFound('Outlet');
-  return { ...o, delivery_commission_bp: (o.delivery_commission_bp ?? {}) as OutletDTO['delivery_commission_bp'] };
+  return {
+    ...o,
+    delivery_commission_bp: (o.delivery_commission_bp ?? {}) as OutletDTO['delivery_commission_bp'],
+    opening_hours: o.opening_hours as OutletDTO['opening_hours'],
+    online_booking: onlineBooking(o.online_booking),
+  };
 }
 
 function requireOwner(auth: StaffAuth): void {
@@ -157,7 +177,23 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         if (body.timezone && !Intl.supportedValuesOf('timeZone').includes(body.timezone)) {
           throw badRequest('invalid_timezone', 'Unknown timezone');
         }
-        const set = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined));
+        if (body.opening_hours) {
+          const cleaned = cleanOpeningHours(body.opening_hours);
+          if ('error' in cleaned) throw badRequest('invalid_opening_hours', cleaned.error);
+          body.opening_hours = cleaned.hours;
+        }
+        if (body.online_booking) {
+          const booking = onlineBooking({ ...before.online_booking, ...body.online_booking });
+          const hours = body.opening_hours !== undefined ? body.opening_hours : before.opening_hours;
+          if (booking.enabled && !hours) throw badRequest('opening_hours_required', 'Set opening hours before turning on table booking in chats');
+          body.online_booking = booking;
+        }
+        const set = Object.fromEntries(
+          Object.entries(body)
+            .filter(([, v]) => v !== undefined)
+            // jsonb objects go in as JSON text so nested arrays are not read as Postgres arrays
+            .map(([k, v]) => [k, v !== null && (k === 'opening_hours' || k === 'online_booking') ? json(v) : v]),
+        );
         if (Object.keys(set).length) await tx.db.updateTable('outlets').set(set).where('id', '=', id).execute();
         const after = await loadOutlet(tx, id);
         const changed = Object.keys(set).filter((k) => JSON.stringify(before[k as keyof typeof before]) !== JSON.stringify(after[k as keyof typeof after]));

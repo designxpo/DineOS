@@ -6,6 +6,7 @@ import { badRequest, conflict, notFound } from '../../lib/errors';
 import { assertOutletExists } from '../../lib/outlet';
 import { idParams, parse } from '../../lib/validate';
 import { upsertCustomer } from '../customers/service';
+import { queueReservation } from '../integrations/outbox';
 import { seatTable } from '../tables/floor';
 import { announceReservations, assertNoClash, availableTables, loadReservations, loadWaitlist, seatReservation } from './service';
 
@@ -20,7 +21,9 @@ const reservationFields = {
   slot_start: z.iso.datetime({ offset: true }),
   duration_minutes: z.number().int().min(15).max(600).optional(),
   table_id: z.uuid().nullable().optional(),
-  source: z.enum(['phone', 'walk_in', 'online', 'other']).default('phone'),
+  // Chat sources (whatsapp, instagram...) are set only by bookings made through Talko AI. No
+  // default here: on an edit a default would quietly reset the source; new bookings use 'phone'.
+  source: z.enum(['phone', 'walk_in', 'online', 'other']).optional(),
   notes: z.string().trim().max(500).nullable().optional(),
 };
 
@@ -89,13 +92,14 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
             party_size: body.party_size,
             slot_start: start,
             slot_end: end,
-            source: body.source,
+            source: body.source ?? 'phone',
             notes: body.notes ?? null,
             created_by: auth.userId,
           })
           .returning('id')
           .executeTakeFirstOrThrow();
         await announceReservations(tx, body.outlet_id);
+        await queueReservation(tx, row.id, 'created');
         return (await loadReservations(tx, { outletId: body.outlet_id, ids: [row.id] }))[0];
       });
       return reply.status(201).send(result);
@@ -146,6 +150,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
           .where('id', '=', id)
           .execute();
         await announceReservations(tx, r.outlet_id);
+        if (body.status === 'cancelled' && current.status === 'booked') await queueReservation(tx, id, 'cancelled');
         return (await loadReservations(tx, { outletId: r.outlet_id, ids: [id] }))[0];
       });
     });

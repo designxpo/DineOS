@@ -23,6 +23,7 @@ import { audit } from '../../lib/audit';
 import { can, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors';
+import { queueOrderReady } from '../integrations/outbox';
 import { syncStock } from '../inventory/stock';
 import { printTargets, queuePrintJob } from '../print/jobs';
 import { lockLiveSession, openSession, refreshSessionTables } from '../tables/sessions';
@@ -469,6 +470,7 @@ async function announceReady(tx: Tx, order: OrderDTO, justReady: ReadonlySet<str
     ...news,
   };
   await tx.emit({ outletId: order.outlet_id, type: 'order.items_ready', channels: ['outlet'], payload });
+  if (order.status === 'ready') await queueOrderReady(tx, order.id);
 }
 
 function actionForStatus(to: OrderStatus): Action {

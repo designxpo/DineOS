@@ -16,6 +16,7 @@ import { audit } from '../../lib/audit';
 import { assertCan, type StaffAuth } from '../../lib/auth';
 import { nextCounter } from '../../lib/counters';
 import { badRequest, conflict, notFound } from '../../lib/errors';
+import { queueBillPaid } from '../integrations/outbox';
 import { createOrder, markOrdersBilled } from '../orders/service';
 import { canPrint, openCashDrawer, queuePrintJob } from '../print/jobs';
 import { closeSession } from '../tables/sessions';
@@ -659,6 +660,7 @@ export async function finaliseBill(tx: Tx, auth: StaffAuth, billId: string): Pro
     await earnOnPaid(tx, billId, auth.userId);
     await activateMembership(tx, billId);
     await settleSessionIfDone(tx, billId);
+    await queueBillPaid(tx, billId);
   }
   const dto = (await loadBill(tx, billId))!;
   await announceBill(tx, dto);
@@ -834,6 +836,7 @@ export async function recordPayment(
     await earnOnPaid(tx, billId, auth.userId);
     await activateMembership(tx, billId);
     await settleSessionIfDone(tx, billId);
+    await queueBillPaid(tx, billId);
   }
   if (input.method === 'cash') await openCashDrawer(tx, bill.outlet_id);
   const dto = (await loadBill(tx, billId))!;

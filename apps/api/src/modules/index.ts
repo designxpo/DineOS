@@ -12,6 +12,7 @@ import events from './events/routes';
 import golive from './golive/routes';
 import guest from './guest/routes';
 import hub from './hub/routes';
+import integrations from './integrations/routes';
 import inventory from './inventory/routes';
 import leads from './leads/routes';
 import loyalty from './loyalty/routes';
@@ -65,4 +66,5 @@ export const modules: Record<string, (ctx: AppContext) => FastifyPluginAsync> = 
   dayclose,
   pass,
   leads,
+  integrations,
 };

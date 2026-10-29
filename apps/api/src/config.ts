@@ -55,6 +55,13 @@ const schema = z.object({
   /** Contact the push services can reach about abuse, e.g. mailto:ops@yourcompany.in. */
   // Set VAPID_SUBJECT to your support address: push services contact it about problems.
   VAPID_SUBJECT: z.string().default('mailto:ops@example.com'),
+  /**
+   * Encrypts the keys other products give us (Talko AI's API key). 32+ random characters. Changing
+   * it breaks every existing link: owners then reconnect.
+   */
+  INTEGRATION_ENC_KEY: z.string().min(32, 'INTEGRATION_ENC_KEY must be at least 32 characters').optional(),
+  /** Talko AI's API, which receives bill, booking and order events, e.g. https://app.talkoai.com. */
+  TALKO_API_URL: z.url().optional(),
 });
 
 export type Config = z.infer<typeof schema> & { corsOrigins: string[]; storageDir: string };

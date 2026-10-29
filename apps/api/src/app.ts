@@ -12,6 +12,7 @@ import { registerIdempotency } from './lib/idempotency';
 import { registerSecurityHeaders } from './lib/security-headers';
 import { registerFileRoute } from './lib/storage';
 import { modules } from './modules';
+import { registerTalkoDispatch } from './modules/integrations/outbox';
 import { registerPushAlerts } from './modules/push/alerts';
 
 export interface BuildOptions {
@@ -88,8 +89,10 @@ export async function buildApp(
   }
 
   const stopPushAlerts = registerPushAlerts(ctx);
+  const stopTalkoDispatch = registerTalkoDispatch(ctx);
   app.addHook('onClose', async () => {
     stopPushAlerts();
+    stopTalkoDispatch();
     await ctx.close();
   });
 

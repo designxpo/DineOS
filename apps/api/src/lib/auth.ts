@@ -37,7 +37,17 @@ export interface AdminAuth {
   adminId: string;
   sessionId: string;
 }
-export type Auth = StaffAuth | GuestAuth | DeviceAuth | AdminAuth;
+/** Another product acting for one tenant with a link key (mzk_...), e.g. Talko AI. */
+export interface IntegrationAuth {
+  kind: 'integration';
+  tenantId: string;
+  linkId: string;
+  provider: 'talko';
+  /** pending until the other product completes the link; only linking works before then. */
+  status: 'pending' | 'active';
+  scopes: string[];
+}
+export type Auth = StaffAuth | GuestAuth | DeviceAuth | AdminAuth | IntegrationAuth;
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -58,11 +68,19 @@ export function evictCachedAuth(token: string): void {
   cache.delete(sha256(token));
 }
 
+/** Evicts by the stored hash, for keys we no longer hold in plain (a revoked link key). */
+export function evictCachedAuthHash(hash: string): void {
+  cache.delete(hash);
+}
+
 export function clearAuthCache(): void {
   cache.clear();
 }
 
 const tenantStatusCache = new TtlCache<string>(CACHE_TTL_MS, 10_000);
+
+/** How long a new link key may wait to be pasted into the other product. */
+export const PENDING_LINK_MS = 24 * 3600_000;
 
 async function tenantStatus(ctx: AppContext, tenantId: string): Promise<string | null> {
   const hit = tenantStatusCache.get(tenantId);
@@ -141,6 +159,24 @@ export async function authenticate(ctx: AppContext, token: string): Promise<Auth
     if (!d || d.status !== 'active') return null;
     assertTenantActive(d.tenant_status);
     auth = { kind: 'device', tenantId: d.tenant_id, outletId: d.outlet_id, deviceId: d.device_id, deviceKind: d.kind };
+  } else if (token.startsWith('mzk_')) {
+    const { rows } = await sql<{
+      link_id: string;
+      tenant_id: string;
+      provider: 'talko';
+      status: string;
+      scopes: string[];
+      created_at: Date;
+      tenant_status: string;
+      plan_allows: boolean;
+    }>`select * from auth_integration(${hash})`.execute(ctx.db);
+    const l = rows[0];
+    // A revoked link, or a plan that no longer includes the link, ends access at once. A key
+    // nobody used to finish linking stops working after a day.
+    if (!l || !l.plan_allows) return null;
+    if (l.status !== 'active' && !(l.status === 'pending' && Date.now() - l.created_at.getTime() < PENDING_LINK_MS)) return null;
+    assertTenantActive(l.tenant_status);
+    auth = { kind: 'integration', tenantId: l.tenant_id, linkId: l.link_id, provider: l.provider, status: l.status, scopes: l.scopes };
   } else if (token.startsWith('ad_')) {
     const row = await ctx.adminDb
       .selectFrom('admin_sessions')
@@ -189,6 +225,22 @@ export function requireDevice(req: FastifyRequest, kind?: DeviceAuth['deviceKind
 export function requireAdmin(req: FastifyRequest): AdminAuth {
   if (req.auth?.kind !== 'admin') throw unauthorized();
   return req.auth;
+}
+
+/**
+ * A linked product with `scope`. Before the link is complete only the `link` scope works, so a key
+ * that leaks while it waits to be pasted cannot read anything.
+ */
+export function requireIntegration(req: FastifyRequest, scope: string): IntegrationAuth {
+  if (req.auth?.kind !== 'integration') throw unauthorized();
+  if (!req.auth.scopes.includes(scope)) throw forbidden();
+  if (req.auth.status !== 'active' && scope !== 'link') throw new AppError(409, 'link_incomplete', 'Finish connecting the link first');
+  return req.auth;
+}
+
+/** Throws 403 unless the staff member is a tenant-wide owner. */
+export function assertTenantOwner(auth: StaffAuth): void {
+  if (!auth.roles.some((r) => r.outletId === null && r.role === 'owner')) throw forbidden('Only the owner can do this');
 }
 
 export function rolesAt(auth: StaffAuth, outletId: string): Role[] {

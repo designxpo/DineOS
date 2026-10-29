@@ -49,7 +49,7 @@ export function cleanPhone(raw: string): string {
  */
 export async function upsertCustomer(
   tx: Tx,
-  input: { phone: string; name?: string | null; email?: string | null; consentSource: 'staff' | 'guest'; marketingOptIn?: boolean },
+  input: { phone: string; name?: string | null; email?: string | null; consentSource: 'staff' | 'guest' | 'chat'; marketingOptIn?: boolean },
 ): Promise<CustomerDTO> {
   const phone = cleanPhone(input.phone);
   const existing = await tx.db
@@ -59,9 +59,9 @@ export async function upsertCustomer(
     .where('erased_at', 'is', null)
     .executeTakeFirst();
   if (existing) {
-    // A guest at a table is not verified as the number's owner: they may link it to this visit
-    // but not rename the record or opt it into marketing.
-    if (input.consentSource === 'guest') return customerDto(existing);
+    // A guest at a table, or in a chat, is not verified as the number's owner: they may link it to
+    // this visit or booking but not rename the record or opt it into marketing.
+    if (input.consentSource !== 'staff') return customerDto(existing);
     const name = input.name?.trim();
     if ((name && !existing.name) || input.marketingOptIn) {
       const updated = await tx.db
@@ -83,7 +83,7 @@ export async function upsertCustomer(
       email: input.email?.trim().toLowerCase() || null,
       consent_at: new Date(),
       consent_source: input.consentSource,
-      marketing_opt_in: input.marketingOptIn ?? false,
+      marketing_opt_in: input.consentSource === 'chat' ? false : (input.marketingOptIn ?? false),
     })
     .returning(CUSTOMER_COLUMNS)
     .executeTakeFirstOrThrow();
