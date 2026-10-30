@@ -1,4 +1,4 @@
-// Push alerts on a staff phone (new orders to accept, waiter calls, bill requests) while Mezmitra is
+// Push alerts on a staff phone (new orders to accept, waiter calls, bill requests) while Mezvaan is
 // closed. The service worker shows them; the API decides who gets what.
 
 type Send = (path: string, opts?: { method?: 'POST' | 'DELETE'; body?: unknown }) => Promise<unknown>;
@@ -32,8 +32,8 @@ export async function pushState(): Promise<PushState> {
 
 export async function turnOnPush(send: Send, outletId: string): Promise<void> {
   const reg = await registration();
-  if (!reg) throw new Error('Alerts need the installed app. Reload Mezmitra and try again.');
-  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Allow notifications for Mezmitra in your browser settings');
+  if (!reg) throw new Error('Alerts need the installed app. Reload Mezvaan and try again.');
+  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Allow notifications for Mezvaan in your browser settings');
   const { public_key } = (await send('/push/config')) as { public_key: string };
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(public_key) }));
   const json = sub.toJSON();

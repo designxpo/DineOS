@@ -1,4 +1,4 @@
-# Mezmitra
+# Mezvaan
 
 Multi-tenant restaurant and cafe platform for India: guests order from a table QR code on their own phone, orders reach the kitchen display and the manager's inbox in well under two seconds, and cashiers settle GST invoices with cash, the outlet's own UPI QR, card slips or split payments. Built to the *Restaurant & Cafe SaaS dev spec*: all of Phase 1, Phase 2 (operations and the offline tier), Phase 3 (camera table vision) and Phase 4 without a payment gateway (UPI checked against the bank statement).
 
@@ -101,11 +101,11 @@ Staff confirm UPI by eye, so owners import the bank statement (CSV or Excel from
 
 ### Money check, for restaurants still on other billing software
 
-Many restaurants have paid a year ahead for other billing software. An outlet can name that system: Mezmitra then takes no orders or bills there (nothing is billed twice), the QR menu is for reading and calling a waiter, and the outlet uploads that system's sales export beside its bank statement to see every UPI payment the bills claim that never arrived. Billing moves to Mezmitra when the year ends. Demo requests record what a restaurant bills on and the month it renews; admins see who to call under Leads → Renewing soon. Tests: `money-check.test.ts`, the sales export parser tests, `leads.test.ts`.
+Many restaurants have paid a year ahead for other billing software. An outlet can name that system: Mezvaan then takes no orders or bills there (nothing is billed twice), the QR menu is for reading and calling a waiter, and the outlet uploads that system's sales export beside its bank statement to see every UPI payment the bills claim that never arrived. Billing moves to Mezvaan when the year ends. Demo requests record what a restaurant bills on and the month it renews; admins see who to call under Leads → Renewing soon. Tests: `money-check.test.ts`, the sales export parser tests, `leads.test.ts`.
 
 ### Go-live rehearsal and acceptance sheet
 
-Before full payment, the owner and cashier run nine scenarios on their own devices in Settings → Go-live. For each, Mezmitra shows what it saw since the rehearsal began (the mixed bar and kitchen order, the split, the free dish, the cooked cancellation, a ticket that failed and printed, orders through the outlet hub, the month-end pack download). Failing or leaving a scenario out needs a note; only the owner signs, and only when nothing is failed or unmarked. The signed sheet is frozen with the devices used and prints on A4, saying plainly which passes Mezmitra did not see. Tests: `golive.test.ts`.
+Before full payment, the owner and cashier run nine scenarios on their own devices in Settings → Go-live. For each, Mezvaan shows what it saw since the rehearsal began (the mixed bar and kitchen order, the split, the free dish, the cooked cancellation, a ticket that failed and printed, orders through the outlet hub, the month-end pack download). Failing or leaving a scenario out needs a note; only the owner signs, and only when nothing is failed or unmarked. The signed sheet is frozen with the devices used and prints on A4, saying plainly which passes Mezvaan did not see. Tests: `golive.test.ts`.
 
 ### When the internet drops
 
@@ -131,8 +131,8 @@ Tapping the connection dot opens Connection and sync: whether the device is onli
 
 ## Decisions that differ from the spec
 
-- **Web Push, by your decision.** Phone alerts go through the browser makers' push services (Google, Apple, Mozilla), an exception to the no-third-party rule. Nothing but the alert text leaves Mezmitra, and they are off until VAPID keys are set.
-- **SMS codes through MSG91, by your decision.** Mezmitra makes and checks the codes; MSG91 only delivers them. Without its keys, loyalty works as before.
+- **Web Push, by your decision.** Phone alerts go through the browser makers' push services (Google, Apple, Mozilla), an exception to the no-third-party rule. Nothing but the alert text leaves Mezvaan, and they are off until VAPID keys are set.
+- **SMS codes through MSG91, by your decision.** Mezvaan makes and checks the codes; MSG91 only delivers them. Without its keys, loyalty works as before.
 - **Delivery apps entered by hand for now.** Zomato and Swiggy only open their order APIs to approved partners; delivery orders are typed in at the POS until an aggregator (such as UrbanPiper) is connected.
 - **Service charge** is off by default and staff can remove it from any bill, because Indian consumer guidelines bar charging it automatically.
 - **GST rate** is set per dish with an outlet default; the seed uses 5%. For a hotel restaurant the right rate can depend on room tariffs, so confirm with your accountant before the pilot.

@@ -27,7 +27,7 @@ export default function PrintAcceptance() {
           <h1 className="text-xl font-bold">{r.tenant_name}</h1>
           <p>{r.outlet_name}</p>
         </div>
-        <img src="/brand/logo.svg" alt="Mezmitra" className="h-10 w-auto" />
+        <img src="/brand/logo.svg" alt="Mezvaan" className="h-10 w-auto" />
       </header>
       {!r.signed_at && <p className="mt-3 border border-black px-3 py-2 font-bold">DRAFT: not signed yet.</p>}
 
@@ -39,7 +39,7 @@ export default function PrintAcceptance() {
         </dd>
         <dt className="text-neutral-600">Signed</dt>
         <dd>{r.signed_at ? `${dateTime(r.signed_at)} by ${r.signer_name}` : '—'}</dd>
-        <dt className="text-neutral-600">Set up in Mezmitra to sign-off</dt>
+        <dt className="text-neutral-600">Set up in Mezvaan to sign-off</dt>
         <dd>{m.setupHours} hours</dd>
         <dt className="text-neutral-600">Passed first time</dt>
         <dd>
@@ -54,7 +54,7 @@ export default function PrintAcceptance() {
             <th className="py-1.5 pr-2">#</th>
             <th className="py-1.5 pr-2">Scenario</th>
             <th className="py-1.5 pr-2">Result</th>
-            <th className="py-1.5">What Mezmitra saw, and notes</th>
+            <th className="py-1.5">What Mezvaan saw, and notes</th>
           </tr>
         </thead>
         <tbody>
@@ -70,8 +70,8 @@ export default function PrintAcceptance() {
                 {c.failures > 0 && <span className="block text-[11px] font-normal">after {c.failures} failed {c.failures === 1 ? 'try' : 'tries'}</span>}
               </td>
               <td className="py-2">
-                {/* A pass Mezmitra did not see rests on the staff's own check, and says so. */}
-                {!c.evidence.seen && <p className="font-semibold">{c.result === 'passed' ? 'Checked by staff; not seen by Mezmitra.' : 'Not seen by Mezmitra.'}</p>}
+                {/* A pass Mezvaan did not see rests on the staff's own check, and says so. */}
+                {!c.evidence.seen && <p className="font-semibold">{c.result === 'passed' ? 'Checked by staff; not seen by Mezvaan.' : 'Not seen by Mezvaan.'}</p>}
                 {c.evidence.lines.map((l) => (
                   <p key={l}>{l}</p>
                 ))}
@@ -104,7 +104,7 @@ export default function PrintAcceptance() {
         <p className="mt-4">
           {r.signed_at ? (
             <>
-              Signed electronically in Mezmitra by <span className="font-semibold">{r.signer_name}</span> on {dateTime(r.signed_at)}.
+              Signed electronically in Mezvaan by <span className="font-semibold">{r.signer_name}</span> on {dateTime(r.signed_at)}.
             </>
           ) : (
             'Owner’s signature: ______________________   Date: ____________'

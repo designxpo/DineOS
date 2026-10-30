@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Mezmitra design tokens (Spice & Ink): burnt-orange actions, midnight ink, a warm cream page and
+/* Mezvaan design tokens (Spice & Ink): burnt-orange actions, midnight ink, a warm cream page and
    a peach accent. Restaurants with their own look override the brand shades on their screens.
    Status colours stay fixed so a table means the same thing on every screen. */
 @theme {

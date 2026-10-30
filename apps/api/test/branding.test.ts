@@ -1,6 +1,6 @@
 // A restaurant's own look (white label for its staff and guests): logo, cover photo, colour and
 // heading style on the portal, the QR menu, order tracking and the pickup screen. Paid plans show
-// it, the trial shows the Mezmitra look, and Mezmitra can set it per restaurant.
+// it, the trial shows the Mezvaan look, and Mezvaan can set it per restaurant.
 
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -36,7 +36,7 @@ async function guestBrand() {
 }
 
 describe('restaurant brand', () => {
-  it('lets the owner set it up on the trial, but shows the Mezmitra look until the plan includes it', async () => {
+  it('lets the owner set it up on the trial, but shows the Mezvaan look until the plan includes it', async () => {
     expect((await owner({ method: 'POST', url: '/v1/tenant/logo', ...multipart('logo.png', 'image/png', png) })).statusCode).toBe(200);
     expect((await owner({ method: 'POST', url: '/v1/tenant/cover', ...multipart('cover.png', 'image/png', png) })).statusCode).toBe(200);
     const saved = await owner({ method: 'PATCH', url: '/v1/tenant', payload: { branding: { primary_color: '#1D4ED8', heading_style: 'sans' } } });
@@ -68,7 +68,7 @@ describe('restaurant brand', () => {
     expect((await t.app.inject({ method: 'GET', url: '/v1/public/brand/no-such-restaurant' })).statusCode).toBe(404);
   });
 
-  it('lets Mezmitra switch it off or on for one restaurant, whatever its plan', async () => {
+  it('lets Mezvaan switch it off or on for one restaurant, whatever its plan', async () => {
     const set = (white_label: boolean | null) => admin({ method: 'PATCH', url: `/v1/admin/tenants/${tenant.tenantId}`, payload: { white_label } });
     expect((await set(false)).statusCode).toBe(200);
     expect((await me()).tenant).toMatchObject({ white_label: false, branding: {} });

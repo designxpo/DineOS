@@ -1,9 +1,9 @@
-# Mezmitra table vision: edge worker
+# Mezvaan table vision: edge worker
 
-Optional add-on (Phase 3). A small computer at the outlet reads the existing IP cameras, decides for every table zone whether it is **vacant**, **occupied** or **needs cleaning**, and sends only that state and a confidence to Mezmitra. Orders and bills always win: the cloud uses a camera reading only when a table has no open visit (spec §5).
+Optional add-on (Phase 3). A small computer at the outlet reads the existing IP cameras, decides for every table zone whether it is **vacant**, **occupied** or **needs cleaning**, and sends only that state and a confidence to Mezvaan. Orders and bills always win: the cloud uses a camera reading only when a table has no open visit (spec §5).
 
 ```
-IP cameras (RTSP) ──> this worker ──HTTPS──> Mezmitra: POST /v1/vision/table-state
+IP cameras (RTSP) ──> this worker ──HTTPS──> Mezvaan: POST /v1/vision/table-state
                         detect → track → zone → hold 25 s → send
 ```
 
@@ -13,13 +13,13 @@ IP cameras (RTSP) ──> this worker ──HTTPS──> Mezmitra: POST /v1/visi
 | --- | --- |
 | Table id, state, confidence, time | Video or frames |
 | Camera health (ok, fps, error text) | Camera addresses or passwords |
-| One still per request, for drawing zones, with people blurred; deleted by Mezmitra after a day | Anything that identifies a person |
+| One still per request, for drawing zones, with people blurred; deleted by Mezvaan after a day | Anything that identifies a person |
 
 Put up a notice that cameras are in use. Never point a camera at washrooms, changing or staff rooms.
 
 ## Hardware
 
-Any x86 or ARM box with 4 GB RAM runs 2 frames per second on 3 to 4 cameras with the CPU model below (an Intel N100 mini PC or a Raspberry Pi 5 is enough). It needs the same network as the cameras and outbound HTTPS to Mezmitra; nothing has to be opened on the router.
+Any x86 or ARM box with 4 GB RAM runs 2 frames per second on 3 to 4 cameras with the CPU model below (an Intel N100 mini PC or a Raspberry Pi 5 is enough). It needs the same network as the cameras and outbound HTTPS to Mezvaan; nothing has to be opened on the router.
 
 ## Install
 
@@ -46,7 +46,7 @@ The exported model outputs the raw grid (`1 × 8400 × 85`); the worker decodes 
 
 ### Cameras
 
-1. In Mezmitra, **Settings > Cameras > Add camera box**. Copy the token (shown once).
+1. In Mezvaan, **Settings > Cameras > Add camera box**. Copy the token (shown once).
 2. **Add camera** for each camera, with a short stream name such as `courtyard_east`.
 3. On the box, give each stream name its RTSP address, either as environment variables or a file:
 
@@ -70,7 +70,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now mezmitra-vision
 journalctl -u mezmitra-vision -f
 ```
 
-5. Back in Mezmitra, **Draw table zones** on each camera's picture: outline the table top and the chairs so seated guests fall inside.
+5. Back in Mezvaan, **Draw table zones** on each camera's picture: outline the table top and the chairs so seated guests fall inside.
 
 ## How a state is decided
 
@@ -78,10 +78,10 @@ journalctl -u mezmitra-vision -f
 2. YOLOX finds people and table things (cup, bowl, bottle, glass, cutlery).
 3. A tracker keeps a box only after 3 consecutive frames and through brief misses, so a single false box or a waiter passing does not count.
 4. Per zone: someone sitting in it (the lower part of their box overlaps the zone) is **occupied**; nobody but things left on the table is **needs cleaning**; otherwise **vacant**.
-5. A new state is sent only after it has held for 25 seconds with at least 80% of frames agreeing. That share is the confidence. The current state is resent every 5 minutes so Mezmitra knows it is still fresh; a camera that falls silent stops counting after 15 minutes.
+5. A new state is sent only after it has held for 25 seconds with at least 80% of frames agreeing. That share is the confidence. The current state is resent every 5 minutes so Mezvaan knows it is still fresh; a camera that falls silent stops counting after 15 minutes.
 6. Readings that cannot be sent wait in memory (up to 2,000) and go out in order when the connection returns.
 
-The settings (fps, hold time, resend interval, minimum confidence) come from Mezmitra with the zones, so they can be tuned centrally.
+The settings (fps, hold time, resend interval, minimum confidence) come from Mezvaan with the zones, so they can be tuned centrally.
 
 ## Accuracy and fine-tuning
 
@@ -111,7 +111,7 @@ python3 -m unittest discover -s tests -v
 | `tracking.py` | Detections and the IoU tracker |
 | `zones.py` | Zone classification and the hold-before-send debouncer |
 | `worker.py` | Frame step and the main loop |
-| `cloud.py` | Mezmitra API client with an offline queue |
+| `cloud.py` | Mezvaan API client with an offline queue |
 | `detector.py` | YOLOX on ONNX Runtime (letterbox, grid decode, NMS) |
 | `camera.py` | RTSP reader, stream addresses, the blurred still |
 

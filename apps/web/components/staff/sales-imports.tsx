@@ -223,7 +223,7 @@ function ColumnsSheet({ system, headers, busy, onClose, onSend }: { system: stri
         </Button>
       }
     >
-      <p className="mb-4 text-sm text-ink-soft">Mezmitra could not tell the columns of this {system} file from their names. Pick them once; without a payment type, every bill counts as Other.</p>
+      <p className="mb-4 text-sm text-ink-soft">Mezvaan could not tell the columns of this {system} file from their names. Pick them once; without a payment type, every bill counts as Other.</p>
       <div className="space-y-3">
         {ROLES.map((r) => (
           <Field key={r.key} label={`${r.label}${'required' in r ? '' : ' (if there is one)'}`}>

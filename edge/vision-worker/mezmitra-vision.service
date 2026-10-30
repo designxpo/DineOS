@@ -1,7 +1,7 @@
 # systemd unit for the camera box. Copy to /etc/systemd/system/, then:
 #   sudo systemctl daemon-reload && sudo systemctl enable --now mezmitra-vision
 [Unit]
-Description=Mezmitra table vision worker
+Description=Mezvaan table vision worker
 After=network-online.target
 Wants=network-online.target
 

@@ -49,7 +49,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-dvh">
       <header className="flex items-center gap-3 border-b border-line bg-surface px-6 py-3">
-        <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-8 w-auto" />
+        <img src="/brand/wordmark.svg" alt="Mezvaan" className="h-8 w-auto" />
         <h1 className="flex items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-0.5 text-sm font-semibold text-ink-soft">
           <ShieldCheck className="size-4" /> Admin
         </h1>

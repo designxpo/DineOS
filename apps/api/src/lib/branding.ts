@@ -1,5 +1,5 @@
 // What look staff and guests get: the restaurant's own (logo, cover, colour, headings) when its plan
-// or Mezmitra allows it, otherwise the Mezmitra look (an empty branding).
+// or Mezvaan allows it, otherwise the Mezvaan look (an empty branding).
 
 import type { BrandingDTO } from '@mezmitra/shared/dto';
 import { HEADING_STYLES, HEX_COLOR, whiteLabelOn, type HeadingStyle } from '@mezmitra/shared/branding';

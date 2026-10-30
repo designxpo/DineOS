@@ -38,7 +38,7 @@ interface DeviceMe {
 }
 
 /**
- * Keeps an outbound connection to Mezmitra, prints jobs as they arrive and acknowledges them.
+ * Keeps an outbound connection to Mezvaan, prints jobs as they arrive and acknowledges them.
  * The REST poll on (re)connect and on a timer catches anything missed while offline, and picks up
  * printer changes made in the portal.
  */

@@ -57,7 +57,7 @@ export const REPORT_TERMS = {
   },
   outside_bills: {
     label: 'Bills on another system',
-    means: 'Bills from the billing system the outlet used instead of Mezmitra, from the sales exports uploaded for the money check. They are not Mezmitra invoices: their GST record is in that system. "In bank" says whether a UPI payment was found on a bank statement.',
+    means: 'Bills from the billing system the outlet used instead of Mezvaan, from the sales exports uploaded for the money check. They are not Mezvaan invoices: their GST record is in that system. "In bank" says whether a UPI payment was found on a bank statement.',
   },
 } as const satisfies Record<string, ReportTerm>;
 

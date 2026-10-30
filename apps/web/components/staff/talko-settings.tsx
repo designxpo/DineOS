@@ -109,12 +109,12 @@ function TalkoLink() {
           to upgrade.
         </p>
       ) : !data.configured ? (
-        <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-ink-soft">Talko AI is not set up on this server yet. Ask Mezmitra support to turn it on.</p>
+        <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-ink-soft">Talko AI is not set up on this server yet. Ask Mezvaan support to turn it on.</p>
       ) : null}
 
       {key && (
         <div className="space-y-2 rounded-xl border border-brand-200 bg-brand-50 p-4">
-          <p className="text-sm font-medium">Paste this key in Talko AI: Integrations → Mezmitra. It is shown only now, works once and stops working after a day.</p>
+          <p className="text-sm font-medium">Paste this key in Talko AI: Integrations → Mezvaan. It is shown only now, works once and stops working after a day.</p>
           <div className="flex gap-2">
             <Input readOnly value={key} className="font-mono text-sm" aria-label="Link key" onFocus={(e) => e.currentTarget.select()} />
             <Button

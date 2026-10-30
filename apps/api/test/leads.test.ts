@@ -20,7 +20,7 @@ const ask = (payload: object) => t.app.inject({ method: 'POST', url: '/v1/public
 const mine = async (restaurant: string) => ((await admin({ method: 'GET', url: '/v1/admin/demo-requests' })).json() as { restaurant: string; id: string; phone: string; status: string; pains: string[]; contacted_at: string | null; renews_on: string | null }[]).filter((r) => r.restaurant === restaurant);
 
 describe('demo requests', () => {
-  it('records a request from the website for Mezmitra to follow up', async () => {
+  it('records a request from the website for Mezvaan to follow up', async () => {
     const restaurant = `Chai Point ${randomUUID().slice(0, 4)}`;
     const res = await ask({ name: 'Kavya', restaurant, phone: '98450 12345', city: 'Pune', tables: '11-25', plan: 'Table service', pains: ['payments_mismatch', 'month_end', 'month_end'], note: 'Two outlets soon', current_system: 'Petpooja', renews: '2027-03' });
     expect(res.statusCode).toBe(201);

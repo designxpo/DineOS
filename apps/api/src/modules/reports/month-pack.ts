@@ -125,7 +125,7 @@ export async function monthPack(tx: Tx, r: Range, opts: { month: string; toDate:
     .execute();
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Mezmitra';
+  wb.creator = 'Mezvaan';
   wb.created = new Date();
 
   // ------------------------------------------------------------------ Read me

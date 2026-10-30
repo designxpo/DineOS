@@ -10,7 +10,7 @@ import { cleanPhone, upsertCustomer } from '../customers/service';
 import { announceReservations, loadReservations } from '../reservations/service';
 import { queueReservation } from './outbox';
 
-// Tables booked from a chat (Talko AI). Mezmitra alone decides what is free: Talko only offers
+// Tables booked from a chat (Talko AI). Mezvaan alone decides what is free: Talko only offers
 // the times this returns and books one of them, and a time that filled up meanwhile is refused.
 
 /** Most upcoming chat bookings one phone number may hold, so a chat cannot fill the floor. */

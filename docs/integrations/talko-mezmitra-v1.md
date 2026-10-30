@@ -1,4 +1,4 @@
-# Talko AI × Mezmitra link: contract v1
+# Talko AI × Mezvaan link: contract v1
 
 The same file lives in both repos (`restaurant Saas/docs/integrations/` and `alabs-connect-saas/docs/integrations/`). Change it in both, or not at all. A breaking change gets new paths (`/v2/...`), not an edit here.
 
@@ -6,42 +6,42 @@ The same file lives in both repos (`restaurant Saas/docs/integrations/` and `ala
 
 | Data | Owner | The other side |
 | --- | --- | --- |
-| Menu, prices, stock, outlets, opening hours | Mezmitra | Talko reads it live; keeps no copy. Talko's own catalog is off in chats for a linked tenant |
-| Tables, availability, bookings | Mezmitra | Talko asks for free times and books one of them; never decides availability |
-| Bills, orders, loyalty | Mezmitra | Talko receives events only |
-| WhatsApp/IG/Messenger numbers, conversations, templates, AI | Talko | Mezmitra never sees them |
-| Messaging opt-out | Talko | Mezmitra is told and sets `marketing_opt_in = false` |
+| Menu, prices, stock, outlets, opening hours | Mezvaan | Talko reads it live; keeps no copy. Talko's own catalog is off in chats for a linked tenant |
+| Tables, availability, bookings | Mezvaan | Talko asks for free times and books one of them; never decides availability |
+| Bills, orders, loyalty | Mezvaan | Talko receives events only |
+| WhatsApp/IG/Messenger numbers, conversations, templates, AI | Talko | Mezvaan never sees them |
+| Messaging opt-out | Talko | Mezvaan is told and sets `marketing_opt_in = false` |
 
-Guests are matched by phone. Mezmitra stores `+91XXXXXXXXXX`; Talko stores digits (`91XXXXXXXXXX`) and strips non-digits on every lookup.
+Guests are matched by phone. Mezvaan stores `+91XXXXXXXXXX`; Talko stores digits (`91XXXXXXXXXX`) and strips non-digits on every lookup.
 
 ## Configuration (server, never per tenant)
 
 | Side | Variable | Meaning |
 | --- | --- | --- |
-| Mezmitra | `TALKO_API_URL` | Talko's origin. All tenants' events go here. Must be https in production |
-| Mezmitra | `INTEGRATION_ENC_KEY` | 32+ chars. Encrypts Talko's API key and webhook secret (AES-256-GCM, bound to the link row) |
-| Talko | `MEZMITRA_API_URL` | Mezmitra's API origin. Must be https in production |
-| Talko | `SECRET_ENC_KEY` | Existing. Encrypts the Mezmitra link key and the webhook secret |
+| Mezvaan | `TALKO_API_URL` | Talko's origin. All tenants' events go here. Must be https in production |
+| Mezvaan | `INTEGRATION_ENC_KEY` | 32+ chars. Encrypts Talko's API key and webhook secret (AES-256-GCM, bound to the link row) |
+| Talko | `MEZMITRA_API_URL` | Mezvaan's API origin. Must be https in production |
+| Talko | `SECRET_ENC_KEY` | Existing. Encrypts the Mezvaan link key and the webhook secret |
 
 No tenant can type a URL for either side, so a link cannot be pointed at another host. Neither side follows redirects; every call times out (8 s).
 
 ## Plans
 
-- Mezmitra: plan feature `talko_link` (on for `trial` and `premium`). Checked when a key is made, on every request with a link key, and before every event is sent. A downgrade stops the link at once.
+- Mezvaan: plan feature `talko_link` (on for `trial` and `premium`). Checked when a key is made, on every request with a link key, and before every event is sent. A downgrade stops the link at once.
 - Talko: entitlement `restaurant_link` (on for `trial`, `growth` and `scale`). Checked when connecting, for the AI tools, the flow step and the ping.
 
 ## Linking (one paste)
 
-1. Mezmitra owner: Settings → Talko AI → Connect. Mezmitra makes a link `mzk_` + 43 base64url characters, stores only its SHA-256, and shows it once. The key is `pending`: it may call only `whoami` and `link`, and expires after 24 h.
-2. Talko owner: Integrations → Mezmitra → paste.
+1. Mezvaan owner: Settings → Talko AI → Connect. Mezvaan makes a link `mzk_` + 43 base64url characters, stores only its SHA-256, and shows it once. The key is `pending`: it may call only `whoami` and `link`, and expires after 24 h.
+2. Talko owner: Integrations → Mezvaan → paste.
 3. Talko → `GET /v1/talko/whoami` → must say `pending`.
-4. Talko mints its own API key (`ak_live_…`, only for Mezmitra) and a 43-character webhook secret.
-5. Talko → `POST /v1/talko/link {api_key, webhook_secret, account}`. Mezmitra encrypts both and marks the link `active`. **Allowed once per key**: a key that leaks later cannot re-point events.
+4. Talko mints its own API key (`ak_live_…`, only for Mezvaan) and a 43-character webhook secret.
+5. Talko → `POST /v1/talko/link {api_key, webhook_secret, account}`. Mezvaan encrypts both and marks the link `active`. **Allowed once per key**: a key that leaks later cannot re-point events.
 6. Talko saves the connection (link key encrypted). If anything fails, Talko revokes its API key and calls `unlink`.
 
-Disconnecting from either side revokes both: Mezmitra marks the link `revoked` and drops the stored Talko key; Talko revokes its API key and calls `POST /v1/talko/unlink`.
+Disconnecting from either side revokes both: Mezvaan marks the link `revoked` and drops the stored Talko key; Talko revokes its API key and calls `POST /v1/talko/unlink`.
 
-## Talko → Mezmitra (`Authorization: Bearer mzk_…`)
+## Talko → Mezvaan (`Authorization: Bearer mzk_…`)
 
 All responses are JSON. Errors are `{ "error": { "code", "message" } }`.
 
@@ -62,7 +62,7 @@ A booking view is `{id, ref, outlet_id, outlet_name, slot_start, date, time, par
 
 Talko calls lookup and cancel only with a WhatsApp sender's own number (WhatsApp has verified it). On Instagram, Messenger and web chat, guests can book (giving a number) but cannot list or cancel.
 
-## Mezmitra → Talko events (`POST {TALKO_API_URL}/api/events`)
+## Mezvaan → Talko events (`POST {TALKO_API_URL}/api/events`)
 
 Headers: `Authorization: Bearer ak_live_…`, `Idempotency-Key: <outbox row id>`. Body: `{event, phone, name?, data}`. Talko replays the first answer for a repeated key and schedules nothing again (`wa_api_event_receipts`, kept 7 days).
 
@@ -80,6 +80,6 @@ Delivery: written to `integration_outbox` in the same transaction as the change,
 
 Review requests are marketing messages: Talko rules for `mezmitra.bill.paid` should require `marketing_opt_in equals true` and use a frequency cap (2,160 h = 90 days).
 
-## Talko → Mezmitra opt-out webhook
+## Talko → Mezvaan opt-out webhook
 
-`POST {MEZMITRA_API_URL}/v1/talko/webhooks/:linkId` with Talko's standard signed envelope: `X-Alabs-Signature: sha256=<hex HMAC-SHA256 of the raw body with the webhook secret>`, `X-Alabs-Event`, `X-Alabs-Delivery`. Only `contact.optout` is acted on: Mezmitra sets `marketing_opt_in = false` for that number. Harmless to repeat.
+`POST {MEZMITRA_API_URL}/v1/talko/webhooks/:linkId` with Talko's standard signed envelope: `X-Alabs-Signature: sha256=<hex HMAC-SHA256 of the raw body with the webhook secret>`, `X-Alabs-Event`, `X-Alabs-Delivery`. Only `contact.optout` is acted on: Mezvaan sets `marketing_opt_in = false` for that number. Harmless to repeat.

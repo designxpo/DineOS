@@ -1,5 +1,5 @@
 /* global self, caches, fetch, URL */
-// Mezmitra service worker: caches the app shell and static assets so staff screens open during a
+// Mezvaan service worker: caches the app shell and static assets so staff screens open during a
 // short internet drop. API calls are never cached here; the app keeps its own offline queue.
 // A new name: the activate step below removes caches under any other name, the old ones included.
 const CACHE = 'mezmitra-shell-v1';
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
 
 // Staff phone alerts (Web Push): new orders to accept, waiter calls, bill requests.
 self.addEventListener('push', (event) => {
-  let msg = { title: 'Mezmitra', body: '', url: '/app', tag: undefined };
+  let msg = { title: 'Mezvaan', body: '', url: '/app', tag: undefined };
   try {
     msg = { ...msg, ...event.data.json() };
   } catch {

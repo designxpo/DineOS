@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Mezmitra web (guest PWA, staff portal, admin). Build from the repo root:
+# Mezvaan web (guest PWA, staff portal, admin). Build from the repo root:
 #   docker build -f infra/docker/web.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t mezmitra-web .
 
 FROM node:24-alpine AS deps

@@ -1,8 +1,8 @@
-# Mezmitra print agent installer for Windows (the billing PC).
+# Mezvaan print agent installer for Windows (the billing PC).
 #
-# Copy the command from Mezmitra > Settings > Printers > Add print computer. Run it in PowerShell
+# Copy the command from Mezvaan > Settings > Printers > Add print computer. Run it in PowerShell
 # opened with "Run as administrator". It sets MEZMITRA_WEB, MEZMITRA_API and MEZMITRA_TOKEN, then runs:
-#   irm https://<your Mezmitra site>/agent/install.ps1 | iex
+#   irm https://<your Mezvaan site>/agent/install.ps1 | iex
 # (Commands copied before the rename set DINEOS_WEB, DINEOS_API and DINEOS_TOKEN; they still work.)
 #
 # It installs Node.js 22 LTS if needed, puts the agent in C:\ProgramData\Mezmitra and starts it as a
@@ -22,13 +22,13 @@ function Install-MezmitraAgent {
   $token = if ($env:MEZMITRA_TOKEN) { $env:MEZMITRA_TOKEN } else { $env:DINEOS_TOKEN }
   $hub = ($env:MEZMITRA_HUB -eq '1') -or ($env:DINEOS_HUB -eq '1')
   if (-not $web -or -not $api -or -not ($token -like 'dv_*')) {
-    Write-Host 'Copy the full command from Mezmitra (Settings > Printers) and run it again.' -ForegroundColor Red
+    Write-Host 'Copy the full command from Mezvaan (Settings > Printers) and run it again.' -ForegroundColor Red
     return
   }
   # The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
   foreach ($url in @($web, $api)) {
     if ($url -notmatch '^https://' -and $url -notmatch '^http://(localhost|127\.0\.0\.1)([:/]|$)') {
-      Write-Host "The Mezmitra address must start with https:// ($url)" -ForegroundColor Red
+      Write-Host "The Mezvaan address must start with https:// ($url)" -ForegroundColor Red
       return
     }
   }
@@ -69,7 +69,7 @@ function Install-MezmitraAgent {
   $oldDir = Join-Path $env:ProgramData 'DineOS'
   $oldTask = 'DineOS Print Agent'
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
-  Write-Host "==> Downloading the Mezmitra print agent to $dir"
+  Write-Host "==> Downloading the Mezvaan print agent to $dir"
   $agent = Join-Path $dir 'mezmitra-agent.mjs'
   $download = "$agent.new"
   Invoke-WebRequest "$web/agent/mezmitra-agent.mjs" -OutFile $download -UseBasicParsing
@@ -123,7 +123,7 @@ function Install-MezmitraAgent {
   Remove-Item Env:MEZMITRA_TOKEN -ErrorAction SilentlyContinue
   Remove-Item Env:DINEOS_TOKEN -ErrorAction SilentlyContinue
   Write-Host ''
-  Write-Host 'Done. In Mezmitra (Settings > Printers) this computer shows as Online within a minute; choose its printers there.' -ForegroundColor Green
+  Write-Host 'Done. In Mezvaan (Settings > Printers) this computer shows as Online within a minute; choose its printers there.' -ForegroundColor Green
   Write-Host "Log: $dir\agent.log"
 }
 

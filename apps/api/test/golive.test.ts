@@ -1,4 +1,4 @@
-// The go-live rehearsal: scenarios run on the outlet's own devices, what Mezmitra saw of each, and
+// The go-live rehearsal: scenarios run on the outlet's own devices, what Mezvaan saw of each, and
 // the acceptance sheet only the owner signs, frozen as signed. Full payment starts after it.
 
 import { randomUUID } from 'node:crypto';
@@ -113,7 +113,7 @@ describe('go-live rehearsal', () => {
     expect(check((await current())!, 'mixed_order').evidence).toEqual(check(signed, 'mixed_order').evidence);
   });
 
-  it('shows Mezmitra who has signed, and a new rehearsal can start after', async () => {
+  it('shows Mezvaan who has signed, and a new rehearsal can start after', async () => {
     const email = `golive-${randomUUID().slice(0, 6)}@mezmitra.test`;
     await t.ctx.adminDb.insertInto('platform_admins').values({ name: 'Ops', email, password_hash: await hashSecret('admin-password-1') }).execute();
     const admin = api(t, (await t.app.inject({ method: 'POST', url: '/v1/admin/auth/login', payload: { email, password: 'admin-password-1' } })).json().token);

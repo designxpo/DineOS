@@ -1,6 +1,6 @@
 // The money check, for an outlet that bills on another system while its paid year runs: its sales
 // export and its bank statement, with every UPI payment the bills claim checked against the bank.
-// Nothing is ordered or billed in Mezmitra meanwhile, and the QR menu is for reading.
+// Nothing is ordered or billed in Mezvaan meanwhile, and the QR menu is for reading.
 
 import ExcelJS from 'exceljs';
 import { randomUUID } from 'node:crypto';
@@ -133,7 +133,7 @@ describe('money check (billing on another system)', () => {
     expect((done.json() as SalesImportResultDTO).import.upi).toMatchObject({ matched: 1, matched_paise: 42000 });
   });
 
-  it('when the paid year ends, billing moves to Mezmitra and orders are taken again', async () => {
+  it('when the paid year ends, billing moves to Mezvaan and orders are taken again', async () => {
     expect((await setBilling(null)).json().billing_elsewhere).toBeNull();
     const order = await owner({ method: 'POST', url: '/v1/orders', payload: { outlet_id: tenant.outletId, type: 'takeaway', lines: [{ item_id: menu.paneerTikka, qty: 1 }] } });
     expect(order.statusCode).toBe(201);

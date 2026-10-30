@@ -30,7 +30,7 @@ async function call(cfg: TalkoConfig, path: string, apiKey: string, init: Reques
   try {
     return await fetchFn(`${base}${path}`, {
       ...init,
-      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json', 'user-agent': 'Mezmitra/1', ...init.headers },
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json', 'user-agent': 'Mezvaan/1', ...init.headers },
       // A redirect could carry the key to another host.
       redirect: 'error',
       signal: AbortSignal.timeout(8000),

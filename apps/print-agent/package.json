@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "On-site agent: receives kitchen tickets and bills from Mezmitra and prints them on ESC/POS network printers",
+  "description": "On-site agent: receives kitchen tickets and bills from Mezvaan and prints them on ESC/POS network printers",
   "bin": {
     "mezmitra-print-agent": "dist/main.js"
   },

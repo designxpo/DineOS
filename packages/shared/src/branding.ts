@@ -1,18 +1,18 @@
 // A restaurant's own look (white label for its staff and guests, not for resale): its logo, cover
 // photo, colour and heading style on the staff portal, the QR menu, order tracking and the pickup
-// screen. Whether it shows depends on the plan, unless Mezmitra sets it for one restaurant.
+// screen. Whether it shows depends on the plan, unless Mezvaan sets it for one restaurant.
 
 export const HEADING_STYLES = ['serif', 'sans'] as const;
 export type HeadingStyle = (typeof HEADING_STYLES)[number];
 
-/** Mezmitra's own brand colour (Spice & Ink). */
+/** Mezvaan's own brand colour (Spice & Ink). */
 export const DEFAULT_BRAND_COLOR = '#b9381e';
 export const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 /** The plan feature that turns a restaurant's own look on. */
 export const WHITE_LABEL_FEATURE = 'white_label';
 
-/** Whether a restaurant's own look shows: its plan includes it, unless Mezmitra set it for this restaurant. */
+/** Whether a restaurant's own look shows: its plan includes it, unless Mezvaan set it for this restaurant. */
 export function whiteLabelOn(planFeatures: unknown, override: boolean | null | undefined): boolean {
   if (override === true || override === false) return override;
   return (planFeatures as Record<string, unknown> | null)?.[WHITE_LABEL_FEATURE] === true;

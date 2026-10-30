@@ -1,4 +1,4 @@
-// Help from inside the portal: staff raise a case with how bad it is; Mezmitra support picks it up,
+// Help from inside the portal: staff raise a case with how bad it is; Mezvaan support picks it up,
 // replies and moves it on; the outlet says when service runs again and closes it only when it works.
 
 import { randomUUID } from 'node:crypto';

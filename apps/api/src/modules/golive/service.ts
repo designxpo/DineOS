@@ -1,4 +1,4 @@
-// The go-live rehearsal. Each scenario is marked by people, but Mezmitra also shows what it saw
+// The go-live rehearsal. Each scenario is marked by people, but Mezvaan also shows what it saw
 // since the rehearsal began (the mixed order, the split, the ticket that failed and printed), so
 // the signed sheet rests on evidence and not only on ticks.
 
@@ -163,7 +163,7 @@ export async function evidence(tx: Tx, outletId: string, since: Date, timezone: 
     .executeTakeFirstOrThrow();
   out.internet_off = Number(offline.n)
     ? { seen: true, lines: [`${Number(offline.n)} order${Number(offline.n) === 1 ? '' : 's'} came in through the outlet hub while the internet was off.`] }
-    : { seen: false, lines: ['A short drop is kept on each phone and sent on reconnect, which Mezmitra cannot see from here: count the orders and bills on each device before and after.'] };
+    : { seen: false, lines: ['A short drop is kept on each phone and sent on reconnect, which Mezvaan cannot see from here: count the orders and bills on each device before and after.'] };
 
   const packs = await tx.db
     .selectFrom('audit_log')

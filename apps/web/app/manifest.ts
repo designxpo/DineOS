@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Mezmitra',
-    short_name: 'Mezmitra',
+    name: 'Mezvaan',
+    short_name: 'Mezvaan',
     description: 'Restaurant operations, together: ordering, kitchen and billing',
     start_url: '/app',
     display: 'standalone',

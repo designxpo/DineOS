@@ -1,4 +1,4 @@
-# Mezmitra product video: recording playbook
+# Mezvaan product video: recording playbook
 
 Use the dedicated **aurum-video** restaurant in the local product. All names, trade and bookings are fictional. This seed uses the real order and billing services, so actions in the recording behave like normal product actions.
 
@@ -34,7 +34,7 @@ Times below are the final edit timeline. Capture longer raw clips and trim pause
 
 | Shot / time    | Screen and exact action                                                                                                              | Hold / framing                                                          | Voiceover or caption                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 1 · 0:00–0:06  | Dashboard `/app`; show the populated overview.                                                                                       | Full screen; gentle crop toward the main totals.                        | “Meet Mezmitra. From the first order to the final bill.”                  |
+| 1 · 0:00–0:06  | Dashboard `/app`; show the populated overview.                                                                                       | Full screen; gentle crop toward the main totals.                        | “Meet Mezvaan. From the first order to the final bill.”                  |
 | 2 · 0:06–0:16  | Floor `/app/floor`; show the courtyard, poolside and private dining tables.                                                          | Pause over the different table states.                                  | “See what is happening across your restaurant at a glance.”               |
 | 3 · 0:16–0:25  | Select C1 and choose Guest menu. Cut to the phone-sized menu.                                                                        | Keep the restaurant name and food photos visible.                       | “Guests open the table menu on their phone. No app download.”             |
 | 4 · 0:25–0:40  | Add one Paneer Tikka, select Medium spice, then add one Fresh Lime Soda. Open the cart.                                              | Close crop on the modifier selection, then the cart.                    | “Choose dishes, customise the order, and send it straight to the team.”   |
@@ -47,7 +47,7 @@ Times below are the final edit timeline. Capture longer raw clips and trim pause
 | 11 · 1:51–2:04 | Reports `/app/reports`; select a range covering the last fourteen days.                                                              | Show sales trends and a category breakdown; avoid a rapid tour of tabs. | “Owners can review sales and understand what is selling.”                 |
 | 12 · 2:04–2:14 | Reservations `/app/reservations`; show bookings and the Kapoor waitlist entry. Select the relevant date if a booking falls tomorrow. | Hold on the booking list, then waitlist.                                | “Keep reservations and waiting guests organised.”                         |
 | 13 · 2:14–2:24 | Inventory `/app/inventory`; show stocked ingredients and open a recipe if available.                                                 | One slow scroll through stock.                                          | “Connect dishes with ingredients and keep stock visible.”                 |
-| 14 · 2:24–2:30 | Return to the populated dashboard; add a simple end title in the editor.                                                             | Hold steady with the Mezmitra name.                                     | “Mezmitra. Book a demo for your restaurant.”                              |
+| 14 · 2:24–2:30 | Return to the populated dashboard; add a simple end title in the editor.                                                             | Hold steady with the Mezvaan name.                                     | “Mezvaan. Book a demo for your restaurant.”                              |
 
 If C1 billing takes multiple tries, record the complete order journey again after resetting. C7 is available for a separate standalone billing explainer; do not cut between different table labels as if they were the same visit. For a clean floor shot, record soon after seeding: order ages and table-cleaning states change as time passes.
 

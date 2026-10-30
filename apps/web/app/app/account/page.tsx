@@ -123,10 +123,10 @@ function PhoneAlerts() {
     <Card className="space-y-3 p-5">
       <div>
         <h2 className="font-semibold">Alerts on this phone</h2>
-        <p className="mt-1 text-sm text-ink-soft">A buzz for new orders to accept, waiter calls and bill requests at {outlet?.name ?? 'this outlet'}, even when Mezmitra is closed.</p>
+        <p className="mt-1 text-sm text-ink-soft">A buzz for new orders to accept, waiter calls and bill requests at {outlet?.name ?? 'this outlet'}, even when Mezvaan is closed.</p>
       </div>
-      {state === 'needs_install' && <p className="text-sm text-amber-800">On iPhone, tap Share, then “Add to Home Screen”. Open Mezmitra from the Home Screen and turn alerts on there.</p>}
-      {state === 'blocked' && <p className="text-sm text-amber-800">Notifications are blocked for Mezmitra. Allow them in your browser’s site settings, then come back.</p>}
+      {state === 'needs_install' && <p className="text-sm text-amber-800">On iPhone, tap Share, then “Add to Home Screen”. Open Mezvaan from the Home Screen and turn alerts on there.</p>}
+      {state === 'blocked' && <p className="text-sm text-amber-800">Notifications are blocked for Mezvaan. Allow them in your browser’s site settings, then come back.</p>}
       {(state === 'on' || state === 'off') && <Switch label="Alerts on this phone" checked={state === 'on'} disabled={busy} onChange={(v) => void toggle(v)} />}
     </Card>
   );

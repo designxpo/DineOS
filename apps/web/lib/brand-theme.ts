@@ -2,16 +2,16 @@
 
 // A restaurant's own look on a whole page: every brand shade, the heading font, the browser's bar
 // colour, the tab icon and the tab title. Set on the document root so sheets and dialogs (which
-// render outside the page's own tree) carry it too. An empty branding leaves the Mezmitra look.
+// render outside the page's own tree) carry it too. An empty branding leaves the Mezvaan look.
 
 import { useEffect } from 'react';
 import { brandShades } from '@mezmitra/shared/branding';
 import type { BrandingDTO } from '@mezmitra/shared/dto';
 
-// Mezmitra's own headings are sans (Manrope); a restaurant can choose classic serif ones.
+// Mezvaan's own headings are sans (Manrope); a restaurant can choose classic serif ones.
 const SERIF = 'var(--font-fraunces), Georgia, serif';
 
-/** The CSS variables for a branding: brand shades and the heading font. Empty for the Mezmitra look. */
+/** The CSS variables for a branding: brand shades and the heading font. Empty for the Mezvaan look. */
 export function brandVars(b: BrandingDTO | null | undefined): Record<string, string> {
   const vars: Record<string, string> = {};
   if (b?.primary_color) {
@@ -26,7 +26,7 @@ export function brandVars(b: BrandingDTO | null | undefined): Record<string, str
 /** The same variables as an inline style, for a preview of a look not saved yet. */
 export const brandStyle = (b: BrandingDTO | null | undefined) => brandVars(b) as React.CSSProperties;
 
-/** Applies a restaurant's look to the page while mounted. `name` replaces "Mezmitra" in the tab title. */
+/** Applies a restaurant's look to the page while mounted. `name` replaces "Mezvaan" in the tab title. */
 export function useBrandTheme(branding: BrandingDTO | null | undefined, name?: string | null): void {
   const color = branding?.primary_color ?? null;
   const heading = branding?.heading_style ?? null;
@@ -52,11 +52,11 @@ export function useBrandTheme(branding: BrandingDTO | null | undefined, name?: s
       document.head.appendChild(icon);
     }
 
-    // Page titles are "Orders · Mezmitra": the restaurant's name instead.
+    // Page titles are "Orders · Mezvaan": the restaurant's name instead.
     let observer: MutationObserver | null = null;
     if (name) {
       const rename = () => {
-        if (document.title.includes('Mezmitra')) document.title = document.title.replaceAll('Mezmitra', name);
+        if (document.title.includes('Mezvaan')) document.title = document.title.replaceAll('Mezvaan', name);
       };
       rename();
       observer = new MutationObserver(rename);

@@ -102,7 +102,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
     });
 
     /**
-     * A sales export from the billing system the outlet uses instead of Mezmitra, as base64 in
+     * A sales export from the billing system the outlet uses instead of Mezvaan, as base64 in
      * JSON: {outlet_id, file_name, data}, CSV or .xlsx. When its columns cannot be told from their
      * names the answer says so with the headers found, and `columns` names them on the next try.
      */

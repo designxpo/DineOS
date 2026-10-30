@@ -31,7 +31,7 @@ export default function AdminLogin() {
     <main className="grid min-h-dvh place-items-center bg-stone-900 p-6">
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-3xl bg-surface p-6">
         <div className="space-y-3">
-          <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-9 w-auto" />
+          <img src="/brand/wordmark.svg" alt="Mezvaan" className="h-9 w-auto" />
           <h1 className="flex items-center gap-2 text-lg font-semibold">
             <ShieldCheck className="size-5 text-[var(--brand)]" /> Platform admin
           </h1>

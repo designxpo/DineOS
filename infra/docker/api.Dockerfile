@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Mezmitra API. Build from the repo root:  docker build -f infra/docker/api.Dockerfile -t mezmitra-api .
+# Mezvaan API. Build from the repo root:  docker build -f infra/docker/api.Dockerfile -t mezmitra-api .
 
 FROM node:24-alpine AS deps
 WORKDIR /app

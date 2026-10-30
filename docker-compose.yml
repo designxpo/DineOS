@@ -1,4 +1,4 @@
-# Mezmitra on one server (rented, India region). Scale `api` horizontally once there are several
+# Mezvaan on one server (rented, India region). Scale `api` horizontally once there are several
 # hundred outlets; Redis carries live events between API instances.
 #
 #   cp .env.production.example .env.production   # fill in secrets and domains

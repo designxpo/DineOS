@@ -381,7 +381,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         await audit(tx, auth, { action: 'tenant.export', entity: 'tenant', entityId: tx.tenantId });
         return out;
       });
-      reply.header('content-disposition', `attachment; filename="mezmitra-export-${new Date().toISOString().slice(0, 10)}.json"`);
+      reply.header('content-disposition', `attachment; filename="mezvaan-export-${new Date().toISOString().slice(0, 10)}.json"`);
       return { exported_at: new Date().toISOString(), format_version: 1, data };
     });
   };

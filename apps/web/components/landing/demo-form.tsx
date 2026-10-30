@@ -22,7 +22,7 @@ function nextMonths(): { value: string; label: string }[] {
 }
 const input = 'h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none';
 
-/** Asks for a demo: who, where, how big, and what hurts most. Mezmitra calls or WhatsApps back. */
+/** Asks for a demo: who, where, how big, and what hurts most. Mezvaan calls or WhatsApps back. */
 export function DemoForm() {
   const [name, setName] = useState('');
   const [restaurant, setRestaurant] = useState('');
@@ -178,7 +178,7 @@ export function DemoForm() {
       </div>
       {system && !noContract(system) && (
         <p className="-mt-1 rounded-xl bg-stone-50 px-3 py-2 text-sm text-ink-soft">
-          Keep it until then. Start with the money check on top of it, and move billing to Mezmitra when your year ends.
+          Keep it until then. Start with the money check on top of it, and move billing to Mezvaan when your year ends.
         </p>
       )}
 

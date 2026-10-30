@@ -86,7 +86,7 @@ export function BrandKit() {
           </p>
         ) : (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Your plan ({t.plan_name}) shows the Mezmitra look.{' '}
+            Your plan ({t.plan_name}) shows the Mezvaan look.{' '}
             {t.white_label_plans.length > 0 ? `Your brand goes live on ${t.white_label_plans.join(' or ')}. ` : ''}
             Set it up now and see it in the preview.
           </p>

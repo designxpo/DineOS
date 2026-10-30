@@ -257,10 +257,10 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
         req.body,
       );
       const encKey = ctx.config.INTEGRATION_ENC_KEY;
-      if (!encKey) throw conflict('not_configured', 'Mezmitra is not set up for Talko AI yet');
+      if (!encKey) throw conflict('not_configured', 'Mezvaan is not set up for Talko AI yet');
       const hash = await ctx.tx(auth.tenantId, async (tx) => {
         const link = await tx.db.selectFrom('integration_links').select(['id', 'status', 'token_hash']).where('id', '=', auth.linkId).forUpdate().executeTakeFirstOrThrow();
-        if (link.status !== 'pending') throw conflict('already_linked', 'This key was already used. Make a new one in Mezmitra Settings.');
+        if (link.status !== 'pending') throw conflict('already_linked', 'This key was already used. Make a new one in Mezvaan Settings.');
         await tx.db
           .updateTable('integration_links')
           .set({

@@ -3,8 +3,8 @@ import { cn } from '@/components/ui/cn';
 
 /**
  * The restaurant's logo when it has its own look. Otherwise: on screens a guest sees (pass `name`),
- * the restaurant's initial, because Mezmitra names the platform, not the restaurant; on staff
- * screens, the Mezmitra app icon.
+ * the restaurant's initial, because Mezvaan names the platform, not the restaurant; on staff
+ * screens, the Mezvaan app icon.
  */
 export function BrandMark({ branding, className, name }: { branding?: BrandingDTO | null; className?: string; name?: string | null }) {
   if (branding?.logo_url) {

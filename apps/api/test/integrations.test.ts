@@ -1,5 +1,5 @@
 // The Talko AI link: connecting, what a link key may and may not reach, booking a table from a chat,
-// and the events Mezmitra sends Talko (exactly once, with retries, never late).
+// and the events Mezvaan sends Talko (exactly once, with retries, never late).
 
 import { createHmac } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';

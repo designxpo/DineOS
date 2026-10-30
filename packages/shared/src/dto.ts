@@ -112,8 +112,8 @@ export interface OutletDTO {
   /** The owner's phone hears about free items worth at least this much; null: never. */
   comp_alert_paise: number | null;
   /**
-   * The billing system this outlet uses instead of Mezmitra (e.g. Petpooja), while its paid year
-   * runs. Null: it bills on Mezmitra. While set, nothing is ordered or billed here; the outlet uses
+   * The billing system this outlet uses instead of Mezvaan (e.g. Petpooja), while its paid year
+   * runs. Null: it bills on Mezvaan. While set, nothing is ordered or billed here; the outlet uses
    * the money check (its sales export against the bank) and the QR menu for reading.
    */
   billing_elsewhere: string | null;
@@ -842,7 +842,7 @@ export interface SupportCaseDTO {
   status: SupportStatus;
   summary: string;
   raised_by_name: string | null;
-  /** Who at Mezmitra support owns it; null until someone picks it up. */
+  /** Who at Mezvaan support owns it; null until someone picks it up. */
   assignee_name: string | null;
   created_at: string;
   first_response_at: string | null;
@@ -954,7 +954,7 @@ export interface RecipesDTO {
 export interface ReconSummaryDTO {
   matched: number;
   matched_paise: number;
-  /** UPI credits in the bank with no payment recorded in Mezmitra. */
+  /** UPI credits in the bank with no payment recorded in Mezvaan. */
   unrecorded_upi: number;
   unrecorded_upi_paise: number;
   /** Cash deposits, card settlements and other credits: shown, not flagged. */
@@ -978,7 +978,7 @@ export interface BankStatementDTO {
   summary: ReconSummaryDTO;
 }
 
-/** One sales export from the billing system the outlet uses instead of Mezmitra. */
+/** One sales export from the billing system the outlet uses instead of Mezvaan. */
 export interface SalesImportDTO {
   id: string;
   outlet_id: string;
@@ -1067,7 +1067,7 @@ export interface UpiCheckDTO {
 
 // ---------- Go-live rehearsal ----------
 
-/** What Mezmitra saw that shows a scenario was run (or why it cannot tell). */
+/** What Mezvaan saw that shows a scenario was run (or why it cannot tell). */
 export interface GoliveEvidenceDTO {
   seen: boolean;
   lines: string[];
@@ -1097,7 +1097,7 @@ export interface GoliveRehearsalDTO {
   outlet_id: string;
   outlet_name: string;
   tenant_name: string;
-  /** When the outlet was created in Mezmitra: hours from setup to sign-off is a measure. */
+  /** When the outlet was created in Mezvaan: hours from setup to sign-off is a measure. */
   outlet_created_at: string;
   started_at: string;
   started_by_name: string | null;
@@ -1211,7 +1211,7 @@ export interface TalkoLinkDTO {
   status: 'none' | 'pending' | 'active';
   /** The plan includes the link. */
   plan_allows: boolean;
-  /** Mezmitra can send events: the server has TALKO_API_URL and INTEGRATION_ENC_KEY. */
+  /** Mezvaan can send events: the server has TALKO_API_URL and INTEGRATION_ENC_KEY. */
   configured: boolean;
   token_prefix: string | null;
   peer_account: string | null;

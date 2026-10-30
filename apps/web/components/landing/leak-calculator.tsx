@@ -78,8 +78,8 @@ export function LeakCalculator() {
           </ul>
           <p className={cn('rounded-xl px-4 py-3 text-sm', times >= 1 ? 'bg-accent/15 text-accent' : 'bg-white/10 text-white/80')}>
             {times >= 1
-              ? `That is ${times >= 10 ? Math.round(times) : times.toFixed(1)} times what Mezmitra Table service costs (₹1,499 a month).`
-              : 'Even small numbers add up: Mezmitra Table service is ₹1,499 a month.'}
+              ? `That is ${times >= 10 ? Math.round(times) : times.toFixed(1)} times what Mezvaan Table service costs (₹1,499 a month).`
+              : 'Even small numbers add up: Mezvaan Table service is ₹1,499 a month.'}
           </p>
         </div>
         <p className="mt-auto text-xs text-white/50">Your numbers, not ours. Move the sliders to match your restaurant.</p>

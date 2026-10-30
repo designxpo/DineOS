@@ -1,7 +1,7 @@
-# Mezmitra Security & Cloud Security Audit Report
+# Mezvaan Security & Cloud Security Audit Report
 **Audit Date**: October 2026  
 **Auditors**: Senior Security Engineer & Cloud Security Architect (`/senior-security` & `/cloud-security`)  
-**Scope**: Mezmitra Monorepo (`apps/api`, `apps/web`, `apps/print-agent`, `edge/vision-worker`, `packages/shared`, `infra/`, `docker-compose.yml`, `.github/workflows/ci.yml`)
+**Scope**: Mezvaan Monorepo (`apps/api`, `apps/web`, `apps/print-agent`, `edge/vision-worker`, `packages/shared`, `infra/`, `docker-compose.yml`, `.github/workflows/ci.yml`)
 
 ---
 
@@ -9,7 +9,7 @@
 
 A comprehensive security assessment was conducted across application code, multi-tenant isolation mechanisms, cryptographic implementations, edge computing interfaces, and cloud infrastructure configurations.
 
-Mezmitra displays **advanced architectural security maturity** in several foundational areas:
+Mezvaan displays **advanced architectural security maturity** in several foundational areas:
 - **Tenancy Isolation**: Enforced at the database engine level via PostgreSQL Row-Level Security (RLS) with composite `(id, tenant_id)` foreign keys that neutralize native PostgreSQL cross-tenant relational bypasses.
 - **Cryptographic Practices**: Scrypt with per-user salt and timing-safe comparisons for credentials; HMAC-SHA256 purpose-separated tokens for guest sessions, table QR codes, and counters.
 - **Privacy by Design**: Edge vision processing runs strictly on premise; video streams never leave the restaurant; camera reference stills are blurred and purged after 24 hours. Customer data management adheres to the Indian Digital Personal Data Protection (DPDP) Act 2023 with mandatory consent recording and right-to-erasure workflows.
@@ -37,7 +37,7 @@ The system was decomposed into trust boundaries:
 
 ### STRIDE Assessment Matrix
 
-| Element | Threat Category | Threat Description | Mezmitra Defense Status | Residual Risk |
+| Element | Threat Category | Threat Description | Mezvaan Defense Status | Residual Risk |
 | :--- | :--- | :--- | :--- | :--- |
 | **Guest QR & Token** | **Spoofing** | Adversary attempts to forge guest tokens to view or mutate table orders. | HMAC-SHA256 signed with secret key; table QR versioning allows instantaneous invalidation. | **Low** |
 | **Staff & Admin Sessions** | **Spoofing** | Session token theft or brute-forcing. | Cryptographically random 256-bit bearer tokens (`st_...`, `ad_...`), stored as SHA-256 hashes in DB. | **Low** |
@@ -264,7 +264,7 @@ The system was decomposed into trust boundaries:
 
 ```mermaid
 gantt
-    title Mezmitra Security Remediation Roadmap
+    title Mezvaan Security Remediation Roadmap
     dateFormat  YYYY-MM-DD
     section Critical & High
     SEC-01: Set Redis Password Authentication    :crit, p0, 2026-10-18, 1d
@@ -313,4 +313,4 @@ Tests: `apps/api/test/security.test.ts` (PIN lockout, upload content checks, sto
 
 ## 5. Conclusion
 
-Mezmitra possesses a **solid, well-architected security core**—especially regarding multi-tenant RLS isolation, domain-separated cryptographic tokens, and on-premise camera privacy protection. Implementing the remediations above—primarily securing the internal Redis instance, bounding memory caches, and locking down PIN attempts—will elevate the platform to institutional enterprise standards.
+Mezvaan possesses a **solid, well-architected security core**—especially regarding multi-tenant RLS isolation, domain-separated cryptographic tokens, and on-premise camera privacy protection. Implementing the remediations above—primarily securing the internal Redis instance, bounding memory caches, and locking down PIN attempts—will elevate the platform to institutional enterprise standards.

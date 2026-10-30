@@ -78,7 +78,7 @@ export default function PlanPage() {
         order_id: order.order_id,
         amount: order.amount_paise,
         currency: order.currency,
-        name: 'Mezmitra',
+        name: 'Mezvaan',
         description: `${order.plan_name} plan for ${order.business_name}`,
         prefill: { name: order.prefill.name ?? undefined, email: order.prefill.email ?? undefined, contact: order.prefill.contact ?? undefined },
         theme: { color: getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || undefined },

@@ -53,7 +53,7 @@ export default function routes(ctx: AppContext): FastifyPluginAsync {
       });
     });
 
-    /** Starts a rehearsal: what Mezmitra counts as evidence happens from now on. */
+    /** Starts a rehearsal: what Mezvaan counts as evidence happens from now on. */
     app.post('/golive', async (req, reply) => {
       const auth = requireStaff(req);
       const body = parse(z.object({ outlet_id: z.uuid() }), req.body);

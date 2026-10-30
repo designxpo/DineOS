@@ -1,5 +1,5 @@
-// Bills from the billing system an outlet uses instead of Mezmitra, from its sales export. Their
-// money goes in payments like a Mezmitra bill's, tied to the outside bill, so the UPI check and
+// Bills from the billing system an outlet uses instead of Mezvaan, from its sales export. Their
+// money goes in payments like a Mezvaan bill's, tied to the outside bill, so the UPI check and
 // bank matching work on them unchanged.
 
 import { createHash } from 'node:crypto';
@@ -23,7 +23,7 @@ export async function importSales(
   fileName: string,
   parsed: ParsedSales,
 ): Promise<string> {
-  if (!outlet.billing_elsewhere) throw conflict('bills_here', 'This outlet bills on Mezmitra. Name the system it bills on in Settings first.');
+  if (!outlet.billing_elsewhere) throw conflict('bills_here', 'This outlet bills on Mezvaan. Name the system it bills on in Settings first.');
   const imp = await tx.db
     .insertInto('sales_imports')
     .values({

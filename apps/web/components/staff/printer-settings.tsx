@@ -118,7 +118,7 @@ export function PrinterSettings() {
         <h2 className="font-semibold">Kitchen tickets and bills</h2>
         <p className="mt-1 text-sm text-ink-soft">
           Choose one computer at the outlet that stays on during service, usually the billing PC. Plug the bill and kitchen printers into it by USB, or connect them to the same network (LAN or
-          Wi-Fi). Mezmitra then prints each station&rsquo;s kitchen ticket (KOT) on its own printer and the bill at the billing desk, and can open the cash drawer.
+          Wi-Fi). Mezvaan then prints each station&rsquo;s kitchen ticket (KOT) on its own printer and the bill at the billing desk, and can open the cash drawer.
         </p>
         <p className="mt-2 text-sm text-ink-faint">Without a print computer, the kitchen screen shows every order and bills print from the browser.</p>
         <Button className="mt-4" loading={busy === 'add'} onClick={() => void add()}>
@@ -285,7 +285,7 @@ function InstallSheet({ token, device, onClose, onChoose }: { token: string; dev
           </label>
         </div>
         <p className="text-xs text-ink-faint">
-          It installs Node.js if needed and sets Mezmitra printing to start with the computer. The line holds this computer&rsquo;s key, so keep it private; &ldquo;New install command&rdquo; replaces it.
+          It installs Node.js if needed and sets Mezvaan printing to start with the computer. The line holds this computer&rsquo;s key, so keep it private; &ldquo;New install command&rdquo; replaces it.
         </p>
         <div className={cn('flex items-center gap-3 rounded-xl border p-3', connected ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-line bg-stone-50 text-ink-soft')} role="status">
           {connected ? <Check className="size-5 shrink-0" /> : <Spinner className="size-4 shrink-0" />}
@@ -448,7 +448,7 @@ function HubSettings({ devices }: { devices: PrintDevice[] }) {
           <h2 className="font-semibold">Offline mode (outlet hub)</h2>
           <p className="mt-1 text-sm text-ink-soft">
             When the internet goes down, staff screens can switch to this computer on your Wi-Fi and keep taking orders, sending kitchen tickets and printing GST bills. Everything is sent to
-            Mezmitra when the connection returns.
+            Mezvaan when the connection returns.
           </p>
         </div>
         {hub && <Badge tone={hub.online ? 'green' : 'amber'}>{hub.online ? 'Hub ready' : 'Hub not connected'}</Badge>}

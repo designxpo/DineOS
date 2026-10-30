@@ -324,25 +324,25 @@ function WhereBills() {
     <Card className="space-y-3 p-5">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-semibold">Where this outlet bills</h2>
-        <Badge tone={elsewhere ? 'blue' : 'green'}>{elsewhere ? `On ${elsewhere}` : 'On Mezmitra'}</Badge>
+        <Badge tone={elsewhere ? 'blue' : 'green'}>{elsewhere ? `On ${elsewhere}` : 'On Mezvaan'}</Badge>
       </div>
       {elsewhere ? (
         <>
           <p className="text-sm text-ink-soft">
-            Orders and bills are made on {elsewhere}, so Mezmitra takes none: the QR menu is for reading and calling a waiter. Upload {elsewhere}&rsquo;s sales export and your bank statement under{' '}
+            Orders and bills are made on {elsewhere}, so Mezvaan takes none: the QR menu is for reading and calling a waiter. Upload {elsewhere}&rsquo;s sales export and your bank statement under{' '}
             <Link href="/app/reconcile" className="font-medium text-brand-700 underline">
               Money check
             </Link>{' '}
             to see every UPI payment that never reached the bank.
           </p>
           <Button variant="outline" onClick={() => void save({ billing_elsewhere: null })}>
-            Move billing to Mezmitra
+            Move billing to Mezvaan
           </Button>
         </>
       ) : (
         <>
           <p className="text-sm text-ink-soft">
-            Already paid a year of another billing system? Keep billing there until it ends and use Mezmitra to check the money meanwhile. Nothing is billed twice.
+            Already paid a year of another billing system? Keep billing there until it ends and use Mezvaan to check the money meanwhile. Nothing is billed twice.
           </p>
           <div className="flex flex-wrap items-end gap-2">
             <Field label="Billing system it uses" className="w-64">
@@ -387,7 +387,7 @@ function Brand() {
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'mezmitra-export.json';
+    a.download = 'mezvaan-export.json';
     a.click();
   };
 
@@ -426,7 +426,7 @@ function Brand() {
       </Card>
       <Card className="p-5">
         <h2 className="font-semibold">Your data</h2>
-        <p className="mt-1 text-sm text-ink-soft">Download everything Mezmitra holds for your business as one file. To close your account and delete your data, contact support.</p>
+        <p className="mt-1 text-sm text-ink-soft">Download everything Mezvaan holds for your business as one file. To close your account and delete your data, contact support.</p>
         <Button className="mt-3" variant="outline" onClick={() => void exportData()}>
           <Download className="size-4" /> Export data
         </Button>
@@ -480,7 +480,7 @@ function Audit() {
           <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
             <span className="w-36 text-xs text-ink-faint">{dateTime(a.created_at)}</span>
             <span className="font-medium">{a.action}</span>
-            <span className="text-ink-soft">{a.actor_admin_id ? 'Mezmitra support' : a.actor_name}</span>
+            <span className="text-ink-soft">{a.actor_admin_id ? 'Mezvaan support' : a.actor_name}</span>
             {a.approved_by_name && <Badge tone="violet">approved by {a.approved_by_name}</Badge>}
             {a.reason && <span className="text-ink-faint">“{a.reason}”</span>}
           </li>

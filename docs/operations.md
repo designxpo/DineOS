@@ -20,7 +20,7 @@ docker compose --env-file .env.production run --rm api \
 
 ### Database on Supabase (optional)
 
-The database can be a Supabase project's Postgres; Mezmitra uses it as plain PostgreSQL (its own roles, migrations and API; not the Supabase Data API, Auth or client libraries).
+The database can be a Supabase project's Postgres; Mezvaan uses it as plain PostgreSQL (its own roles, migrations and API; not the Supabase Data API, Auth or client libraries).
 
 1. Put the connection details in a gitignored file such as `.env.supabase.local` (see the one in the repo root of the setup machine): `DATABASE_OWNER_URL` is Supabase's `postgres` user through the **session** pooler (port 5432); `DATABASE_URL` and `DATABASE_ADMIN_URL` are `dineos_app.<project-ref>` and `dineos_admin.<project-ref>` through the **transaction** pooler (port 6543), with passwords you choose in `MEZMITRA_APP_PASSWORD` / `MEZMITRA_ADMIN_PASSWORD`.
 2. `MEZMITRA_ENV_FILE=.env.supabase.local npm run db:setup` creates the two roles; `MEZMITRA_ENV_FILE=.env.supabase.local npm run db:migrate` applies every migration.
@@ -103,13 +103,13 @@ Menu photos and logos must be readable by guest phones; nothing else in the buck
 4. **Tables & QR**: add tables (or "Add many"), then print the QR sheet (PDF) and place the cards.
 5. **Staff**: add managers, cashiers, waiters and kitchen staff. Managers set an approval PIN in **Settings → My PIN**.
 6. Optional printers: **Settings → Printers → Add print computer**, then paste the install line on the billing PC (below).
-7. **Settings → Go-live**: rehearse with the owner and cashier on the outlet's own devices (menu, a ticket at every printer, a mixed bar and kitchen order, a split, a free dish, a cooked cancellation, a printer out of paper, the internet off, day end and the month-end pack). Mezmitra shows what it saw for each; staff mark passed, failed (with what went wrong) or out of scope (with why). The owner signs once nothing is failed or unmarked; the signed sheet is kept as signed and opens as a printable A4 page. The admin console's **Go-live** column shows who has signed.
+7. **Settings → Go-live**: rehearse with the owner and cashier on the outlet's own devices (menu, a ticket at every printer, a mixed bar and kitchen order, a split, a free dish, a cooked cancellation, a printer out of paper, the internet off, day end and the month-end pack). Mezvaan shows what it saw for each; staff mark passed, failed (with what went wrong) or out of scope (with why). The owner signs once nothing is failed or unmarked; the signed sheet is kept as signed and opens as a printable A4 page. The admin console's **Go-live** column shows who has signed.
 8. Subscription: full price starts from the signed date. Create a monthly invoice in the admin console; mark it paid when the UPI or bank transfer arrives.
 9. Optional, any time: **Settings → Loyalty & stock** (points, booking length, automatic sold-out), **Inventory** (ingredients and recipes), **Settings → Printers → Offline mode** (outlet hub), **Settings → Cameras**.
 
 ## Printers: kitchen tickets (KOT), bills and the cash drawer
 
-One always-on computer at the outlet runs the Mezmitra print agent, usually the billing PC (Windows), or a Mac, a Linux PC or a Raspberry Pi. Thermal printers connect to it in any of these ways:
+One always-on computer at the outlet runs the Mezvaan print agent, usually the billing PC (Windows), or a Mac, a Linux PC or a Raspberry Pi. Thermal printers connect to it in any of these ways:
 
 | Printer | How it connects | Address the agent uses |
 | --- | --- | --- |
@@ -119,7 +119,7 @@ One always-on computer at the outlet runs the Mezmitra print agent, usually the 
 
 Any ESC/POS (Epson-compatible) 58 or 80 mm printer works: Epson TM-T82/T88, TVS RP3160, Rugtek, Posiflex, Everycom and most others sold in India. A cash drawer plugs into the bill printer's RJ11 "DK" port.
 
-1. **Settings → Printers → Add print computer**. Pick Windows, Mac or Linux, copy the line, and run it on that computer (Windows: PowerShell **as administrator**; Linux: it uses `sudo`). It installs Node.js if needed, downloads the agent from your Mezmitra site (`/agent/mezmitra-agent.mjs`), and starts it with the computer: a scheduled task on Windows (`C:\ProgramData\Mezmitra`, runs as SYSTEM), a systemd service on Linux (`/opt/mezmitra`), a launch agent on a Mac. Run the line again to update the agent. The log is `agent.log` in that folder.
+1. **Settings → Printers → Add print computer**. Pick Windows, Mac or Linux, copy the line, and run it on that computer (Windows: PowerShell **as administrator**; Linux: it uses `sudo`). It installs Node.js if needed, downloads the agent from your Mezvaan site (`/agent/mezmitra-agent.mjs`), and starts it with the computer: a scheduled task on Windows (`C:\ProgramData\Mezmitra`, runs as SYSTEM), a systemd service on Linux (`/opt/mezmitra`), a launch agent on a Mac. Run the line again to update the agent. The log is `agent.log` in that folder.
 2. Within a minute the computer shows as **Online**, with the printers it found: printers installed on it, Linux USB devices, and network printers answering on port 9100 on its local network. **Search for printers** looks again after plugging one in.
 3. **Choose printers**: one printer per job (bills and each kitchen station), or the same printer for several. Set 80 or 58 mm paper, and switch on **Open the cash drawer on cash payments** for the bill printer if a drawer is attached. Changes reach the computer within seconds; no restart. **Test** prints a test page.
 
@@ -136,7 +136,7 @@ What keeps working, what waits for the line and the steps staff follow are in on
 
 ## Outlet hub (offline mode)
 
-The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `MEZMITRA_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to Mezmitra when the line returns.
+The same print agent, installed with **Also keep the outlet running offline on this computer** switched on (or started with `MEZMITRA_HUB=1`), keeps the outlet trading when its internet line is down. Staff screens offer "Switch to outlet hub" after 30 seconds without a connection; orders, the kitchen display, bills (with the offline invoice series) and payments carry on over the outlet's Wi-Fi, and everything is sent to Mezvaan when the line returns.
 
 1. Pick an always-on PC on the outlet's network (the print-agent PC is fine) and give it a fixed IP in the router.
 2. **Settings → Printers → Offline mode**: choose that device and enter its address, e.g. `http://192.168.1.20:4100`.
@@ -154,7 +154,7 @@ MEZMITRA_DEVICE_TOKEN=dv_... node main.js
 5. Rehearse: unplug the router, switch a tablet to the hub, take an order and a payment, plug back in, and check the bill under **Bills** and in the GST report (series `PREFIXH`).
 
 - `GET http://<hub>:4100/hub/status` shows whether the cloud is reachable, whether changes are waiting, and anything the cloud refused (also logged, and shown in the hub's banner).
-- Back up `hub.json` with the PC. If the PC dies while offline, bills made on it reach Mezmitra only from that file.
+- Back up `hub.json` with the PC. If the PC dies while offline, bills made on it reach Mezvaan only from that file.
 - While the hub and every staff screen are cut off, the cloud pauses QR ordering for that outlet so guests are told to order with a waiter.
 
 ## Camera box (optional)
@@ -167,7 +167,7 @@ Managers download the account statement from net banking (CSV or Excel) and impo
 
 ### Outlets still billing on other software (money check)
 
-For a restaurant that paid a year ahead for other billing software: **Settings → Billing & UPI → Where this outlet bills**, type the system's name and press **Bill there for now** (open orders and bills must be finished first). Mezmitra then takes no orders or bills at that outlet, its QR menu is for reading and calling a waiter, and **Money check** (the UPI check's place in the menu) takes two uploads: the other system's bill-wise sales export (Excel or CSV, one row per bill with the payment type) and the bank statement. Uploads that overlap are safe; a wrong one can be removed. If the columns are not recognised, the screen asks which is which. Before the year ends, set the outlet up (menu, printers, staff, rehearsal); on the day, press **Move billing to Mezmitra**. Leads record each restaurant's current system and renewal month; the admin console's **Leads → Renewing soon** lists who to call, 45 days before.
+For a restaurant that paid a year ahead for other billing software: **Settings → Billing & UPI → Where this outlet bills**, type the system's name and press **Bill there for now** (open orders and bills must be finished first). Mezvaan then takes no orders or bills at that outlet, its QR menu is for reading and calling a waiter, and **Money check** (the UPI check's place in the menu) takes two uploads: the other system's bill-wise sales export (Excel or CSV, one row per bill with the payment type) and the bank statement. Uploads that overlap are safe; a wrong one can be removed. If the columns are not recognised, the screen asks which is which. Before the year ends, set the outlet up (menu, printers, staff, rehearsal); on the day, press **Move billing to Mezvaan**. Leads record each restaurant's current system and renewal month; the admin console's **Leads → Renewing soon** lists who to call, 45 days before.
 
 ## Charge to room (hotel outlets)
 
@@ -217,10 +217,10 @@ It creates a throwaway restaurant, joins 300 guests across 60 tables, connects 1
 
 ## Loyalty codes by SMS (MSG91)
 
-With `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` set, a guest joining loyalty from the table gets a six-digit code by SMS and sees their name and points once it is right. Mezmitra makes and checks the codes (hashed, ten minutes, five tries); MSG91 only delivers them.
+With `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` set, a guest joining loyalty from the table gets a six-digit code by SMS and sees their name and points once it is right. Mezvaan makes and checks the codes (hashed, ten minutes, five tries); MSG91 only delivers them.
 
 1. Create an MSG91 account and complete its KYC.
-2. TRAI requires DLT registration: register your business as a principal entity, a sender ID (header), and an OTP content template such as `{#var#} is your Mezmitra code. It expires in 10 minutes.` (MSG91's help pages walk through the operator portals).
+2. TRAI requires DLT registration: register your business as a principal entity, a sender ID (header), and an OTP content template such as `{#var#} is your Mezvaan code. It expires in 10 minutes.` (MSG91's help pages walk through the operator portals).
 3. In MSG91, create an OTP template linked to that DLT template, with `##OTP##` where the code goes, and note its template ID. If you restrict the auth key to IP addresses, allow Vercel's (or turn the restriction off).
 4. Set `MSG91_AUTH_KEY` and `MSG91_OTP_TEMPLATE_ID` in Vercel and redeploy. Test with your own number first.
 
@@ -228,7 +228,7 @@ Limits: three codes per number in fifteen minutes and a hundred per outlet an ho
 
 ## Phone alerts (Web Push)
 
-With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) Mezmitra must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them, and food or drinks ready to serve to waiters (and counter staff, for takeaway and delivery). A table with an assigned waiter alerts that waiter, not the others. Signing out turns the device's alerts off.
+With the VAPID keys set, staff turn alerts on per device under **My account → Alerts on this phone**. On iPhone (iOS 16.4 or later) Mezvaan must be added to the Home Screen and opened from there first. Alerts go to staff who can act at that outlet: new guest orders to those who accept orders, waiter calls and bill requests to those who handle them, and food or drinks ready to serve to waiters (and counter staff, for takeaway and delivery). A table with an assigned waiter alerts that waiter, not the others. Signing out turns the device's alerts off.
 
 ## Bar and kitchen
 
@@ -264,6 +264,17 @@ When a dish has to be made right, or a special guest, the owner's guest, a birth
 - Every free item is kept with its menu value, its ingredient cost (from the recipe), why, for whom, who gave it, who approved it, the table or order and the invoice. **Reports → Free items** shows the totals, by reason, by staff (flagging anyone giving far more than the others), by approver and by guest, with a CSV.
 - **Settings → Billing → Free food and drinks alert**: the owner's phone hears about anything given free worth this much or more (₹1,000 by default; empty for none).
 - A free hotel *room night* belongs in the hotel's own system; food and drinks for hotel guests, including bills charged to a room, are covered here.
+
+## The rename to Mezvaan
+
+On 30 October 2026 the product's visible name changed from Mezmitra to Mezvaan: the portal, the
+marketing pages, the logo's wordmark, printed and on-screen text, and the label in Talko AI. The
+symbol (the cloche with an M) is unchanged. Nothing internal was renamed, so nothing needs moving:
+the `@mezmitra/*` packages, `MEZMITRA_*` settings, `mezmitra.*` browser storage, the
+`/agent/mezmitra-agent.mjs` download, the print agent's task, service, folder and firewall rule
+names, the `mezmitra_*` database functions, the `mezmitra_vision` camera module, Talko's
+`mezmitra` integration kind and `MEZMITRA_API_URL`, and the `product: 'mezmitra'` note on Razorpay
+orders all keep their names.
 
 ## The rename from DineOS
 

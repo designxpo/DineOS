@@ -28,7 +28,7 @@ import { Pricing } from '@/components/landing/pricing';
 import { DayEnd, FreeItem, HelpCase, Outage, ServiceAlerts, UpiMissing } from '@/components/landing/vignettes';
 
 export const metadata: Metadata = {
-  title: { absolute: 'Mezmitra · Every order reaches the kitchen. Every rupee is accounted for.' },
+  title: { absolute: 'Mezvaan · Every order reaches the kitchen. Every rupee is accounted for.' },
   description:
     'Service control for Indian restaurants and cafés: QR and waiter ordering, kitchen screens, GST billing, UPI checks and a day end that explains every rupee, on the phones and printers you already have.',
 };
@@ -65,7 +65,7 @@ const PROMISES = [
     title: 'Every rupee explained.',
     pain: 'Missing UPI, unrecorded free food and unbilled tables only show up as a number that does not add up.',
     points: [
-      'Import your bank statement: Mezmitra shows the UPI payments that never arrived.',
+      'Import your bank statement: Mezvaan shows the UPI payments that never arrived.',
       'Every free dish, discount and void carries a reason, who gave it, and the manager who approved it with a PIN.',
       'Tables served but not billed are flagged before the guests leave.',
       'Day end tells you the cash that should be in the drawer. Each figure says how it is worked out.',
@@ -144,7 +144,7 @@ const SWITCH = [
   {
     icon: ClipboardCheck,
     when: 'A month before it renews',
-    title: 'We set Mezmitra up beside it.',
+    title: 'We set Mezvaan up beside it.',
     points: [
       'Your menu, printers, kitchen stations and staff, set up while you keep billing as you do today.',
       'A rehearsal of your busiest order on your own devices, signed off by you.',
@@ -166,11 +166,11 @@ const SWITCH = [
 const FAQ = [
   {
     q: 'We already paid a year ahead for other billing software. Is this for us?',
-    a: 'Yes. Keep it until the year ends and start with the money check: upload its sales export and your bank statement, and see every UPI payment that never arrived. A month before it renews we set Mezmitra up beside it; on renewal day you move billing, and what you paid for the money check comes off your first year.',
+    a: 'Yes. Keep it until the year ends and start with the money check: upload its sales export and your bank statement, and see every UPI payment that never arrived. A month before it renews we set Mezvaan up beside it; on renewal day you move billing, and what you paid for the money check comes off your first year.',
   },
   {
     q: 'Do I need to buy new hardware?',
-    a: 'Usually not. Mezmitra runs in the browser on Android phones, iPhones, tablets and PCs. Your thermal printers connect through a small free app on a Windows or Mac computer or a Raspberry Pi, by USB or over your network.',
+    a: 'Usually not. Mezvaan runs in the browser on Android phones, iPhones, tablets and PCs. Your thermal printers connect through a small free app on a Windows or Mac computer or a Raspberry Pi, by USB or over your network.',
   },
   {
     q: 'What happens when the internet goes down?',
@@ -194,7 +194,7 @@ const FAQ = [
   },
   {
     q: 'Does it work with Zomato and Swiggy?',
-    a: 'You record delivery orders on the POS, so the kitchen, stock and GST all see them, and Mezmitra works out the app commission. Orders do not flow in from the apps automatically yet.',
+    a: 'You record delivery orders on the POS, so the kitchen, stock and GST all see them, and Mezvaan works out the app commission. Orders do not flow in from the apps automatically yet.',
   },
   {
     q: 'Can the menu and screens carry our own logo?',
@@ -229,8 +229,8 @@ export default function Landing() {
       <a href="#top" className="marketing-skip">Skip to content</a>
       <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:gap-6 sm:px-6" aria-label="Main">
-          <a href="#top" className="flex shrink-0 items-center" aria-label="Mezmitra, home">
-            <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-7 w-auto sm:h-9" width={166} height={44} />
+          <a href="#top" className="flex shrink-0 items-center" aria-label="Mezvaan, home">
+            <img src="/brand/wordmark.svg" alt="Mezvaan" className="h-7 w-auto sm:h-9" width={161} height={44} />
           </a>
           <div className="hidden items-center gap-6 text-sm font-medium whitespace-nowrap text-ink-soft lg:flex">
             <a href="#night" className="hover:text-ink">
@@ -274,7 +274,7 @@ export default function Landing() {
                 Every order reaches the kitchen. <span className="text-[var(--brand)]">Every rupee is accounted for.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
-                Mezmitra connects your guests’ QR orders, your waiters, kitchen, bar and billing counter on the phones and printers you already have. At close, it shows you exactly where every rupee went.
+                Mezvaan connects your guests’ QR orders, your waiters, kitchen, bar and billing counter on the phones and printers you already have. At close, it shows you exactly where every rupee went.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#demo" className="inline-flex h-12 items-center gap-2 rounded-xl bg-[var(--brand)] px-6 text-base font-semibold text-white shadow-[0_12px_30px_-12px_rgb(168_68_26/0.8)] transition hover:brightness-110 active:scale-[0.98]">
@@ -366,7 +366,7 @@ export default function Landing() {
         {/* ------------------------------------------------------------ the promises */}
         <Section id="how" className="bg-surface">
           <div data-reveal className="max-w-3xl">
-            <Kicker>How Mezmitra fixes it</Kicker>
+            <Kicker>How Mezvaan fixes it</Kicker>
             <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">Four promises, each one you can test.</h2>
             <p className="mt-5 text-lg text-ink-soft">Not a list of features: the moments from Saturday night, handled. In your demo and your rehearsal, you watch each one happen on your own phone.</p>
           </div>
@@ -496,7 +496,7 @@ export default function Landing() {
             <div>
               <Kicker>Questions owners ask</Kicker>
               <h2 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight">Straight answers.</h2>
-              <p className="mt-4 text-ink-soft">Including what Mezmitra does not do yet. If something matters to you, ask us in the demo.</p>
+              <p className="mt-4 text-ink-soft">Including what Mezvaan does not do yet. If something matters to you, ask us in the demo.</p>
               <p className="mt-6 flex items-center gap-2 text-sm text-ink-soft">
                 <LifeBuoy className="size-4 text-ink-faint" /> Support every day, 11 am to 11 pm
               </p>
@@ -541,7 +541,7 @@ export default function Landing() {
 
       <footer className="border-t border-line px-4 py-10 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 text-sm text-ink-faint">
-          <img src="/brand/logo.svg" alt="Mezmitra: restaurant operations, together." className="h-12 w-auto" width={170} height={46} />
+          <img src="/brand/logo.svg" alt="Mezvaan: restaurant operations, together." className="h-12 w-auto" width={170} height={46} />
           <span>Made for Indian restaurants, cafés and hotel dining.</span>
           <a href="/login" className="ml-auto font-medium text-ink-soft hover:text-ink">
             Staff sign-in

@@ -62,7 +62,7 @@ export default function LoginPage() {
             <span className="font-display text-2xl font-semibold">{own.name}</span>
           </div>
         ) : (
-          <img src="/brand/logo-white.svg" alt="Mezmitra: restaurant operations, together." className="h-24 w-auto self-start" />
+          <img src="/brand/logo-white.svg" alt="Mezvaan: restaurant operations, together." className="h-24 w-auto self-start" />
         )}
         {own ? (
           <div className="max-w-md">
@@ -88,7 +88,7 @@ export default function LoginPage() {
                 <span className="font-display text-xl font-semibold">{own.name}</span>
               </div>
             ) : (
-              <img src="/brand/wordmark.svg" alt="Mezmitra" className="mb-6 h-10 w-auto" />
+              <img src="/brand/wordmark.svg" alt="Mezvaan" className="mb-6 h-10 w-auto" />
             )}
           </div>
           <div>

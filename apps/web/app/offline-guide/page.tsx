@@ -4,7 +4,7 @@ import { OFFLINE_CHECKLIST, OFFLINE_LEVELS } from '@mezmitra/shared/offline';
 
 export const metadata: Metadata = {
   title: 'When the internet drops',
-  description: 'Exactly what keeps working in Mezmitra when a restaurant’s internet goes down, what waits for the line, and what to do.',
+  description: 'Exactly what keeps working in Mezvaan when a restaurant’s internet goes down, what waits for the line, and what to do.',
 };
 
 /** The published offline list: what keeps working, what waits, and the recovery steps. */
@@ -13,8 +13,8 @@ export default function OfflineGuide() {
     <div data-marketing className="min-h-dvh bg-paper text-ink">
       <header className="border-b border-line/70">
         <nav className="mx-auto flex h-16 max-w-4xl items-center gap-4 px-4 sm:px-6" aria-label="Main">
-          <a href="/" className="flex shrink-0 items-center" aria-label="Mezmitra, home">
-            <img src="/brand/wordmark.svg" alt="Mezmitra" className="h-7 w-auto" width={166} height={44} />
+          <a href="/" className="flex shrink-0 items-center" aria-label="Mezvaan, home">
+            <img src="/brand/wordmark.svg" alt="Mezvaan" className="h-7 w-auto" width={161} height={44} />
           </a>
           <a href="/#demo" className="ml-auto inline-flex h-10 items-center rounded-xl bg-[var(--brand)] px-4 text-sm font-semibold text-white transition hover:brightness-110">
             Book a demo
@@ -25,7 +25,7 @@ export default function OfflineGuide() {
         <p className="text-sm font-semibold tracking-wide text-[var(--brand)] uppercase">Offline, plainly</p>
         <h1 className="mt-3 font-display text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">When the internet drops</h1>
         <p className="mt-5 max-w-2xl text-lg text-ink-soft">
-          What keeps working in Mezmitra, what waits for the line to come back, and what your team does. We rehearse this with you, internet unplugged, before you go live.
+          What keeps working in Mezvaan, what waits for the line to come back, and what your team does. We rehearse this with you, internet unplugged, before you go live.
         </p>
 
         <div className="mt-12 space-y-6">
@@ -72,7 +72,7 @@ export default function OfflineGuide() {
         </section>
 
         <a href="/" className="mt-12 inline-flex items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink">
-          <ArrowLeft className="size-4" /> Back to Mezmitra
+          <ArrowLeft className="size-4" /> Back to Mezvaan
         </a>
       </main>
     </div>

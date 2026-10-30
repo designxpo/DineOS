@@ -34,7 +34,7 @@ export function goliveMeasures(r: GoliveRehearsalDTO) {
 
 /**
  * The go-live rehearsal in Settings: the restaurant's hardest moments, run on its own devices,
- * each marked with what Mezmitra saw; the owner signs the acceptance sheet at the end.
+ * each marked with what Mezvaan saw; the owner signs the acceptance sheet at the end.
  */
 export function GoliveRehearsal() {
   const { api, outletId } = useStaff();
@@ -44,7 +44,7 @@ export function GoliveRehearsal() {
   const { data, isLoading } = useQuery({
     queryKey: ['golive', outletId],
     queryFn: () => api<GoliveRehearsalDTO | null>(`/golive?outlet_id=${outletId}`),
-    // What Mezmitra sees updates as the team works through the scenarios.
+    // What Mezvaan sees updates as the team works through the scenarios.
     refetchInterval: (q) => (q.state.data && !q.state.data.signed_at ? 15_000 : false),
   });
   const set = (r: GoliveRehearsalDTO) => qc.setQueryData(['golive', outletId], r);
@@ -70,7 +70,7 @@ export function GoliveRehearsal() {
           <div>
             <h2 className="font-semibold">Rehearse before you go live</h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Run your restaurant’s hardest moments on your own phones, tablets and printers, with your cashier. Mezmitra shows what it saw for each. When everything you need has passed, the owner signs the acceptance sheet, and full payment starts after that.
+              Run your restaurant’s hardest moments on your own phones, tablets and printers, with your cashier. Mezvaan shows what it saw for each. When everything you need has passed, the owner signs the acceptance sheet, and full payment starts after that.
             </p>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function GoliveRehearsal() {
           <h2 className="font-semibold">Go-live rehearsal</h2>
           <p className="text-sm text-ink-soft">
             Started {dateTime(data.started_at)}
-            {data.started_by_name && ` by ${data.started_by_name}`}. Mezmitra counts what happens from then on.
+            {data.started_by_name && ` by ${data.started_by_name}`}. Mezvaan counts what happens from then on.
           </p>
         </div>
         <div className="text-right">
@@ -157,7 +157,7 @@ function ScenarioCard({ n, c, rehearsalId, onChange }: { n: number; c: GoliveChe
         <div className={cn('ml-8 rounded-xl px-3 py-2 text-sm', c.evidence.seen ? 'bg-emerald-50 text-emerald-950' : 'bg-stone-50 text-ink-soft')}>
           <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
             {c.evidence.seen ? <CheckCircle2 className="size-3.5" /> : <Circle className="size-3.5" />}
-            {c.evidence.seen ? 'Mezmitra saw it' : 'Not seen yet'}
+            {c.evidence.seen ? 'Mezvaan saw it' : 'Not seen yet'}
           </p>
           {c.evidence.lines.map((l) => (
             <p key={l} className="mt-0.5">
@@ -166,7 +166,7 @@ function ScenarioCard({ n, c, rehearsalId, onChange }: { n: number; c: GoliveChe
           ))}
         </div>
         {c.note && <p className="ml-8 text-sm text-ink-soft">Note: {c.note}</p>}
-        {c.result === 'passed' && !c.evidence.seen && <p className="ml-8 text-xs text-ink-faint">Marked passed without Mezmitra seeing it: the sheet will say it was checked by staff.</p>}
+        {c.result === 'passed' && !c.evidence.seen && <p className="ml-8 text-xs text-ink-faint">Marked passed without Mezvaan seeing it: the sheet will say it was checked by staff.</p>}
         {(c.checked_by_name || c.failures > 0) && (
           <p className="ml-8 text-xs text-ink-faint">
             {c.checked_by_name && `Marked by ${c.checked_by_name}${c.checked_at ? `, ${dateTime(c.checked_at)}` : ''}`}

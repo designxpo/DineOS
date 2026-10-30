@@ -40,8 +40,8 @@ export const OFFLINE_LEVELS: readonly OfflineLevel[] = [
     id: 'hub',
     title: { en: 'A longer outage, with the outlet hub', hi: 'लंबा कटाव, आउटलेट हब के साथ' },
     summary: {
-      en: 'The Continuity add-on: a PC at the outlet keeps service running over your Wi-Fi and sends everything to Mezmitra when the line returns. Staff switch to it from the banner.',
-      hi: 'Continuity ऐड-ऑन: आउटलेट का एक PC आपके Wi-Fi पर सर्विस चालू रखता है और लाइन लौटने पर सब Mezmitra को भेजता है। स्टाफ़ बैनर से उस पर जाते हैं।',
+      en: 'The Continuity add-on: a PC at the outlet keeps service running over your Wi-Fi and sends everything to Mezvaan when the line returns. Staff switch to it from the banner.',
+      hi: 'Continuity ऐड-ऑन: आउटलेट का एक PC आपके Wi-Fi पर सर्विस चालू रखता है और लाइन लौटने पर सब Mezvaan को भेजता है। स्टाफ़ बैनर से उस पर जाते हैं।',
     },
     works: [
       { en: 'Signing in on devices that were used online before', hi: 'उन डिवाइस पर साइन-इन जो पहले ऑनलाइन इस्तेमाल हुए' },
@@ -61,7 +61,7 @@ export const OFFLINE_LEVELS: readonly OfflineLevel[] = [
 
 /** What to do when the internet drops, in order. */
 export const OFFLINE_CHECKLIST: readonly OfflineText[] = [
-  { en: 'Check the router: open any website on the device. If only Mezmitra is stuck, ask for help from the lifebuoy.', hi: 'राउटर जाँचें: डिवाइस पर कोई भी वेबसाइट खोलें। अगर सिर्फ़ Mezmitra अटका है, तो लाइफ़बॉय से मदद माँगें।' },
+  { en: 'Check the router: open any website on the device. If only Mezvaan is stuck, ask for help from the lifebuoy.', hi: 'राउटर जाँचें: डिवाइस पर कोई भी वेबसाइट खोलें। अगर सिर्फ़ Mezvaan अटका है, तो लाइफ़बॉय से मदद माँगें।' },
   { en: 'Keep going: orders, kitchen updates and payments are kept on the device. Tap the connection dot at the top of the screen to see how many are waiting.', hi: 'काम जारी रखें: ऑर्डर, किचन अपडेट और भुगतान डिवाइस पर रहते हैं। कितने बाकी हैं, यह देखने के लिए स्क्रीन के ऊपर कनेक्शन वाला बिंदु दबाएँ।' },
   { en: 'Down for more than a few minutes and the outlet hub is set up? Switch to it from the banner.', hi: 'कुछ मिनट से ज़्यादा बंद है और आउटलेट हब लगा है? बैनर से उस पर जाएँ।' },
   { en: 'When it is back, press Send now on every device and check Waiting reaches 0 on each.', hi: 'लौटने पर हर डिवाइस पर "अभी भेजें" दबाएँ और देखें कि हर एक पर "बाकी" 0 हो जाए।' },

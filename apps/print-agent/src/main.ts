@@ -1,4 +1,4 @@
-// Mezmitra print agent: runs on one always-on computer at the outlet (the billing PC, a Mac or a
+// Mezvaan print agent: runs on one always-on computer at the outlet (the billing PC, a Mac or a
 // Raspberry Pi), prints kitchen tickets and bills on its printers, and opens the cash drawer.
 //
 // The installer from Settings > Printers sets it up as a service and writes mezmitra-agent.json
@@ -80,7 +80,7 @@ if (!token.startsWith('dv_')) {
   console.error('Set the device token (MEZMITRA_DEVICE_TOKEN or "token" in mezmitra-agent.json): it is shown when you add a print computer in Settings > Printers.');
   process.exit(1);
 }
-console.log(`[print-agent] Mezmitra print agent ${AGENT_VERSION} starting for ${apiUrl}`);
+console.log(`[print-agent] Mezvaan print agent ${AGENT_VERSION} starting for ${apiUrl}`);
 
 let printers: Record<string, PrinterConfig> | undefined;
 const printersEnv = env('PRINTERS');
@@ -150,7 +150,7 @@ function startAgent() {
   const begin = (attempt: number) =>
     agent.start().catch((err) => {
       const wait = Math.min(60, 5 * attempt);
-      console.error(`[print-agent] could not reach Mezmitra (${err.message}); trying again in ${wait} s`);
+      console.error(`[print-agent] could not reach Mezvaan (${err.message}); trying again in ${wait} s`);
       setTimeout(() => begin(attempt + 1), wait * 1000);
     });
   void begin(1);

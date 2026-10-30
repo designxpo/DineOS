@@ -1,7 +1,7 @@
 #!/bin/sh
-# Mezmitra print agent installer for macOS, Linux and Raspberry Pi.
+# Mezvaan print agent installer for macOS, Linux and Raspberry Pi.
 #
-# Copy the command from Mezmitra > Settings > Printers > Add print computer:
+# Copy the command from Mezvaan > Settings > Printers > Add print computer:
 #   Linux / Raspberry Pi:  curl -fsSL https://<site>/agent/install.sh | sudo sh -s -- --web ... --api ... --token dv_...
 #   Mac (no sudo):         curl -fsSL https://<site>/agent/install.sh | sh -s -- --web ... --api ... --token dv_...
 #
@@ -34,17 +34,17 @@ while [ $# -gt 0 ]; do
 done
 case "$TOKEN" in
   dv_*) ;;
-  *) echo "Copy the full command from Mezmitra (Settings > Printers) and run it again." >&2; exit 1 ;;
+  *) echo "Copy the full command from Mezvaan (Settings > Printers) and run it again." >&2; exit 1 ;;
 esac
 if [ -z "$WEB" ] || [ -z "$API" ]; then
-  echo "Copy the full command from Mezmitra (Settings > Printers) and run it again." >&2
+  echo "Copy the full command from Mezvaan (Settings > Printers) and run it again." >&2
   exit 1
 fi
 # The agent and its key travel over these addresses: HTTPS only (plain HTTP just for local tests).
 for url in "$WEB" "$API"; do
   case "$url" in
     https://* | http://localhost* | http://127.0.0.1*) ;;
-    *) echo "The Mezmitra address must start with https:// ($url)" >&2; exit 1 ;;
+    *) echo "The Mezvaan address must start with https:// ($url)" >&2; exit 1 ;;
   esac
 done
 
@@ -75,7 +75,7 @@ OLD_UNIT=/etc/systemd/system/dineos-print-agent.service
 if [ -z "$DIR" ]; then
   if [ "$OS" = "Darwin" ]; then DIR="$HOME/Library/Application Support/Mezmitra"; else DIR=/opt/mezmitra; fi
 fi
-say "Installing the Mezmitra print agent in $DIR"
+say "Installing the Mezvaan print agent in $DIR"
 mkdir -p "$DIR"
 curl -fsSL "$WEB/agent/mezmitra-agent.mjs" -o "$DIR/mezmitra-agent.mjs.new"
 # Install only the exact file published with the site (a damaged, cut-off or stale download is
@@ -138,7 +138,7 @@ EOF
     say "Starting it with the computer"
     cat > /etc/systemd/system/mezmitra-print-agent.service <<EOF
 [Unit]
-Description=Mezmitra print agent
+Description=Mezvaan print agent
 After=network-online.target
 Wants=network-online.target
 
@@ -163,5 +163,5 @@ fi
 # (Only when the old service was stopped here; with --no-service it may still be running.)
 if [ "$SERVICE" -eq 1 ] && [ -d "$OLD_DIR" ] && [ "$OLD_DIR" != "$DIR" ]; then rm -rf "$OLD_DIR"; fi
 
-say "Done. In Mezmitra (Settings > Printers) this computer shows as Online within a minute; choose its printers there."
+say "Done. In Mezvaan (Settings > Printers) this computer shows as Online within a minute; choose its printers there."
 echo "Log: $DIR/agent.log"

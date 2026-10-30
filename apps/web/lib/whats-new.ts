@@ -10,6 +10,17 @@ export interface WhatsNewEntry {
 
 export const WHATS_NEW: readonly WhatsNewEntry[] = [
   {
+    id: '2026-10-30',
+    date: '30 Oct 2026',
+    items: [
+      {
+        en: 'Mezmitra is now Mezvaan, from the word for host. Only the name changes: the logo, colours, your sign-in and everything you set up stay as they are.',
+        hi: 'Mezmitra अब Mezvaan है, यानी मेज़बान। सिर्फ़ नाम बदला है: लोगो, रंग, आपका साइन-इन और आपकी हर सेटिंग वैसे ही रहते हैं।',
+      },
+    ],
+    moved: [],
+  },
+  {
     id: '2026-10-18',
     date: '18 Oct 2026',
     items: [
@@ -18,12 +29,12 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         hi: 'ऊपर "Live" बिंदु दबाकर कनेक्शन, बाकी, भेजे गए और अस्वीकार बदलाव, इंटरनेट बंद होने पर क्या करें, और ठीक-ठीक ऑफ़लाइन क्या चलता है, देखें।',
       },
       {
-        en: 'Go-live rehearsal (Settings → Go-live): run the nine hardest moments of a service on your own devices. Mezmitra shows what it saw for each, and the owner signs the acceptance sheet at the end.',
-        hi: 'गो-लाइव रिहर्सल (सेटिंग्स → Go-live): सर्विस के नौ सबसे कठिन पल अपने ही डिवाइस पर चलाएँ। Mezmitra हर एक के लिए दिखाता है कि उसने क्या देखा, और आख़िर में मालिक स्वीकृति पत्र पर हस्ताक्षर करते हैं।',
+        en: 'Go-live rehearsal (Settings → Go-live): run the nine hardest moments of a service on your own devices. Mezvaan shows what it saw for each, and the owner signs the acceptance sheet at the end.',
+        hi: 'गो-लाइव रिहर्सल (सेटिंग्स → Go-live): सर्विस के नौ सबसे कठिन पल अपने ही डिवाइस पर चलाएँ। Mezvaan हर एक के लिए दिखाता है कि उसने क्या देखा, और आख़िर में मालिक स्वीकृति पत्र पर हस्ताक्षर करते हैं।',
       },
       {
-        en: 'Still billing on other software for a while? Name it in Settings → Billing & UPI. Mezmitra then takes no orders or bills for the outlet, the QR menu is for reading and calling a waiter, and Reconcile becomes the money check: upload its sales export and your bank statement to see every UPI payment that never arrived.',
-        hi: 'कुछ समय और दूसरे सॉफ़्टवेयर पर बिल बना रहे हैं? उसका नाम सेटिंग्स → Billing & UPI में लिखें। तब Mezmitra इस आउटलेट के ऑर्डर या बिल नहीं लेता, QR मेन्यू देखने और वेटर बुलाने के लिए रहता है, और Reconcile पैसों की जाँच बन जाता है: उसकी सेल्स एक्सपोर्ट फ़ाइल और बैंक स्टेटमेंट अपलोड करें और हर वह UPI पेमेंट देखें जो कभी नहीं आया।',
+        en: 'Still billing on other software for a while? Name it in Settings → Billing & UPI. Mezvaan then takes no orders or bills for the outlet, the QR menu is for reading and calling a waiter, and Reconcile becomes the money check: upload its sales export and your bank statement to see every UPI payment that never arrived.',
+        hi: 'कुछ समय और दूसरे सॉफ़्टवेयर पर बिल बना रहे हैं? उसका नाम सेटिंग्स → Billing & UPI में लिखें। तब Mezvaan इस आउटलेट के ऑर्डर या बिल नहीं लेता, QR मेन्यू देखने और वेटर बुलाने के लिए रहता है, और Reconcile पैसों की जाँच बन जाता है: उसकी सेल्स एक्सपोर्ट फ़ाइल और बैंक स्टेटमेंट अपलोड करें और हर वह UPI पेमेंट देखें जो कभी नहीं आया।',
       },
     ],
     moved: [],
@@ -57,8 +68,8 @@ export const WHATS_NEW: readonly WhatsNewEntry[] = [
         hi: 'मालिक देख सकते हैं कि किन स्क्रीन और प्रिंट कंप्यूटर पर नया मेन्यू और सेटिंग है (सेटिंग्स → स्क्रीन), हर स्क्रीन का नाम रख सकते हैं, और पीछे रह गई स्क्रीन रीलोड कर सकते हैं।',
       },
       {
-        en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from Mezmitra support is on it, and you close it only when it works.',
-        hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। Mezmitra सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
+        en: 'Get help from any screen: tap the lifebuoy at the top, say how bad it is, and follow the case under Help. You see who from Mezvaan support is on it, and you close it only when it works.',
+        hi: 'किसी भी स्क्रीन से मदद लें: ऊपर लाइफ़बॉय दबाएँ, बताएँ दिक्कत कितनी बड़ी है, और "मदद" में केस देखें। Mezvaan सपोर्ट से कौन देख रहा है, यह दिखता है, और केस तभी बंद होता है जब सब ठीक चले।',
       },
       {
         en: 'Reports explain themselves: tap the (i) by any figure to see what it counts. Owners can download a month-end pack for the accountant (Reports → Month-end pack) and save the reports they open often.',

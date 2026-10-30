@@ -75,7 +75,7 @@ export function DeliveryPayouts({ credits }: { credits: BankCreditDTO[] }) {
         <Spinner />
       ) : !data?.length ? (
         <Card>
-          <EmptyState icon={<Bike className="size-5" />} title="No payouts recorded" hint="Copy a cycle from the Zomato or Swiggy payout statement. Mezmitra sets it beside your own bills and the bank, and shows what is missing or taken off." />
+          <EmptyState icon={<Bike className="size-5" />} title="No payouts recorded" hint="Copy a cycle from the Zomato or Swiggy payout statement. Mezvaan sets it beside your own bills and the bank, and shows what is missing or taken off." />
         </Card>
       ) : (
         data.map((p) => <PayoutCard key={p.id} p={p} onDispute={dispute} onDelete={remove} />)
