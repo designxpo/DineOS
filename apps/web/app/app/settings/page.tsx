@@ -11,6 +11,7 @@ import { dateTime, formatPaise, formatRate } from '@/lib/format';
 import { useStaff } from '@/lib/staff';
 import { Button, IconButton } from '@/components/ui/button';
 import { Badge, Card, Field, Input, Segmented, Select, Spinner, Switch } from '@/components/ui/primitives';
+import { cn } from '@/components/ui/cn';
 import { useToast } from '@/components/ui/toast';
 import { CamerasSettings } from '@/components/staff/cameras';
 import { PrinterSettings } from '@/components/staff/printer-settings';
@@ -46,7 +47,7 @@ export default function SettingsPage() {
   return (
     <div className="pb-12">
       <PageHeader title="Settings" />
-      <div className="px-4 pb-4 lg:px-8">
+      <div className="px-4 pb-4 lg:hidden">
         <Select value={tab} onChange={(e) => setTab(e.target.value as Tab)} aria-label="Settings section" className="sm:hidden">
           {tabs.map((o) => (
             <option key={o.value} value={o.value}>
@@ -56,7 +57,29 @@ export default function SettingsPage() {
         </Select>
         <Segmented value={tab} onChange={setTab} options={tabs} className="hidden sm:inline-flex" />
       </div>
-      <div className="max-w-3xl px-4 lg:px-8">
+      <div className="lg:flex lg:items-start lg:gap-8 lg:px-8">
+        {/* On a wide screen the sections are a list beside the page, as in System Settings, rather
+            than a dozen tabs scrolling sideways. */}
+        <nav aria-label="Settings sections" className="sticky top-20 hidden w-52 shrink-0 lg:block">
+          <ul className="space-y-0.5">
+            {tabs.map((o) => (
+              <li key={o.value}>
+                <button
+                  type="button"
+                  onClick={() => setTab(o.value)}
+                  aria-current={tab === o.value ? 'page' : undefined}
+                  className={cn(
+                    'flex h-10 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm transition-colors active:scale-[0.98]',
+                    tab === o.value ? 'bg-surface font-semibold text-ink shadow-sm' : 'text-ink-soft hover:bg-stone-100 hover:text-ink',
+                  )}
+                >
+                  {o.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      <div className="max-w-3xl min-w-0 flex-1 px-4 lg:px-0">
         {tab !== 'screens' && <ScreensStatus className="mb-4" />}
         {tab === 'outlet' && <OutletForm fields={['name', 'legal_name', 'address', 'city', 'state_code', 'phone', 'gstin', 'fssai_no', 'invoice_prefix']} />}
         {tab === 'golive' && <GoliveRehearsal />}
@@ -71,6 +94,7 @@ export default function SettingsPage() {
         {tab === 'outlets' && <Outlets />}
         {tab === 'account' && <MyPin />}
         {tab === 'audit' && <Audit />}
+      </div>
       </div>
     </div>
   );

@@ -88,6 +88,10 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
   return <select ref={ref} className={cn(inputBase, 'h-11 appearance-none bg-[length:16px] pr-9', className)} {...rest} />;
 });
 
+/**
+ * On or off. The knob answers on touch-down by stretching toward where it will go, then slides on
+ * the sheet curve. The track is 28px tall but the touch target is 44px; off reads at 3.3:1 on white.
+ */
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
@@ -98,11 +102,18 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition disabled:opacity-50',
-        checked ? 'bg-[var(--brand)]' : 'bg-stone-300',
+        'group relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50',
+        "before:absolute before:-inset-x-1 before:-inset-y-2 before:content-['']",
+        checked ? 'bg-[var(--brand)]' : 'bg-switch-off',
       )}
     >
-      <span className={cn('inline-block size-5 rounded-full bg-white shadow transition', checked ? 'translate-x-6' : 'translate-x-1')} />
+      <span
+        aria-hidden
+        className={cn(
+          'absolute top-1 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-[left,width] duration-[260ms] ease-[cubic-bezier(0.32,0.72,0,1)] group-active:w-6',
+          checked ? 'left-6 group-active:left-5' : 'left-1',
+        )}
+      />
     </button>
   );
 }
@@ -251,7 +262,8 @@ export function Stat({ label, value, sub, className, info }: { label: string; va
         <p className="min-w-0 flex-1 text-xs font-medium tracking-wide text-ink-faint uppercase">{label}</p>
         {info && <InfoToggle label={label} open={open} onToggle={() => setOpen(!open)} />}
       </div>
-      <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
+      {/* Large figures: tighter tracking as type grows, and digits that line up across tiles. */}
+      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-ink tabular">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-ink-faint">{sub}</p>}
       {info && open && <p className="mt-2 rounded-lg bg-stone-50 px-2.5 py-2 text-xs leading-relaxed text-ink-soft">{info}</p>}
     </Card>

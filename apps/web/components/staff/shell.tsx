@@ -53,7 +53,7 @@ import { WhatsNewPill, WhatsNewSheet } from './whats-new';
 interface NavItem {
   href: string;
   label: I18nKey;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   action: Action;
 }
 
@@ -116,7 +116,7 @@ function TabBar({ items, onMore, moreOpen }: { items: NavItem[]; onMore: () => v
   const onTab = tabs.some((tab) => isActive(tab.href, pathname));
   const cell = 'flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-90 active:duration-75';
   return (
-    <nav data-tabbar data-tour="navigation" aria-label={t('nav.more')} className="chrome fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden no-print">
+    <nav data-tabbar data-tour="navigation" aria-label={t('nav.more')} className="chrome fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150 lg:hidden no-print">
       <div className="mx-auto grid h-14 max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
         {tabs.map((tab) => {
           const active = isActive(tab.href, pathname);
@@ -124,21 +124,24 @@ function TabBar({ items, onMore, moreOpen }: { items: NavItem[]; onMore: () => v
           const badge = tab.href === '/app/inbox' && waiting > 0 ? waiting : 0;
           return (
             <Link key={tab.href} data-tour-link={tab.href} href={tab.href} aria-current={active ? 'page' : undefined} className={cn(cell, active ? 'text-brand-700' : 'text-ink-faint')}>
-              <span className="relative">
-                <Icon className="size-[22px]" />
+              {/* The selected tab is told apart by shape and weight too, not by colour alone. */}
+              <span className={cn('relative grid h-7 w-12 place-items-center rounded-full transition-colors duration-200', active && 'bg-brand-100/80')}>
+                <Icon className="size-[22px]" strokeWidth={active ? 2.25 : 1.75} />
                 {badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] leading-[18px] font-semibold text-white tabular" aria-label={`${badge} waiting`}>
+                  <span className="absolute -top-1 right-0.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[11px] leading-[18px] font-semibold text-white tabular ring-2 ring-surface" aria-label={`${badge} waiting`}>
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </span>
-              <span className="max-w-full truncate px-1">{t(tab.label)}</span>
+              <span className={cn('max-w-full truncate px-1', active && 'font-semibold')}>{t(tab.label)}</span>
             </Link>
           );
         })}
         <button type="button" onClick={onMore} aria-expanded={moreOpen} className={cn(cell, 'cursor-pointer', moreOpen || !onTab ? 'text-brand-700' : 'text-ink-faint')}>
-          <MoreHorizontal className="size-[22px]" />
-          <span>{t('nav.more')}</span>
+          <span className={cn('grid h-7 w-12 place-items-center rounded-full transition-colors duration-200', (moreOpen || !onTab) && 'bg-brand-100/80')}>
+            <MoreHorizontal className="size-[22px]" strokeWidth={moreOpen || !onTab ? 2.25 : 1.75} />
+          </span>
+          <span className={cn((moreOpen || !onTab) && 'font-semibold')}>{t('nav.more')}</span>
         </button>
       </div>
     </nav>
@@ -290,7 +293,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="chrome sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:px-6">
+        <header className="chrome sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line/70 bg-surface/85 px-4 backdrop-blur-xl backdrop-saturate-150 lg:px-6">
           {me.tenant.white_label && me.tenant.branding.logo_url && <BrandMark branding={me.tenant.branding} className="size-9 rounded-lg border border-line lg:hidden" />}
           {me.outlets.length > 1 ? (
             <Select value={outletId} onChange={(e) => setOutletId(e.target.value)} className="h-10 max-w-56" aria-label="Outlet">

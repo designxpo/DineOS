@@ -130,6 +130,13 @@ export function Sheet({
     if (open) {
       setShown(true);
       setLeaving(false);
+      // Reopened while it was still leaving: drop what the last drag left on it.
+      const el = panel.current;
+      if (el) {
+        for (const prop of ['transform', 'transition', 'animation-duration', 'animation-timing-function']) el.style.removeProperty(prop);
+        el.style.removeProperty('--sheet-drag');
+      }
+      scrim.current?.style.removeProperty('opacity');
     } else if (shown) {
       setLeaving(true);
       // If the animation event never arrives (tab hidden, reduced motion), still unmount.
@@ -175,6 +182,12 @@ export function Sheet({
     const height = el.offsetHeight;
     // Decide from where the motion is going, not where it stopped.
     if (d.offset > 0 && d.offset + project(velocity) > height * 0.4) {
+      // Leave at the speed the finger was already moving, decelerating, so the drag and the exit
+      // read as one motion. The default exit starts slow, which after a flick shows as a hitch.
+      const speed = Math.max(velocity, 900);
+      const ms = Math.round(Math.min(280, Math.max(140, ((height - d.offset) / speed) * 1000 * 1.6)));
+      el.style.animationDuration = `${ms}ms`;
+      el.style.animationTimingFunction = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
       onClose();
     } else {
       el.style.transition = 'transform 320ms cubic-bezier(0.32, 0.72, 0, 1)';
