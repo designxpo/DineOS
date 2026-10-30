@@ -58,7 +58,7 @@ export function ScreensStatus({ className }: { className?: string }) {
     return (
       <p className={cn('flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900', className)} role="status">
         <CheckCircle2 className="size-4 shrink-0" />
-        Your latest changes are on all {total} {total === 1 ? 'screen' : 'screens'} that are on.
+        {total === 1 ? 'Your latest changes are on the one screen that is on.' : `Your latest changes are on all ${total} screens that are on.`}
       </p>
     );
   }
